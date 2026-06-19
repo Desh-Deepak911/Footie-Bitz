@@ -8,7 +8,6 @@ import {
   Download,
   Film,
   Loader2,
-  Video,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -16,15 +15,28 @@ import {
   DEFAULT_EXPORT_QUALITY,
   EXPORT_QUALITY_PRESETS,
   exportFootieShort,
+  getDefaultExportAudioMode,
   getExportQualityPreset,
   isExportQualityId,
+  isHighQualityExport,
+  type ExportAudioMode,
   type ExportProgress,
   type ExportQualityId,
 } from "@/lib/exportVideo";
+import {
+  studioBadge,
+  studioInput,
+  studioPrimaryButton,
+  studioSectionDesc,
+  studioSectionTitle,
+  studioStepLabel,
+} from "@/lib/studioUi";
+import { syncFootieScript } from "@/lib/voiceover";
 import type { FootieScript } from "@/types/footiebitz";
 
 interface ExportPanelProps {
   script: FootieScript;
+  disabled?: boolean;
 }
 
 interface ChecklistItem {
@@ -35,33 +47,37 @@ interface ChecklistItem {
 
 type ExportState = ExportProgress["status"] | "idle";
 
-export default function ExportPanel({ script }: ExportPanelProps) {
+export default function ExportPanel({ script, disabled = false }: ExportPanelProps) {
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [progress, setProgress] = useState(0);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exportWarning, setExportWarning] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [qualityId, setQualityId] = useState<ExportQualityId>(DEFAULT_EXPORT_QUALITY);
+  const [includeNarrationPreference, setIncludeNarrationPreference] = useState(true);
 
   const selectedQuality = getExportQualityPreset(qualityId);
 
   const sceneCount = script.scenes.length;
   const uploadedCount = script.scenes.filter((scene) => scene.uploadedImage).length;
   const allImagesUploaded = sceneCount > 0 && uploadedCount === sceneCount;
-  const totalDuration = script.scenes.reduce((sum, scene) => sum + scene.duration, 0);
+  const totalDuration = script.totalDuration;
   const isExporting =
     exportState === "preparing" ||
     exportState === "rendering" ||
+    exportState === "loading-voiceover" ||
+    exportState === "combining" ||
     exportState === "finalizing";
   const checklist = useMemo<ChecklistItem[]>(
     () => [
       {
-        label: "Script generated",
-        done: Boolean(script.title && script.hook),
+        label: "Story ready",
+        done: Boolean(script.title && script.narration),
         detail: script.title,
       },
       {
-        label: "Scenes created",
-        done: sceneCount >= 5,
+        label: "Timeline complete",
+        done: sceneCount > 0,
         detail: `${sceneCount} scenes · ${totalDuration}s total`,
       },
       {
@@ -70,83 +86,101 @@ export default function ExportPanel({ script }: ExportPanelProps) {
         detail: `${uploadedCount} of ${sceneCount} scenes`,
       },
       {
+        label: script.voiceoverUrl ? "Narration ready" : "Narration not created yet",
+        done: Boolean(script.voiceoverUrl),
+        detail: script.voiceoverUrl
+          ? "Ready for Play Preview and export"
+          : "Complete step 4 to add narration",
+      },
+      {
         label: "Ready to export",
-        done: sceneCount >= 5,
+        done: sceneCount > 0,
         detail: allImagesUploaded ? "All scenes have images" : "Placeholders used for missing images",
       },
     ],
-    [script.title, script.hook, sceneCount, totalDuration, uploadedCount, allImagesUploaded],
+    [script.title, script.narration, script.voiceoverUrl, sceneCount, totalDuration, uploadedCount, allImagesUploaded],
   );
 
   const readyCount = checklist.filter((item) => item.done).length;
+  const hasNarration = Boolean(script.voiceoverUrl);
+  const includeNarration = hasNarration && includeNarrationPreference;
+  const exportAudioMode = useMemo((): ExportAudioMode => {
+    if (!includeNarration) return "silent";
+    return getDefaultExportAudioMode(true);
+  }, [includeNarration]);
+  const exportWithNarration = exportAudioMode === "with-voice" && hasNarration;
+  const showAudioMergeNote = exportWithNarration && isHighQualityExport(qualityId);
+  const isBusy = isExporting || disabled;
 
   const handleExport = async () => {
     setErrorMessage(null);
+    setExportWarning(null);
     setExportMessage(null);
     setProgress(0);
     setExportState("preparing");
 
     try {
       await exportFootieShort(
-        script,
+        syncFootieScript(script),
         (update) => {
           setExportState(update.status);
           setProgress(update.progress);
           setExportMessage(update.message);
+          setExportWarning(update.warning ?? null);
         },
-        qualityId,
+        {
+          qualityId,
+          audioMode: exportAudioMode,
+        },
       );
     } catch (error) {
       setExportState("error");
+      setProgress(0);
+      setExportMessage(null);
       setErrorMessage(error instanceof Error ? error.message : "Export failed");
     }
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-6 shadow-xl shadow-black/25 backdrop-blur-md sm:p-8">
+    <div className="space-y-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 ring-1 ring-emerald-500/20">
-            <Film className="h-5 w-5 text-emerald-400" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/80">
+            <Film className="h-4.5 w-4.5 text-zinc-400" strokeWidth={1.75} />
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400">
-              Step 4 · Export
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-white">Download your short</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Render a vertical 9:16 video in-browser as WebM.
-            </p>
+            <p className={studioStepLabel}>Step 6</p>
+            <h2 className={studioSectionTitle}>Export</h2>
+            <p className={studioSectionDesc}>Render a vertical 9:16 WebM from your timeline.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 self-start rounded-xl border border-white/10 bg-[#0a0f18] px-4 py-2.5">
-          <Video className="h-4 w-4 text-emerald-400" />
-          <span className="text-sm font-semibold text-white">{readyCount}/4</span>
-          <span className="text-xs text-zinc-500">checks</span>
-        </div>
+        <span className={`${studioBadge} self-start`}>
+          <span className="font-semibold text-zinc-300">{readyCount}/{checklist.length}</span>
+          <span className="text-zinc-600">checks</span>
+        </span>
       </div>
 
-      <ul className="mt-7 space-y-2.5">
+      <ul className="space-y-2">
         {checklist.map((item) => (
           <li
             key={item.label}
             className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 transition-colors ${
               item.done
-                ? "border-emerald-500/20 bg-emerald-500/[0.06]"
-                : "border-white/5 bg-[#0a0f18]/80"
+                ? "border-zinc-700/80 bg-zinc-900/50"
+                : "border-zinc-800/80 bg-zinc-950/40"
             }`}
           >
             {item.done ? (
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-zinc-400" />
             ) : (
-              <Circle className="mt-0.5 h-5 w-5 shrink-0 text-zinc-600" />
+              <Circle className="mt-0.5 h-5 w-5 shrink-0 text-zinc-700" />
             )}
             <div className="min-w-0 flex-1">
-              <p className={`text-sm font-medium ${item.done ? "text-white" : "text-zinc-300"}`}>
+              <p className={`text-sm font-medium ${item.done ? "text-zinc-200" : "text-zinc-400"}`}>
                 {item.label}
               </p>
               {item.detail && (
-                <p className="mt-0.5 truncate text-xs text-zinc-500">{item.detail}</p>
+                <p className="mt-0.5 truncate text-xs text-zinc-600">{item.detail}</p>
               )}
             </div>
           </li>
@@ -154,11 +188,11 @@ export default function ExportPanel({ script }: ExportPanelProps) {
       </ul>
 
       {!allImagesUploaded && sceneCount > 0 && (
-        <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-amber-500/[0.03] px-4 py-3.5">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+        <div className="flex items-start gap-3 rounded-xl border border-amber-900/40 bg-amber-950/20 px-4 py-3.5">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
           <div>
-            <p className="text-sm font-semibold text-amber-100">Missing scene images</p>
-            <p className="mt-1 text-xs leading-relaxed text-amber-200/70">
+            <p className="text-sm font-medium text-amber-100/90">Missing scene images</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-200/60">
               {uploadedCount} of {sceneCount} scenes have images. Missing scenes will use
               gradient placeholders in the export.
             </p>
@@ -167,36 +201,66 @@ export default function ExportPanel({ script }: ExportPanelProps) {
       )}
 
       {isExporting && (
-        <div className="mt-5 rounded-xl border border-emerald-500/20 bg-[#0a0f18] p-5">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
-              <span className="text-sm font-semibold text-white">
+              <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+              <span className="text-sm font-medium text-zinc-200">
                 {exportState === "preparing" && "Preparing export..."}
-                {exportState === "rendering" && "Rendering video..."}
+                {exportState === "rendering" && `Rendering video (${progress}%)`}
+                {exportState === "loading-voiceover" && "Loading narration"}
+                {exportState === "combining" && (exportMessage ?? "Combining audio")}
                 {exportState === "finalizing" && "Finalizing file..."}
               </span>
             </div>
-            <span className="text-sm font-bold text-emerald-400">{progress}%</span>
+            <span className="text-sm font-semibold text-zinc-400">{progress}%</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-1 overflow-hidden rounded-full bg-zinc-800">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-300 transition-all duration-300"
+              className="h-full rounded-full bg-zinc-500 transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
           {exportMessage && (
-            <p className="mt-3 text-xs text-zinc-500">{exportMessage}</p>
+            <p className="mt-3 text-xs text-zinc-600">{exportMessage}</p>
           )}
           <p className="mt-2 text-[11px] text-zinc-600">
-            Recording in real time (~{totalDuration}s). Keep this tab open.
+            {exportWithNarration
+              ? "Rendering follows your scene timeline, then narration is merged in-browser. Keep this tab open."
+              : `Rendering follows your scene timeline (~${totalDuration}s). Keep this tab open.`}
           </p>
         </div>
       )}
 
-      <div className="mt-7 rounded-xl border border-white/5 bg-[#0a0f18]/60 p-4">
+      <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4">
+        <label
+          className={`mb-4 flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${
+            !hasNarration ? "cursor-not-allowed opacity-50" : ""
+          } ${
+            includeNarration && hasNarration
+              ? "border-violet-900/50 bg-violet-950/20"
+              : "border-zinc-800 bg-zinc-950/60 hover:border-zinc-700"
+          } ${isBusy ? "cursor-not-allowed opacity-50" : ""}`}
+        >
+          <input
+            type="checkbox"
+            checked={includeNarration}
+            onChange={(e) => setIncludeNarrationPreference(e.target.checked)}
+            disabled={isBusy || !hasNarration}
+            className="mt-1 accent-violet-500"
+          />
+          <span>
+            <span className="block text-sm font-medium text-zinc-200">Include Narration</span>
+            <span className="mt-0.5 block text-xs text-zinc-600">
+              {hasNarration
+                ? "Muxes narration into the final WebM export"
+                : "Create narration in step 4 first"}
+            </span>
+          </span>
+        </label>
+
         <label htmlFor="export-quality" className="mb-2 block text-sm font-medium text-zinc-300">
-          Export quality
+          Export Quality
         </label>
         <div className="relative mb-4">
           <select
@@ -208,23 +272,29 @@ export default function ExportPanel({ script }: ExportPanelProps) {
                 setQualityId(value);
               }
             }}
-            disabled={isExporting}
-            className="w-full appearance-none rounded-xl border border-white/10 bg-[#06080f] px-4 py-3.5 pr-10 text-sm text-white outline-none transition focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isBusy}
+            className={`${studioInput} appearance-none pr-10`}
           >
             {EXPORT_QUALITY_PRESETS.map((preset) => (
               <option key={preset.id} value={preset.id}>
-                {preset.label}: {preset.width} x {preset.height}
+                {preset.id === "4k" ? "4K" : preset.id} — {preset.width}×{preset.height}
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
         </div>
+
+        {showAudioMergeNote && (
+          <p className="mb-4 text-xs leading-relaxed text-zinc-600">
+            Narration merge can take longer for 1080p or higher exports.
+          </p>
+        )}
 
         <button
           type="button"
           onClick={handleExport}
-          disabled={isExporting || sceneCount === 0}
-          className="group inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-900/40 transition hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-900/60 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isBusy || sceneCount < 1}
+          className={`${studioPrimaryButton} w-full`}
         >
           {isExporting ? (
             <>
@@ -233,30 +303,48 @@ export default function ExportPanel({ script }: ExportPanelProps) {
             </>
           ) : (
             <>
-              <Download className="h-4 w-4 transition group-hover:scale-110" />
+              <Download className="h-4 w-4" strokeWidth={1.75} />
               Export Video
             </>
           )}
         </button>
         <p className="mt-3 text-center text-[11px] text-zinc-600">
-          Downloads as{" "}
-          <span className="text-zinc-500">footiebitz-{selectedQuality.id}.webm</span> ·{" "}
-          {selectedQuality.width}×{selectedQuality.height} · 9:16
+          Download{" "}
+          <span className="text-zinc-500">
+            {exportWithNarration
+              ? "footiebitz-with-narration.webm"
+              : `footiebitz-${selectedQuality.id}.webm`}
+          </span>{" "}
+          · {selectedQuality.width}×{selectedQuality.height} · 9:16
+          {exportWithNarration && " · with narration"}
         </p>
       </div>
 
       {exportState === "done" && exportMessage && (
-        <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3.5">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
-          <p className="text-sm leading-relaxed text-emerald-200">{exportMessage}</p>
+        <div className="flex items-start gap-3 rounded-xl border border-zinc-700/80 bg-zinc-900/50 px-4 py-3.5">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-zinc-400" />
+          <p className="text-sm leading-relaxed text-zinc-300">{exportMessage}</p>
+        </div>
+      )}
+
+      {exportWarning && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-900/40 bg-amber-950/20 px-4 py-3.5">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
+          <div>
+            <p className="text-sm font-medium text-amber-100/90">Narration merge failed</p>
+            <p className="mt-1 text-sm leading-relaxed text-amber-200/70">{exportWarning}</p>
+            <p className="mt-2 text-xs leading-relaxed text-amber-200/50">
+              Your silent video was downloaded instead.
+            </p>
+          </div>
         </div>
       )}
 
       {errorMessage && (
-        <div className="mt-4 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3.5">
+        <div className="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3.5">
           <p className="text-sm leading-relaxed text-red-300">{errorMessage}</p>
         </div>
       )}
-    </section>
+    </div>
   );
 }

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { generateFootieScript } from "@/lib/generateFootieScript";
+import { normalizeFootieStory } from "@/lib/parseScript";
 import { resolveQualityMode, resolveScriptModel } from "@/lib/scriptModels";
 import type {
+  FootieScript,
   GenerateScriptRequest,
   GenerateScriptResponse,
   Tone,
@@ -12,7 +14,9 @@ const VALID_TONES: Tone[] = ["dramatic", "funny", "tactical", "news", "emotional
 const DEFAULT_TONE: Tone = "dramatic";
 const DEFAULT_DURATION = 30;
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function jsonResponse(body: GenerateScriptResponse, status = 200) {
   return NextResponse.json(body, { status });
@@ -40,7 +44,7 @@ function mapOpenAIError(error: unknown): string {
     }
     return error.message;
   }
-  return "Failed to generate script";
+  return "Failed to create story";
 }
 
 function safeStringify(value: unknown): string {
@@ -49,6 +53,10 @@ function safeStringify(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function buildStoryResponse(story: FootieScript): FootieScript {
+  return normalizeFootieStory(story);
 }
 
 export async function POST(request: Request) {
@@ -87,11 +95,14 @@ export async function POST(request: Request) {
         return jsonResponse({ success: false, error: result.error }, 500);
       }
 
-      console.error("OpenAI invalid JSON:", result.rawText);
+      console.error("Story parse error:", result.error);
+      console.error("Model raw output:", result.rawText);
       return jsonResponse({ success: false, error: result.error }, 500);
     }
 
-    return jsonResponse({ success: true, data: result.data });
+    const data = buildStoryResponse(result.data);
+
+    return jsonResponse({ success: true, data });
   } catch (error) {
     console.error("generate-script error:", error);
     return jsonResponse({ success: false, error: mapOpenAIError(error) }, 500);

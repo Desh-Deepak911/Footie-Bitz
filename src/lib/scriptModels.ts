@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { QualityMode } from "@/types/footiebitz";
 
 export const DEFAULT_QUALITY_MODE: QualityMode = "cheap";

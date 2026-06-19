@@ -1,12 +1,60 @@
 import type { Tone } from "@/types/footiebitz";
 
 const TONE_GUIDANCE: Record<Tone, string> = {
-  dramatic: "High-stakes, cinematic tension.",
-  funny: "Witty, playful banter.",
-  tactical: "Analytical, decision-focused.",
-  news: "Concise, factual headlines.",
-  emotional: "Passionate, human, fan feeling.",
+  dramatic:
+    "Build tension like a prestige sports documentary — weight, silence, and consequence in every line.",
+  funny:
+    "Sharp and observational, like a witty football storyteller — never slapstick, always grounded in the game.",
+  tactical:
+    "Thoughtful and analytical — explain decisions, patterns, and turning points with clarity, not jargon.",
+  news:
+    "Direct and authoritative — headline energy with documentary depth, not bullet-point recaps.",
+  emotional:
+    "Human and reflective — fans, identity, memory, and what the moment meant beyond the scoreline.",
 };
+
+const EXAMPLE_JSON = `{
+  "title": "When Madrid and Barça Stopped Pretending",
+  "totalDuration": 45,
+  "narration": "For decades, this rivalry was more than football — it was politics, pride, and proof. Every meeting carried the weight of cities that never needed an excuse to disagree. When form dipped and doubt crept in, neither side could afford to look weak. The stakes were never just three points; they were identity on a knife edge. And in moments like these, history does not stay in the past — it walks onto the pitch with them.",
+  "scenes": [
+    {
+      "id": "1",
+      "start": 0,
+      "end": 9,
+      "duration": 9,
+      "subtitle": "More than a derby"
+    },
+    {
+      "id": "2",
+      "start": 9,
+      "end": 18,
+      "duration": 9,
+      "subtitle": "Pride on the line"
+    },
+    {
+      "id": "3",
+      "start": 18,
+      "end": 27,
+      "duration": 9,
+      "subtitle": "Form fades, pressure rises"
+    },
+    {
+      "id": "4",
+      "start": 27,
+      "end": 36,
+      "duration": 9,
+      "subtitle": "Identity at stake"
+    },
+    {
+      "id": "5",
+      "start": 36,
+      "end": 45,
+      "duration": 9,
+      "subtitle": "History walks out with them"
+    }
+  ]
+}`;
 
 export function buildFootieScriptPrompt(
   topic: string,
@@ -14,33 +62,36 @@ export function buildFootieScriptPrompt(
   duration: number,
 ): string {
   const toneGuide = TONE_GUIDANCE[tone];
+  const durationMin = Math.max(30, duration - 5);
+  const durationMax = Math.min(60, duration + 5);
 
-  return `Topic: "${topic}"
+  return `You are a football documentary writer for FootieBitz.
+
+Your job: turn the user's topic into one continuous narrated short — cinematic, informative, and emotionally grounded — lasting roughly ${duration} seconds (${durationMin}–${durationMax}s).
+
+Content brief:
+"${topic}"
+
 Tone: ${tone} — ${toneGuide}
-Target duration: ~${duration}s (scene durations sum ${duration - 2}-${duration + 2}s).
 
-Output rules:
-- JSON only. No markdown, explanation, or research notes.
-- Do not invent exact scores, stats, minute marks, or records.
-- Keep title, hook, caption, and hashtags short.
-- Exactly 5 scenes.
-- subtitle: max 12 words.
-- imagePrompt: max 8 words, cinematic football visual, no text/logos/watermarks.
-- imageSearchQuery: max 6 words, stock-photo search phrase for the scene.
+Story goals:
+- Write one cohesive narrated short, not a list of facts.
+- Open narration with a strong hook that pulls the viewer in immediately.
+- Explain history, context, rivalry, stakes, or development tied to the brief.
+- If the brief mentions multiple matches, weave them into one unified story arc — do not treat them as separate segments.
+- Make narration rich and descriptive. Use full sentences and vivid language. Never reduce the story to one-liners or slogan-style lines.
+- Subtitles are on-screen text only: short, punchy phrases (max 12 words). They must not repeat or paraphrase the full narration.
 
-{
-  "title": "Short title",
-  "hook": "One-line hook",
-  "caption": "Short YouTube caption",
-  "hashtags": ["#Football", "#Shorts"],
-  "scenes": [
-    {
-      "id": "1",
-      "duration": 6,
-      "subtitle": "Spain started with total control.",
-      "imagePrompt": "Spain football team attack",
-      "imageSearchQuery": "Spain football team match"
-    }
-  ]
-}`;
+Hard rules:
+- Return JSON only. No markdown. No code fences. No commentary before or after the JSON.
+- Do not include extra metadata or image fields beyond the schema.
+- Do not invent exact scores, dates, minute marks, records, or statistics unless the brief states them clearly.
+- If a fact is uncertain, speak in general terms — tension, reputation, momentum, rivalry, consequence — rather than fabricating specifics.
+- Split the narration into exactly 5 timed scenes.
+- Scene durations must sum to totalDuration (within ±2 seconds of ${duration}s).
+- Each scene needs id, start, end, duration, and subtitle. Times must be contiguous: scene 1 starts at 0, each scene's start equals the previous scene's end, and the final scene's end equals totalDuration.
+- duration must equal end minus start for every scene.
+
+Output shape:
+${EXAMPLE_JSON}`;
 }

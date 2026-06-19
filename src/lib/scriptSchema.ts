@@ -2,12 +2,8 @@ export const FOOTIE_SCRIPT_JSON_SCHEMA = {
   type: "object",
   properties: {
     title: { type: "string" },
-    hook: { type: "string" },
-    caption: { type: "string" },
-    hashtags: {
-      type: "array",
-      items: { type: "string" },
-    },
+    totalDuration: { type: "number" },
+    narration: { type: "string" },
     scenes: {
       type: "array",
       minItems: 5,
@@ -18,14 +14,12 @@ export const FOOTIE_SCRIPT_JSON_SCHEMA = {
           id: { type: "string" },
           duration: { type: "number" },
           subtitle: { type: "string" },
-          imagePrompt: { type: "string" },
-          imageSearchQuery: { type: "string" },
         },
-        required: ["id", "duration", "subtitle", "imagePrompt", "imageSearchQuery"],
+        required: ["id", "duration", "subtitle"],
         additionalProperties: false,
       },
     },
   },
-  required: ["title", "hook", "caption", "hashtags", "scenes"],
+  required: ["title", "totalDuration", "narration", "scenes"],
   additionalProperties: false,
 } as const;

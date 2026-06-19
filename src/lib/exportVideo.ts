@@ -1,68 +1,24 @@
-import type { FootieScene, FootieScript } from "@/types/footiebitz";
+"use client";
 
-export type ExportQualityId = "720p" | "1080p" | "1440p" | "4k";
+import type { FootieScene, FootieScript, SceneType } from "@/types/footiebitz";
 
-export interface ExportQualityPreset {
-  id: ExportQualityId;
-  label: string;
-  width: number;
-  height: number;
-  fps: number;
-  bitrate: number;
-}
+export * from "@/lib/exportVideo.shared";
 
-export const EXPORT_QUALITY_PRESETS: ExportQualityPreset[] = [
-  {
-    id: "720p",
-    label: "720p vertical",
-    width: 720,
-    height: 1280,
-    fps: 30,
-    bitrate: 4_000_000,
-  },
-  {
-    id: "1080p",
-    label: "1080p vertical",
-    width: 1080,
-    height: 1920,
-    fps: 30,
-    bitrate: 8_000_000,
-  },
-  {
-    id: "1440p",
-    label: "1440p vertical",
-    width: 1440,
-    height: 2560,
-    fps: 30,
-    bitrate: 12_000_000,
-  },
-  {
-    id: "4k",
-    label: "4K vertical",
-    width: 2160,
-    height: 3840,
-    fps: 30,
-    bitrate: 20_000_000,
-  },
-];
+import { getSceneIndexForTime } from "@/lib/sceneTiming";
 
-export const DEFAULT_EXPORT_QUALITY: ExportQualityId = "1080p";
+import {
+  DEFAULT_EXPORT_QUALITY,
+  getExportQualityPreset,
+  getScriptVideoDuration,
+  type ExportProgress,
+  type ExportQualityPreset,
+  type FootieExportOptions,
+} from "@/lib/exportVideo.shared";
 
-export function getExportQualityPreset(id: ExportQualityId): ExportQualityPreset {
-  return (
-    EXPORT_QUALITY_PRESETS.find((preset) => preset.id === id) ??
-    EXPORT_QUALITY_PRESETS.find((preset) => preset.id === DEFAULT_EXPORT_QUALITY)!
-  );
-}
-
-export function isExportQualityId(value: string): value is ExportQualityId {
-  return EXPORT_QUALITY_PRESETS.some((preset) => preset.id === value);
-}
-
-export interface ExportProgress {
-  status: "preparing" | "rendering" | "finalizing" | "done" | "error";
-  progress: number;
-  message: string;
+function assertBrowserExportEnvironment(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    throw new Error("Video export is only available in the browser");
+  }
 }
 
 function sleep(ms: number) {
@@ -145,6 +101,34 @@ function wrapText(
   ctx.textAlign = previousAlign;
 }
 
+// Per-scene-type top colour for the placeholder gradient.
+const SCENE_TYPE_TOP_COLOR: Record<SceneType, string> = {
+  intro:      "#0c1a2e", // dark navy
+  context:    "#1a1400", // dark amber-brown
+  match:      "#0a0f18", // near-black blue
+  transition: "#120c1e", // dark violet
+  ending:     "#0f0f0f", // near-black neutral
+};
+
+const DEFAULT_TOP_COLOR = "#0a0f18";
+
+const PLACEHOLDER_SUBTITLE = "Add subtitle...";
+
+function drawPlaceholderBackground(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  sceneType: SceneType | undefined,
+) {
+  const topColor = sceneType ? SCENE_TYPE_TOP_COLOR[sceneType] : DEFAULT_TOP_COLOR;
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, topColor);
+  gradient.addColorStop(0.5, "#18181b");
+  gradient.addColorStop(1, "#000000");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+}
+
 function drawSceneFrame(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -156,52 +140,49 @@ function drawSceneFrame(
   const scale = width / 1080;
   const padX = 72 * scale;
   const titleY = 180 * scale;
-  const hookY = 300 * scale;
   const subtitleY = height - 320 * scale;
 
+  // ── Background ─────────────────────────────────────────────────────────────
   if (image) {
     drawCoverImage(ctx, image, width, height);
   } else {
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, "#064e3b");
-    gradient.addColorStop(0.45, "#18181b");
-    gradient.addColorStop(1, "#000000");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+    drawPlaceholderBackground(ctx, width, height, scene.sceneType);
   }
 
+  // Gradient overlay for text legibility.
   const overlay = ctx.createLinearGradient(0, 0, 0, height);
-  overlay.addColorStop(0, "rgba(0,0,0,0.55)");
+  overlay.addColorStop(0, "rgba(0,0,0,0.60)");
   overlay.addColorStop(0.35, "rgba(0,0,0,0.15)");
-  overlay.addColorStop(1, "rgba(0,0,0,0.88)");
+  overlay.addColorStop(1, "rgba(0,0,0,0.90)");
   ctx.fillStyle = overlay;
   ctx.fillRect(0, 0, width, height);
 
-  ctx.fillStyle = "#34d399";
-  ctx.font = `bold ${40 * scale}px Arial, Helvetica, sans-serif`;
-  ctx.fillText("FOOTIEBITZ", padX, 120 * scale);
+  // ── Branding ───────────────────────────────────────────────────────────────
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.font = `bold ${36 * scale}px Arial, Helvetica, sans-serif`;
+  ctx.fillText("FOOTIEBITZ", padX, 116 * scale);
 
+  // ── Title ──────────────────────────────────────────────────────────────────
   ctx.fillStyle = "#ffffff";
   ctx.font = `600 ${48 * scale}px Arial, Helvetica, sans-serif`;
   wrapText(ctx, script.title, padX, titleY, width - padX * 2, 58 * scale);
 
-  if (script.hook) {
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.font = `400 ${36 * scale}px Arial, Helvetica, sans-serif`;
-    wrapText(ctx, script.hook, padX, hookY, width - padX * 2, 46 * scale);
+  // ── Scene type label on placeholder (no image) ─────────────────────────────
+  if (!image && scene.sceneType) {
+    ctx.fillStyle = "rgba(255,255,255,0.30)";
+    ctx.font = `bold ${32 * scale}px Arial, Helvetica, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(scene.sceneType.toUpperCase(), width / 2, height / 2);
+    ctx.textAlign = "left";
   }
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${64 * scale}px Arial, Helvetica, sans-serif`;
-  wrapText(
-    ctx,
-    scene.subtitle,
-    width / 2,
-    subtitleY,
-    width - 120 * scale,
-    76 * scale,
-    "center",
-  );
+  // ── Subtitle (skip placeholder text) ──────────────────────────────────────
+  const subtitle = scene.subtitle?.trim();
+  if (subtitle && subtitle !== PLACEHOLDER_SUBTITLE) {
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${64 * scale}px Arial, Helvetica, sans-serif`;
+    wrapText(ctx, subtitle, width / 2, subtitleY, width - 120 * scale, 76 * scale, "center");
+  }
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -209,15 +190,66 @@ function downloadBlob(blob: Blob, filename: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
+  anchor.rel = "noopener";
   anchor.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-export async function exportFootieShort(
+async function fetchNarrationBlob(voiceoverUrl: string): Promise<Blob> {
+  const response = await fetch(voiceoverUrl);
+  if (!response.ok) {
+    throw new Error("Failed to load narration audio");
+  }
+
+  const blob = await response.blob();
+  if (blob.size === 0) {
+    throw new Error("Narration audio is empty");
+  }
+
+  if (blob.type.includes("audio")) {
+    return blob;
+  }
+
+  return new Blob([await blob.arrayBuffer()], { type: "audio/mpeg" });
+}
+
+function mapRenderingProgress(
+  progress: ExportProgress,
+  hasVoiceover: boolean,
+): ExportProgress {
+  if (!hasVoiceover) {
+    return progress;
+  }
+
+  if (progress.status === "rendering" || progress.status === "preparing") {
+    return {
+      ...progress,
+      progress: Math.min(70, Math.round(progress.progress * 0.7)),
+      message:
+        progress.status === "preparing"
+          ? progress.message
+          : progress.message.replace(/^Recording video\.\.\.$/, "Rendering video"),
+    };
+  }
+
+  if (progress.status === "finalizing") {
+    return {
+      status: "rendering",
+      progress: 70,
+      message: "Rendering video",
+    };
+  }
+
+  return progress;
+}
+
+export async function exportSilentVideoBlob(
   script: FootieScript,
-  onProgress: (progress: ExportProgress) => void,
-  qualityId: ExportQualityId = DEFAULT_EXPORT_QUALITY,
-): Promise<void> {
+  qualityPreset: ExportQualityPreset,
+  onProgress?: (progress: ExportProgress) => void,
+): Promise<Blob> {
+  assertBrowserExportEnvironment();
+
   if (script.scenes.length === 0) {
     throw new Error("No scenes to export");
   }
@@ -226,13 +258,12 @@ export async function exportFootieShort(
     throw new Error("MediaRecorder is not supported in this browser");
   }
 
-  const quality = getExportQualityPreset(qualityId);
-  const { width, height, fps, bitrate } = quality;
+  const { width, height, fps, bitrate, label } = qualityPreset;
 
-  onProgress({
+  onProgress?.({
     status: "preparing",
     progress: 0,
-    message: `Preparing ${quality.label} export (${width}×${height} @ ${fps}fps)...`,
+    message: `Preparing ${label} export (${width}×${height} @ ${fps}fps)...`,
   });
 
   const canvas = document.createElement("canvas");
@@ -265,35 +296,32 @@ export async function exportFootieShort(
     if (event.data.size > 0) chunks.push(event.data);
   };
 
-  const totalFrames = script.scenes.reduce(
-    (sum, scene) => sum + Math.round(scene.duration * fps),
-    0,
-  );
+  const totalDurationSec = getScriptVideoDuration(script);
+  const totalFrames = Math.max(1, Math.round(totalDurationSec * fps));
   const frameMs = 1000 / fps;
   let renderedFrames = 0;
 
-  onProgress({ status: "rendering", progress: 2, message: "Recording video..." });
+  onProgress?.({ status: "rendering", progress: 2, message: "Rendering video" });
   recorder.start(250);
 
-  for (let sceneIndex = 0; sceneIndex < script.scenes.length; sceneIndex++) {
+  for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+    const timeSec = frameIndex / fps;
+    const sceneIndex = getSceneIndexForTime(timeSec, script.scenes);
     const scene = script.scenes[sceneIndex];
     const image = imageCache.get(scene.id) ?? null;
-    const framesInScene = Math.round(scene.duration * fps);
 
-    for (let frame = 0; frame < framesInScene; frame++) {
-      drawSceneFrame(ctx, width, height, script, scene, image);
-      renderedFrames++;
-      const progress = Math.min(99, Math.round((renderedFrames / totalFrames) * 100));
-      onProgress({
-        status: "rendering",
-        progress,
-        message: `Rendering scene ${sceneIndex + 1} of ${script.scenes.length} at ${quality.label}...`,
-      });
-      await sleep(frameMs);
-    }
+    drawSceneFrame(ctx, width, height, script, scene, image);
+    renderedFrames++;
+    const progress = Math.min(99, Math.round((renderedFrames / totalFrames) * 100));
+    onProgress?.({
+      status: "rendering",
+      progress,
+      message: `Rendering scene ${sceneIndex + 1} (${scene.start}s–${scene.end}s) at ${label}...`,
+    });
+    await sleep(frameMs);
   }
 
-  onProgress({ status: "finalizing", progress: 99, message: "Finalizing video..." });
+  onProgress?.({ status: "finalizing", progress: 99, message: "Finalizing video..." });
 
   await new Promise<void>((resolve, reject) => {
     recorder.onstop = () => resolve();
@@ -301,17 +329,86 @@ export async function exportFootieShort(
     recorder.stop();
   });
 
+  stream.getTracks().forEach((track) => track.stop());
+
   if (chunks.length === 0) {
     throw new Error("Export produced no video data");
   }
 
-  const blob = new Blob(chunks, { type: mimeType.split(";")[0] });
-  const filename = `footiebitz-${quality.id}.webm`;
-  downloadBlob(blob, filename);
+  return new Blob(chunks, { type: mimeType.split(";")[0] });
+}
+
+export async function exportFootieShort(
+  script: FootieScript,
+  onProgress: (progress: ExportProgress) => void,
+  options: FootieExportOptions = {},
+): Promise<void> {
+  assertBrowserExportEnvironment();
+
+  const quality = getExportQualityPreset(options.qualityId ?? DEFAULT_EXPORT_QUALITY);
+  const includeNarration =
+    options.audioMode === "with-voice" && Boolean(script.voiceoverUrl);
+
+  const silentBlob = await exportSilentVideoBlob(script, quality, (update) => {
+    onProgress(mapRenderingProgress(update, includeNarration));
+  });
+
+  let finalBlob = silentBlob;
+  let filename = `footiebitz-${quality.id}.webm`;
+
+  if (includeNarration && script.voiceoverUrl) {
+    onProgress({
+      status: "loading-voiceover",
+      progress: 72,
+      message: "Loading narration",
+    });
+
+    const audioBlob = await fetchNarrationBlob(script.voiceoverUrl);
+
+    onProgress({
+      status: "combining",
+      progress: 78,
+      message: "Combining audio (0%)",
+    });
+
+    try {
+      const { muxVideoWithAudio } = await import("@/lib/ffmpegClient");
+      finalBlob = await muxVideoWithAudio(silentBlob, audioBlob, {
+        videoDurationSec: getScriptVideoDuration(script),
+        onProgress: (muxPercent) => {
+          onProgress({
+            status: "combining",
+            progress: 78 + Math.round(muxPercent * 0.2),
+            message: `Combining audio (${muxPercent}%)`,
+          });
+        },
+      });
+      filename = "footiebitz-with-narration.webm";
+    } catch (error) {
+      const mergeError =
+        error instanceof Error ? error.message : "Audio merge failed";
+      filename = `footiebitz-${quality.id}.webm`;
+      finalBlob = silentBlob;
+
+      downloadBlob(finalBlob, filename);
+
+      onProgress({
+        status: "done",
+        progress: 100,
+        message: `Downloaded silent video (${filename}) — audio merge failed`,
+        warning: mergeError,
+      });
+      return;
+    }
+  }
+
+  downloadBlob(finalBlob, filename);
 
   onProgress({
     status: "done",
     progress: 100,
-    message: `Downloaded ${filename} (${width}×${height})`,
+    message: includeNarration
+      ? `Download ready — ${filename}`
+      : `Download ready — ${filename} (${quality.width}×${quality.height})`,
   });
 }

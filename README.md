@@ -1,74 +1,177 @@
 # FootieBitz
 
-**FootieBitz is an AI-powered football shorts creator that turns match topics into scene-based video storyboards and exportable short-form videos.**
+**Turn football ideas into narrated short-form videos in minutes.**
 
-Turn any match moment, derby, or talking point into a vertical YouTube Short — script, scenes, preview, and export — in one creator workflow.
-
----
-
-## Demo flow
-
-1. **Enter a topic** — e.g. *Real Madrid comeback* or *Champions League final drama*
-2. **Choose tone & duration** — Dramatic, Funny, Tactical, News, or Emotional · 30 / 45 / 60 seconds
-3. **Generate script** — OpenAI writes a title, hook, caption, hashtags, and 5 scenes
-4. **Edit the storyboard** — Tweak subtitles, timing, and upload one image per scene
-5. **Preview** — Browse scenes in a 9:16 phone-frame preview
-6. **Export** — Choose a quality preset and download a vertical WebM rendered in the browser
+FootieBitz is a modern web application that transforms a football topic into a documentary-style narrated short. Go from a rough idea to a fully timed vertical video — with subtitles, uploaded images, and optional narration audio — entirely in the browser.
 
 ---
 
 ## Features
 
-- **AI script generation** — Football-focused prompts with tone control and structured JSON output
-- **Scene-based storyboard** — Each scene includes subtitle, duration, and AI image prompt
-- **Scene editor** — Edit text, adjust timing, upload/replace/remove images with upload progress
-- **Live 9:16 preview** — Phone-frame mockup with scene navigation and placeholder states
-- **Browser video export** — Canvas + MediaRecorder pipeline with multiple quality presets (WebM download)
-- **Script quality modes** — Cheap Draft (`gpt-5-nano`), Balanced (`gpt-5-mini`), or Best (`gpt-5`)
-- **Image source links** — Quick search links to Unsplash, Pexels, and Wikimedia Commons per scene
-- **Copy to clipboard** — Full script, YouTube caption, hashtags, and individual scene subtitles
-- **Sample topics** — One-click topic chips to speed up demos
-- **Dark SaaS UI** — Football-themed dashboard built with Tailwind CSS
+### 🎙 Story Creation
+
+- Generate 30s, 45s, or 60s football stories from a single prompt
+- Documentary-style continuous narration — one story, not disconnected captions
+- Structured JSON output with title, narration, and a timed scene breakdown
+
+### 🎬 Production Timeline
+
+- Automatically split into scenes with calculated start/end timings
+- Edit subtitles and adjust scene durations (1–20 seconds each)
+- Add buffer scenes: **Intro**, **Context**, **Transition**, **Ending**
+- Move, duplicate, and delete scenes
+- Upload a custom image per scene
+- Total timeline duration updates live
+
+### 🔊 Narration
+
+- Generate natural narration audio via OpenAI Text-to-Speech
+- Preview narration directly in the browser before exporting
+- Narration plays independently of visual scene changes during preview
+
+### 📱 Preview
+
+- Vertical short preview (9:16) with a phone-style frame
+- Subtitle overlays per scene
+- Scene-by-scene playback with timeline progress
+- Buffer scenes show type-labelled placeholders when no image is uploaded
+
+### 📤 Export
+
+- Client-side video rendering via HTML5 Canvas + FFmpeg.wasm
+- No server upload required — everything runs in the browser
+- Quality presets: **720p**, **1080p**, **1440p**, **4K**
+- Optional narration audio track muxed into the final video
+- Exported as a `.webm` file ready to upload anywhere
 
 ---
 
-## Tech stack
+## Workflow
 
-| Layer | Technology |
-|-------|------------|
-| Framework | [Next.js 16](https://nextjs.org) (App Router) |
-| Language | TypeScript |
-| Styling | Tailwind CSS v4 |
-| AI | [OpenAI](https://platform.openai.com) — script quality modes (`gpt-5-nano` / `gpt-5-mini` / `gpt-5`) via official `openai` SDK |
-| Video export | HTML Canvas + `MediaRecorder` (client-side WebM) |
-| Icons | Lucide React |
+| Step | Section | What Happens |
+|------|---------|--------------|
+| 1 | **Story Brief** | Enter a football topic and pick a target duration |
+| 2 | **Story Draft** | Review the generated title and narration |
+| 3 | **Production Timeline** | Edit scenes, adjust durations, add buffer scenes |
+| 4 | **Upload Images** | Attach images to individual scenes |
+| 5 | **Narration** | Generate and preview the voiceover |
+| 6 | **Preview** | Watch the full short in the browser |
+| 7 | **Export** | Render and download the final video |
 
 ---
 
-## How to run locally
+## Tech Stack
+
+### Frontend
+
+| Technology | Role |
+|-----------|------|
+| [Next.js 16](https://nextjs.org) | React framework, App Router, API routes |
+| React 19 | UI components and state |
+| TypeScript | Type safety throughout |
+| Tailwind CSS v4 | Styling |
+| Lucide React | Icons |
+
+### AI
+
+| Service | Role |
+|---------|------|
+| OpenAI Responses API | Story and scene generation |
+| OpenAI Text-to-Speech | Narration audio (`tts-1`) |
+
+### Rendering
+
+| Technology | Role |
+|-----------|------|
+| HTML5 Canvas | Frame-by-frame scene rendering |
+| [FFmpeg.wasm](https://ffmpegwasm.netlify.app) | Client-side audio/video muxing |
+
+### Deployment
+
+| Platform | Notes |
+|----------|-------|
+| [Vercel](https://vercel.com) | Serverless Edge-compatible deployment |
+
+---
+
+## Project Structure
+
+```
+footiebitz/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── generate-script/   # POST /api/generate-script
+│   │   │   └── generate-voiceover/ # POST /api/generate-voiceover
+│   │   ├── globals.css            # Global theme variables
+│   │   ├── layout.tsx             # Root layout and metadata
+│   │   └── page.tsx               # Main studio page
+│   │
+│   ├── components/
+│   │   ├── StoryReview.tsx        # Step 2 — Edit title and narration
+│   │   ├── SceneEditor.tsx        # Step 3 — Production timeline editor
+│   │   ├── NarrationPanel.tsx     # Step 5 — Generate and preview voiceover
+│   │   ├── VideoPreview.tsx       # Step 6 — Full short preview
+│   │   ├── ExportPanel.tsx        # Step 7 — Export settings and download
+│   │   ├── BreakLongVideoSection.tsx
+│   │   └── CopyButton.tsx
+│   │
+│   ├── lib/
+│   │   ├── exportVideo.ts         # Canvas rendering and frame export
+│   │   ├── exportVideo.shared.ts  # Shared export utilities
+│   │   ├── ffmpegClient.ts        # FFmpeg.wasm loader
+│   │   ├── generateFootieScript.ts # Script generation logic
+│   │   ├── generateVoiceover.ts   # Voiceover generation logic
+│   │   ├── openai.ts              # OpenAI client
+│   │   ├── parseScript.ts         # JSON parsing and scene normalization
+│   │   ├── prompts.ts             # Prompt templates
+│   │   ├── sceneTiming.ts         # Scene start/end calculation
+│   │   ├── scriptModels.ts        # Model selection helpers
+│   │   ├── scriptSchema.ts        # Structured output schema
+│   │   ├── studioUi.ts            # Shared Tailwind class constants
+│   │   ├── timeline.ts            # Scene insertion, duplication, ordering
+│   │   ├── voiceover.ts           # Story state sync and narration validation
+│   │   ├── voiceoverOptions.ts    # TTS voice and model options
+│   │   └── blobUrl.ts             # Blob URL lifecycle helpers
+│   │
+│   └── types/
+│       └── footiebitz.ts          # Core data types (FootieScript, FootieScene)
+│
+├── public/                        # Static assets
+├── next.config.ts
+├── tailwind.config.ts
+├── tsconfig.json
+└── package.json
+```
+
+---
+
+## Local Setup
 
 ### Prerequisites
 
 - Node.js 18+
 - An [OpenAI API key](https://platform.openai.com/api-keys)
 
-### Setup
+### Clone
 
 ```bash
-# Clone the repo and enter the project
+git clone https://github.com/your-username/footiebitz.git
 cd footiebitz
-
-# Install dependencies
-npm install
-
-# Add your OpenAI API key (copy from .env.example)
-cp .env.example .env.local
 ```
 
-Set your key in `.env.local`:
+### Install
+
+```bash
+npm install
+```
+
+### Environment Variables
+
+Create a `.env.local` file in the project root:
 
 ```env
-OPENAI_API_KEY=your_key_here
+OPENAI_API_KEY=sk-...
 ```
 
 ### Run
@@ -79,124 +182,57 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Other commands
+---
 
-```bash
-npm run build   # Production build
-npm run start   # Start production server
-npm run lint    # ESLint
-```
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the development server |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Run ESLint |
 
 ---
 
-## Environment variables
+## Screenshots
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | OpenAI API key for script generation |
-| `OPENAI_SCRIPT_MODEL` | No | Optional override for all script quality modes |
+> _Screenshots coming soon._
 
-The key is only used server-side in `/api/generate-script` and is never exposed to the client.
-
----
-
-## Token optimization
-
-FootieBitz is designed to keep OpenAI usage minimal:
-
-- **OpenAI tokens are used only for script generation** — the `/api/generate-script` route is the sole token-consuming step.
-- **Image upload, editing, preview, and export run in the browser** — no server or AI calls for storyboard work or video rendering.
-- **Image source links do not use tokens** — Unsplash, Pexels, and Wikimedia Commons open as external search links; creators find and upload images manually.
-- **Auto image fetching is planned** — a future free-API integration will fetch scene images without routing uploads through OpenAI.
-
-Choose **Cheap Draft** in the form for the lowest token cost; **Balanced** and **Best** use larger models when you want higher script quality.
+| Screen | Description |
+|--------|-------------|
+| Home | Story brief input and topic selector |
+| Story Draft | Title and narration review |
+| Production Timeline | Scene editor with buffer controls |
+| Preview | Vertical short in a phone frame |
+| Export | Quality presets and download |
 
 ---
 
-## Export quality
+## Future Roadmap
 
-Export is fully client-side. In **Export Panel**, pick a vertical 9:16 preset before downloading WebM:
-
-| Preset | Resolution | Default |
-|--------|------------|---------|
-| 720p | 720 × 1280 | |
-| 1080p | 1080 × 1920 | ✓ |
-| 1440p | 1440 × 2560 | |
-| 4K | 2160 × 3840 | |
-
-Files download as `footiebitz-{preset}.webm` (e.g. `footiebitz-1080p.webm`). Layout scales proportionally across presets; higher resolutions take longer to record because export runs in real time.
-
----
-
-## MVP limitations
-
-This is a deliberate MVP — focused on proving the creator workflow, not production video infrastructure.
-
-- **No auth or accounts** — Single-session, in-browser experience
-- **No database** — Script state lives in React state only (lost on refresh)
-- **No match data scraping** — Topics are user-provided; AI avoids inventing exact stats
-- **No AI image generation** — Scenes include image *prompts*; creators upload their own images
-- **WebM export only** — MP4 export is not wired up yet; export uses real-time MediaRecorder
-- **Real-time recording** — A 30s short takes ~30s to export (canvas records live)
-- **No cloud rendering** — All video export happens client-side in the browser
-- **No audio/voiceover** — Visual storyboard and subtitles only
+- [ ] Timeline drag and drop
+- [ ] Scene splitting and merging
+- [ ] Multiple narration voices
+- [ ] Background music support
+- [ ] Auto subtitle timing from audio
+- [ ] Better transition animations
+- [ ] Team collaboration (shared projects)
+- [ ] Project save and load
+- [ ] Template library
 
 ---
 
-## Roadmap
+## Design Philosophy
 
-- **Auto fetch images from free APIs** — Pull scene backgrounds from Unsplash/Pexels-style sources using `imageSearchQuery`
-- **Video-to-shorts clip breaker** — Upload long match footage, detect highlights, and generate multiple vertical shorts
-- **Voiceover generation** — TTS narration synced to scene timing
-- **MP4 export using FFmpeg** — Universal upload format via FFmpeg.wasm or server-side rendering
+FootieBitz is built around one idea: **story first.**
 
-Also planned: storyboard templates, project persistence, auth & teams, match data hooks, and direct Shorts/TikTok publishing.
+Most short-form video tools start with clips and ask you to add text. FootieBitz flips the workflow — start with a topic, generate a complete narrative, build the timeline around that narrative, and then add visuals. The story drives everything else.
 
----
-
-## Portfolio explanation
-
-FootieBitz is a portfolio project that demonstrates **full-stack product thinking** for a niche AI creator tool:
-
-- **Problem framing** — Football creators need fast vertical content, but scripting and storyboarding is slow
-- **AI integration** — Structured prompt engineering + JSON schema outputs with OpenAI, not generic chat
-- **UX for creators** — Scene editor, preview, copy buttons, and export checklist mirror a real SaaS workflow
-- **Client-side media** — Browser canvas recording shows practical frontend engineering beyond typical CRUD apps
-- **Scoped MVP** — Auth, DB, and cloud render deliberately deferred to ship a working demo fast
-
-It showcases skills in **Next.js API routes**, **TypeScript domain modeling**, **AI prompt design**, **React state management**, and **browser media APIs** — packaged as a cohesive football content product rather than a generic AI wrapper.
-
----
-
-## Project structure
-
-```
-src/
-├── app/
-│   ├── api/generate-script/route.ts   # OpenAI script generation API
-│   ├── page.tsx                       # Main dashboard
-│   └── layout.tsx
-├── components/
-│   ├── SceneEditor.tsx                # Scene editing & image upload
-│   ├── VideoPreview.tsx               # 9:16 storyboard preview
-│   ├── ExportPanel.tsx                # Export checklist, quality presets & WebM download
-│   ├── ImageSourceHelper.tsx          # Free image search links per scene
-│   ├── BreakLongVideoSection.tsx      # Video-to-shorts UI stub
-│   └── CopyButton.tsx                 # Clipboard copy with feedback
-├── lib/
-│   ├── openai.ts                      # OpenAI client singleton
-│   ├── generateFootieScript.ts        # Responses API script generation
-│   ├── parseScript.ts                 # Safe JSON parsing & validation
-│   ├── scriptSchema.ts                # Structured output JSON schema
-│   ├── prompts.ts                     # AI prompt builder
-│   ├── exportVideo.ts                 # Canvas + MediaRecorder export
-│   └── formatScript.ts                # Full script formatting for copy
-└── types/
-    └── footiebitz.ts                  # Shared TypeScript types
-```
+The goal is to help creators produce documentary-quality short-form football content without needing a production team.
 
 ---
 
 ## License
 
-Private portfolio project. All rights reserved.
+[MIT](./LICENSE)

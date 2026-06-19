@@ -13,9 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FootieBitz — AI Football Shorts Studio",
-  description:
-    "Generate AI football short scripts with scenes, vertical preview, and browser WebM export.",
+  title: "FootieBitz — Narrated Football Shorts",
+  description: "Turn football ideas into narrated shorts. Draft, timeline, preview, and export in one studio.",
 };
 
 export default function RootLayout({
