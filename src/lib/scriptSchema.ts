@@ -14,6 +14,11 @@ export const FOOTIE_SCRIPT_JSON_SCHEMA = {
           id: { type: "string" },
           duration: { type: "number" },
           subtitle: { type: "string" },
+          captionMode: { type: "string", enum: ["generated", "subtitles"] },
+          subtitleEffect: {
+            type: "string",
+            enum: ["fade-up", "typewriter", "highlight"],
+          },
         },
         required: ["id", "duration", "subtitle"],
         additionalProperties: false,

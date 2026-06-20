@@ -1,3 +1,4 @@
+import { normalizeSceneCaptionSettings } from "@/lib/captionMode";
 import type { FootieScene, SceneType } from "@/types/footiebitz";
 
 const DEFAULT_SCENE_DURATION = 3;
@@ -34,14 +35,14 @@ export function getTotalDuration(scenes: FootieScene[]): number {
  * Call recalculateSceneTimings on the full list after inserting to get correct timings.
  */
 export function createEmptyScene(type: SceneType = "transition"): FootieScene {
-  return {
+  return normalizeSceneCaptionSettings({
     id: generateSceneId(),
     start: 0,
     end: DEFAULT_SCENE_DURATION,
     duration: DEFAULT_SCENE_DURATION,
     subtitle: DEFAULT_SCENE_SUBTITLE,
     sceneType: type,
-  };
+  });
 }
 
 /**
@@ -49,7 +50,7 @@ export function createEmptyScene(type: SceneType = "transition"): FootieScene {
  * Preserves all fields including sceneType and uploadedImage.
  */
 export function duplicateScene(scene: FootieScene): FootieScene {
-  return { ...scene, id: generateSceneId() };
+  return normalizeSceneCaptionSettings({ ...scene, id: generateSceneId() });
 }
 
 function generateSceneId(): string {

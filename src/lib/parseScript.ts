@@ -1,3 +1,4 @@
+import { applyGeneratedStorySceneCaptions } from "@/lib/captionMode";
 import { getStoryTotalDuration, normalizeSceneTiming } from "@/lib/sceneTiming";
 import { ensureTimelineItems, normalizeSceneIds } from "@/lib/timelineItems";
 import type { FootieScene, FootieScript } from "@/types/footiebitz";
@@ -8,6 +9,8 @@ type RawScene = {
   end?: number;
   duration?: number;
   subtitle?: string;
+  captionMode?: string;
+  subtitleEffect?: string;
 };
 
 type RawFootieScript = {
@@ -111,27 +114,38 @@ function resolveScenes(rawScenes: RawScene[]): FootieScene[] {
       usedIds,
     );
 
-    return { id, duration, subtitle };
+    return {
+      id,
+      duration,
+      subtitle,
+    };
   });
 
+  let resolved: FootieScene[];
+
   if (hasContiguousSceneTiming(rawScenes)) {
-    return rawScenes.map((scene, index) => {
+    resolved = rawScenes.map((scene, index) => {
       const start = Math.round(Number(scene.start));
       const end = Math.round(Number(scene.end));
       const duration = Math.max(1, end - start);
+      const input = sceneInputs[index];
 
       return {
-        id: sceneInputs[index].id,
+        id: input.id,
         start,
         end,
         duration,
-        subtitle: sceneInputs[index].subtitle,
+        subtitle: input.subtitle,
       };
     });
+  } else {
+    // start/end are placeholders — normalizeSceneTiming recomputes them.
+    resolved = normalizeSceneTiming(
+      sceneInputs.map((s) => ({ ...s, start: 0, end: 0 })) as FootieScene[],
+    );
   }
 
-  // start/end are placeholders — normalizeSceneTiming recomputes them.
-  return normalizeSceneTiming(sceneInputs.map((s) => ({ ...s, start: 0, end: 0 })));
+  return applyGeneratedStorySceneCaptions(resolved);
 }
 
 function resolveTotalDuration(scenes: FootieScene[]): number {
@@ -139,8 +153,10 @@ function resolveTotalDuration(scenes: FootieScene[]): number {
 }
 
 export function normalizeFootieStory(story: FootieScript): FootieScript {
-  const scenes = normalizeSceneTiming(
-    normalizeSceneIds(story.scenes ?? []).map((scene) => ({ ...scene, start: 0, end: 0 })),
+  const scenes = applyGeneratedStorySceneCaptions(
+    normalizeSceneTiming(
+      normalizeSceneIds(story.scenes ?? []).map((scene) => ({ ...scene, start: 0, end: 0 })),
+    ),
   );
 
   return {

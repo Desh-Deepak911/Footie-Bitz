@@ -1,4 +1,5 @@
 import { revokeBlobUrl } from "@/lib/blobUrl";
+import { syncScenesSubtitlesNarration } from "@/lib/displayCaption";
 import { getStoryTotalDuration } from "@/lib/sceneTiming";
 import { recalculateSceneTimings } from "@/lib/timeline";
 import {
@@ -89,11 +90,15 @@ export function applyTransitionUpdate(
 }
 
 /**
- * Normalizes scenes and timeline items for legacy stories missing timelineItems.
- * Recomputes totalDuration and keeps timeline items in sync with scenes.
+ * Normalizes scenes and timeline items for legacy stories missing timelineItems,
+ * captionMode, or subtitleEffect. Recomputes totalDuration and keeps timeline
+ * items in sync with scenes.
+ *
+ * Legacy defaults: captionMode → "generated", subtitleEffect → "fade-up".
  */
 export function syncFootieScript(script: FootieScript, previous?: FootieScript): FootieScript {
-  const scenes = normalizeSceneIds(script.scenes ?? []);
+  const normalizedScenes = normalizeSceneIds(script.scenes ?? []);
+  const scenes = syncScenesSubtitlesNarration(normalizedScenes, script.narration ?? "");
   const totalDuration = getStoryTotalDuration(scenes);
   const scenesChanged = !previous || !scenesStructurallyEqual(previous.scenes, scenes);
 

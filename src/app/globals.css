@@ -110,4 +110,66 @@ html {
     background-image: none;
     background-color: rgba(255, 255, 255, 0.04);
   }
+
+  .subtitle-effect-fade-up,
+  .subtitle-effect-highlight-inner {
+    animation: none !important;
+  }
+
+  .subtitle-effect-typewriter-caret::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* ── Subtitle effect preview (MVP) ─────────────────────────────────────────── */
+@keyframes subtitle-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtitle-highlight-pulse {
+  0%,
+  100% {
+    background-color: rgba(250, 204, 21, 0.28);
+  }
+  50% {
+    background-color: rgba(250, 204, 21, 0.5);
+  }
+}
+
+.subtitle-effect-fade-up {
+  animation: subtitle-fade-up 0.55s ease-out both;
+}
+
+.subtitle-effect-highlight-inner {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0.12em 0.4em;
+  border-radius: 0.3rem;
+  background-color: rgba(250, 204, 21, 0.35);
+  animation: subtitle-highlight-pulse 2.2s ease-in-out infinite;
+}
+
+.subtitle-effect-typewriter-caret::after {
+  content: "|";
+  margin-left: 0.05em;
+  opacity: 0.65;
+  animation: subtitle-typewriter-caret 0.9s step-end infinite;
+}
+
+@keyframes subtitle-typewriter-caret {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.75;
+  }
 }

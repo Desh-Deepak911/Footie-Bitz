@@ -68,6 +68,18 @@ export const studioChip = `max-w-full rounded-full bg-surface-elevated/45 px-3 p
 export const studioChipActive =
   "rounded-full bg-accent-soft px-3 py-1.5 text-xs font-medium text-foreground ring-1 ring-accent/25";
 
+/** Apple-style segmented control track. */
+export const studioSegmentedControl =
+  "flex w-full rounded-xl bg-surface-elevated/35 p-1 ring-1 ring-border/20";
+
+/** Segmented control segment — inactive. */
+export const studioSegment =
+  "flex min-h-[2.25rem] flex-1 items-center justify-center rounded-lg px-2 py-2 text-center text-[11px] font-medium leading-tight text-muted transition hover:text-foreground/85 sm:min-h-0 sm:px-2.5 sm:text-xs";
+
+/** Segmented control segment — active. */
+export const studioSegmentActive =
+  "flex min-h-[2.25rem] flex-1 items-center justify-center rounded-lg bg-surface-elevated/85 px-2 py-2 text-center text-[11px] font-medium leading-tight text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-border/25 sm:min-h-0 sm:px-2.5 sm:text-xs";
+
 export const studioLabel =
   "mb-2 block text-sm font-medium text-foreground/90";
 
@@ -257,6 +269,10 @@ export const studioPreviewControls =
 
 export const studioPreviewCaption =
   "rounded-xl bg-black/50 px-3 py-2.5 text-center text-[13px] font-semibold leading-snug text-white backdrop-blur-md sm:text-[14px]";
+
+/** Caption overlay on storyboard scene card media preview. */
+export const studioStoryboardCaptionOverlay =
+  "rounded-lg bg-black/55 px-2.5 py-2 text-center text-[11px] font-semibold leading-snug text-white/95 backdrop-blur-sm sm:text-xs";
 
 export const studioPreviewPill = studioSecondaryButton + " min-h-[2.25rem] rounded-full px-3 py-2 text-[11px] sm:min-h-0";
 

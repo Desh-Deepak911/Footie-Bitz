@@ -378,6 +378,8 @@ export default function SceneEditor({
                 scene={scene}
                 index={index}
                 sceneCount={scenes.length}
+                storyNarration={script.narration}
+                allScenes={scenes}
                 onUpdate={(patch) => updateScene(scene.id, patch)}
                 onImageUpload={(file) => handleImageUpload(scene.id, file)}
                 onRemoveImage={() => removeImage(scene.id)}

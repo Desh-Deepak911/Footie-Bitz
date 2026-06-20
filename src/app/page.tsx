@@ -73,10 +73,6 @@ export default function Home() {
       return null;
     }
 
-    if (script.timelineItems?.length || script.scenes.length === 0) {
-      return script;
-    }
-
     return syncFootieScript(script);
   }, [script]);
 

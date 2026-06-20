@@ -6,6 +6,7 @@ export * from "@/lib/exportVideo.shared";
 export * from "@/lib/exportPayload";
 
 import { getSceneIndexForTime } from "@/lib/sceneTiming";
+import { getDisplayCaptionLines } from "@/lib/displayCaption";
 import {
   assertExportPayload,
   buildFootieExportPayload,
@@ -119,8 +120,6 @@ const SCENE_TYPE_TOP_COLOR: Record<SceneType, string> = {
 
 const DEFAULT_TOP_COLOR = "#0a0f18";
 
-const PLACEHOLDER_SUBTITLE = "Add subtitle...";
-
 function drawPlaceholderBackground(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -183,12 +182,19 @@ function drawSceneFrame(
     ctx.textAlign = "left";
   }
 
-  // ── Subtitle (skip placeholder text) ──────────────────────────────────────
-  const subtitle = scene.subtitle?.trim();
-  if (subtitle && subtitle !== PLACEHOLDER_SUBTITLE) {
+  // ── On-screen caption (generated or narration subtitles) ─────────────────
+  const captionLines = getDisplayCaptionLines(scene);
+  if (captionLines.length > 0) {
     ctx.fillStyle = "#ffffff";
     ctx.font = `bold ${64 * scale}px Arial, Helvetica, sans-serif`;
-    wrapText(ctx, subtitle, width / 2, subtitleY, width - 120 * scale, 76 * scale, "center");
+    const lineHeight = 76 * scale;
+    const blockHeight = captionLines.length * lineHeight;
+    let lineY = subtitleY - blockHeight + lineHeight * 0.85;
+
+    for (const line of captionLines) {
+      wrapText(ctx, line, width / 2, lineY, width - 120 * scale, lineHeight, "center");
+      lineY += lineHeight;
+    }
   }
 }
 

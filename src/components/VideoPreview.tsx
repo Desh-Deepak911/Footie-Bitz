@@ -32,6 +32,8 @@ import {
   resolveTimelineItems,
   type PreviewFrame,
 } from "@/lib/previewTimeline";
+import SceneCaptionOverlay from "@/components/SceneCaptionOverlay";
+import { getDisplayCaption } from "@/lib/displayCaption";
 import {
   getTransitionDurationLabel,
   getTransitionEffectLabel,
@@ -295,12 +297,13 @@ export default function VideoPreview({
 
       clearAdvanceTimeout();
       const sceneStartTime = Date.now();
-      const subtitle = scenes[index]?.subtitle?.trim();
+      const scene = scenes[index];
+      const caption = scene ? getDisplayCaption(scene) : "";
 
       setCurrentSceneIndex(index);
       onSelectedSceneChange(index);
 
-      if (!subtitle || subtitle === "Add subtitle...") {
+      if (!caption) {
         setIsSpeaking(false);
         scheduleAdvanceAfterScene(index, sceneStartTime);
         return;
@@ -314,7 +317,7 @@ export default function VideoPreview({
       }
 
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(subtitle);
+      const utterance = new SpeechSynthesisUtterance(caption);
       const { rate, pitch, volume, voiceURI } = voiceSettingsRef.current;
       utterance.rate = rate;
       utterance.pitch = pitch;
@@ -545,12 +548,7 @@ export default function VideoPreview({
   const displayScene = isPreviewTransitionFrame(previewFrame)
     ? previewFrame.toScene
     : previewFrame.scene;
-  const captionText =
-    !isPreviewTransitionFrame(previewFrame) &&
-    displayScene.subtitle &&
-    displayScene.subtitle !== "Add subtitle..."
-      ? displayScene.subtitle
-      : null;
+  const showSceneCaption = !isPreviewTransitionFrame(previewFrame);
 
   const transitionStyles = isPreviewTransitionFrame(previewFrame)
     ? getTransitionLayerStyles(previewFrame.transition.effect, previewFrame.progress)
@@ -592,8 +590,8 @@ export default function VideoPreview({
         <div className="absolute inset-x-0 bottom-0 z-10 space-y-2 p-4 pb-4">
           {isPreviewTransitionFrame(previewFrame) ? (
             <div className={studioPreviewCaption}>{TRANSITION_CARD_TITLE}</div>
-          ) : captionText ? (
-            <div className={studioPreviewCaption}>{captionText}</div>
+          ) : showSceneCaption ? (
+            <SceneCaptionOverlay scene={displayScene} variant="preview" layout="inline" />
           ) : null}
 
           <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-white/50">

@@ -4,6 +4,12 @@ export type QualityMode = "cheap" | "balanced" | "best";
 
 export type SceneType = "intro" | "context" | "match" | "transition" | "ending";
 
+/** How on-screen captions are sourced for a scene. */
+export type CaptionMode = "generated" | "subtitles";
+
+/** Visual treatment when displaying captions (subtitles mode or generated text). */
+export type SubtitleEffect = "fade-up" | "typewriter" | "highlight";
+
 export interface FootieScene {
   id: string;
   start: number;
@@ -12,6 +18,18 @@ export interface FootieScene {
   subtitle: string;
   sceneType?: SceneType;
   uploadedImage?: string;
+  /**
+   * Caption source — `generated` uses AI scene subtitles; `subtitles` derives
+   * captions from narration locally. Defaults to `generated` when omitted (legacy).
+   */
+  captionMode?: CaptionMode;
+  /** Caption animation style. Defaults to `fade-up` when omitted (legacy). */
+  subtitleEffect?: SubtitleEffect;
+  /**
+   * Narration excerpt for this scene when `captionMode` is `subtitles`.
+   * Populated locally from the story narration — not from AI.
+   */
+  narration?: string;
 }
 
 export type TransitionEffect =

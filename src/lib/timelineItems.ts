@@ -1,3 +1,8 @@
+import {
+  normalizeCaptionMode,
+  normalizeSceneCaptionSettings,
+  normalizeSubtitleEffect,
+} from "@/lib/captionMode";
 import type {
   FootieScene,
   SceneTimelineItem,
@@ -61,7 +66,15 @@ export function normalizeTransitionEffect(effect: string): TransitionEffect {
 export type SceneTimelineUpdates = Partial<
   Pick<
     FootieScene,
-    "start" | "end" | "duration" | "subtitle" | "sceneType" | "uploadedImage"
+    | "start"
+    | "end"
+    | "duration"
+    | "subtitle"
+    | "sceneType"
+    | "uploadedImage"
+    | "captionMode"
+    | "subtitleEffect"
+    | "narration"
   >
 >;
 
@@ -145,7 +158,8 @@ export function normalizeSceneIds(scenes: FootieScene[]): FootieScene[] {
     }
 
     usedIds.add(id);
-    return id === scene.id ? scene : { ...scene, id };
+    const normalized = id === scene.id ? scene : { ...scene, id };
+    return normalizeSceneCaptionSettings(normalized);
   });
 }
 
@@ -219,7 +233,7 @@ export function updateSceneInTimeline(
 
     return {
       ...item,
-      scene: { ...item.scene, ...updates },
+      scene: normalizeSceneCaptionSettings({ ...item.scene, ...updates }),
     };
   });
 }
@@ -259,7 +273,7 @@ export function updateSceneInScenes(
   updates: SceneTimelineUpdates,
 ): FootieScene[] {
   return scenes.map((scene) =>
-    scene.id === sceneId ? { ...scene, ...updates } : scene,
+    normalizeSceneCaptionSettings(scene.id === sceneId ? { ...scene, ...updates } : scene),
   );
 }
 
@@ -281,7 +295,11 @@ export function scenesStructurallyEqual(a: FootieScene[], b: FootieScene[]): boo
       scene.duration === other.duration &&
       scene.subtitle === other.subtitle &&
       scene.sceneType === other.sceneType &&
-      scene.uploadedImage === other.uploadedImage
+      scene.uploadedImage === other.uploadedImage &&
+      scene.narration === other.narration &&
+      normalizeCaptionMode(scene.captionMode) === normalizeCaptionMode(other.captionMode) &&
+      normalizeSubtitleEffect(scene.subtitleEffect) ===
+        normalizeSubtitleEffect(other.subtitleEffect)
     );
   });
 }

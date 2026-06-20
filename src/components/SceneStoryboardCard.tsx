@@ -11,6 +11,11 @@ import {
   Trash2,
 } from "lucide-react";
 
+import CaptionStyleControl from "@/components/CaptionStyleControl";
+import SceneCaptionOverlay from "@/components/SceneCaptionOverlay";
+import SubtitleEffectControl from "@/components/SubtitleEffectControl";
+import { normalizeCaptionMode } from "@/lib/captionMode";
+import { deriveSceneNarrationExcerpt, getDisplayCaption } from "@/lib/displayCaption";
 import {
   studioCompactButton,
   studioDestructiveButton,
@@ -27,7 +32,7 @@ import {
   studioUploadButton,
   studioUploadZone,
 } from "@/lib/studioUi";
-import type { FootieScene, SceneType } from "@/types/footiebitz";
+import type { CaptionMode, FootieScene, SceneType } from "@/types/footiebitz";
 
 const SCENE_TYPE_LABELS: Record<SceneType, string> = {
   intro: "Intro",
@@ -62,6 +67,10 @@ export interface SceneStoryboardCardProps {
   onMoveDown: () => void;
   onDelete: () => void;
   sceneTypeOptions: { value: SceneType; label: string }[];
+  /** Full story narration — used to derive local subtitle excerpts. */
+  storyNarration?: string;
+  /** All scenes — used for proportional narration splitting. */
+  allScenes?: FootieScene[];
 }
 
 export default function SceneStoryboardCard({
@@ -78,8 +87,25 @@ export default function SceneStoryboardCard({
   onMoveDown,
   onDelete,
   sceneTypeOptions,
+  storyNarration = "",
+  allScenes = [],
 }: SceneStoryboardCardProps) {
   const title = getSceneTitle(scene, index);
+  const captionMode = normalizeCaptionMode(scene.captionMode);
+  const isSubtitlesMode = captionMode === "subtitles";
+  const generatedCaption = scene.subtitle;
+  const subtitlesPreview =
+    storyNarration.trim() && allScenes.length > 0
+      ? deriveSceneNarrationExcerpt(storyNarration, index, allScenes)
+      : getDisplayCaption(scene);
+
+  const handleCaptionModeChange = (mode: CaptionMode) => {
+    if (mode === "subtitles") {
+      onUpdate({ captionMode: "subtitles" });
+      return;
+    }
+    onUpdate({ captionMode: "generated" });
+  };
 
   return (
     <article className={studioStoryboardCard}>
@@ -122,40 +148,55 @@ export default function SceneStoryboardCard({
       </header>
 
       <div className="space-y-4 px-3 py-4 sm:space-y-5 sm:px-5 sm:py-5">
-        {/* Media */}
+        {/* Media + on-screen caption preview */}
         <section aria-label="Scene media">
           <p className={studioFieldLabel}>Media</p>
+          <div className={`${studioStoryboardMediaFrame} relative`}>
+            {scene.uploadedImage ? (
+              <img
+                src={scene.uploadedImage}
+                alt={`${title} visual`}
+                className="aspect-[9/16] max-h-56 w-full object-cover sm:aspect-[16/10] sm:max-h-52"
+              />
+            ) : (
+              <div className="flex aspect-[9/16] max-h-56 w-full flex-col items-center justify-center bg-gradient-to-b from-surface via-background to-background px-4 text-center sm:aspect-[16/10] sm:max-h-52">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-muted">
+                  {title}
+                </p>
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
+            <SceneCaptionOverlay
+              scene={
+                isSubtitlesMode
+                  ? { ...scene, narration: subtitlesPreview }
+                  : scene
+              }
+              variant="card"
+            />
+          </div>
           {scene.uploadedImage ? (
-            <div className="space-y-3">
-              <div className={`${studioStoryboardMediaFrame} group`}>
-                <img
-                  src={scene.uploadedImage}
-                  alt={`${title} visual`}
-                  className="aspect-[9/16] max-h-56 w-full object-cover sm:aspect-[16/10] sm:max-h-52"
+            <div className="mt-3 flex flex-wrap gap-2">
+              <label className={studioUploadButton}>
+                <ImagePlus className="h-3.5 w-3.5" />
+                Replace
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    onImageUpload(e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
                 />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <label className={studioUploadButton}>
-                  <ImagePlus className="h-3.5 w-3.5" />
-                  Replace
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      onImageUpload(e.target.files?.[0] ?? null);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-                <button type="button" onClick={onRemoveImage} className={studioDestructiveButton}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Remove
-                </button>
-              </div>
+              </label>
+              <button type="button" onClick={onRemoveImage} className={studioDestructiveButton}>
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove
+              </button>
             </div>
           ) : (
-            <label className={studioUploadZone}>
+            <label className={`${studioUploadZone} mt-3`}>
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-surface-elevated/50 ring-1 ring-border/25">
                 <ImagePlus className="h-4 w-4 text-muted" />
               </div>
@@ -188,19 +229,48 @@ export default function SceneStoryboardCard({
           </div>
         </section>
 
-        {/* Caption — on-screen subtitle */}
+        {/* Caption style + on-screen text */}
         <section aria-label="Scene caption">
-          <label htmlFor={`subtitle-${scene.id}`} className={studioFieldLabel}>
-            Caption
-          </label>
-          <textarea
-            id={`subtitle-${scene.id}`}
-            value={scene.subtitle}
-            onChange={(e) => onUpdate({ subtitle: e.target.value })}
-            rows={3}
-            placeholder="On-screen text for this scene"
-            className={`${studioTextarea} min-h-[5rem]`}
-          />
+          <CaptionStyleControl value={captionMode} onChange={handleCaptionModeChange} />
+
+          {isSubtitlesMode ? (
+            <>
+              <div className="mt-3">
+                <SubtitleEffectControl
+                  value={scene.subtitleEffect}
+                  onChange={(effect) => onUpdate({ subtitleEffect: effect })}
+                />
+              </div>
+              <div className="mt-3">
+                <p className={studioFieldLabel}>Caption</p>
+                <div
+                  className="rounded-xl bg-surface-elevated/30 px-3.5 py-3 ring-1 ring-border/20"
+                  aria-live="polite"
+                >
+                  <p className="text-sm leading-relaxed text-foreground/90">
+                    {subtitlesPreview || "Add narration above to preview subtitles for this scene."}
+                  </p>
+                  <p className={`${studioStoryboardMeta} mt-1.5`}>
+                    Subtitles are using narration text.
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="mt-3">
+              <label htmlFor={`subtitle-${scene.id}`} className={studioFieldLabel}>
+                Caption
+              </label>
+              <textarea
+                id={`subtitle-${scene.id}`}
+                value={generatedCaption}
+                onChange={(e) => onUpdate({ subtitle: e.target.value })}
+                rows={3}
+                placeholder="On-screen text for this scene"
+                className={`${studioTextarea} min-h-[5rem]`}
+              />
+            </div>
+          )}
         </section>
 
         {/* Secondary: scene type */}

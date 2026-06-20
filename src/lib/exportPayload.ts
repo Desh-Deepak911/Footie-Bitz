@@ -1,18 +1,57 @@
+import {
+  normalizeCaptionMode,
+  normalizeSceneCaptionSettings,
+  normalizeSubtitleEffect,
+} from "@/lib/captionMode";
 import { resolveTimelineItems } from "@/lib/previewTimeline";
+import { getDisplayCaption, syncScenesSubtitlesNarration } from "@/lib/displayCaption";
 import { getStoryTotalDuration } from "@/lib/sceneTiming";
 import { isSceneTimelineItem, normalizeSceneIds } from "@/lib/timelineItems";
 import type {
+  CaptionMode,
   FootieScene,
   FootieScript,
+  SubtitleEffect,
   TimelineItem,
   TransitionEffect,
 } from "@/types/footiebitz";
+
+/**
+ * Scene entry for export/render payloads.
+ * Preserves original `subtitle` (generated caption) and `narration` while exposing
+ * resolved display settings for renderers.
+ */
+export interface ExportScene extends FootieScene {
+  captionMode: CaptionMode;
+  subtitleEffect: SubtitleEffect;
+  /** Resolved on-screen caption at export time (`getDisplayCaption(scene)`). */
+  displayCaption: string;
+}
+
+/** Maps an app scene to the export shape without dropping source caption fields. */
+export function mapSceneToExport(scene: FootieScene): ExportScene {
+  const normalized = normalizeSceneCaptionSettings(scene);
+
+  return {
+    ...normalized,
+    captionMode: normalizeCaptionMode(normalized.captionMode),
+    subtitleEffect: normalizeSubtitleEffect(normalized.subtitleEffect),
+    displayCaption: getDisplayCaption(normalized),
+  };
+}
+
+/** Normalizes and enriches all scenes for export, syncing subtitles narration excerpts. */
+export function mapScenesToExport(scenes: FootieScene[], narration: string): ExportScene[] {
+  const normalizedIds = normalizeSceneIds(scenes);
+  const synced = syncScenesSubtitlesNarration(normalizedIds, narration);
+  return synced.map(mapSceneToExport);
+}
 
 /** Scene entry in the ordered export/render timeline. */
 export interface ExportSceneTimelineItem {
   id: string;
   type: "scene";
-  scene: FootieScene;
+  scene: ExportScene;
 }
 
 /** Transition entry in the ordered export/render timeline. */
@@ -39,7 +78,7 @@ export interface FootieExportPayload {
   /** Ordered scene and transition items — primary timeline for renderers. */
   timelineItems: ExportTimelineItem[];
   /** Canonical scene list for backward-compatible scene-only render paths. */
-  scenes: FootieScene[];
+  scenes: ExportScene[];
   voiceoverUrl?: string;
   /**
    * When false, renderers should ignore transition items and render scenes only.
@@ -61,13 +100,19 @@ export function isExportTransitionTimelineItem(
 }
 
 /** Maps app timeline items to the export payload shape. */
-export function mapTimelineItemsToExport(items: TimelineItem[]): ExportTimelineItem[] {
+export function mapTimelineItemsToExport(
+  items: TimelineItem[],
+  exportScenes: ExportScene[],
+): ExportTimelineItem[] {
+  const sceneById = new Map(exportScenes.map((scene) => [scene.id, scene]));
+
   return items.map((item) => {
     if (isSceneTimelineItem(item)) {
+      const scene = sceneById.get(item.scene.id) ?? mapSceneToExport(item.scene);
       return {
         id: item.id,
         type: "scene",
-        scene: item.scene,
+        scene,
       };
     }
 
@@ -84,7 +129,7 @@ export function mapTimelineItemsToExport(items: TimelineItem[]): ExportTimelineI
 
 /** Builds the ordered export payload from a synced FootieScript. */
 export function buildFootieExportPayload(script: FootieScript): FootieExportPayload {
-  const scenes = normalizeSceneIds(script.scenes ?? []);
+  const scenes = mapScenesToExport(script.scenes ?? [], script.narration ?? "");
   const timelineItems = resolveTimelineItems(script.timelineItems, scenes);
 
   return {
@@ -92,7 +137,7 @@ export function buildFootieExportPayload(script: FootieScript): FootieExportPayl
     title: script.title,
     narration: script.narration,
     totalDuration: getStoryTotalDuration(scenes),
-    timelineItems: mapTimelineItemsToExport(timelineItems),
+    timelineItems: mapTimelineItemsToExport(timelineItems, scenes),
     scenes,
     ...(script.voiceoverUrl ? { voiceoverUrl: script.voiceoverUrl } : {}),
     renderTransitions: false,
@@ -100,7 +145,7 @@ export function buildFootieExportPayload(script: FootieScript): FootieExportPayl
 }
 
 /** Scene items from the export timeline in playback order. */
-export function getExportScenesFromPayload(payload: FootieExportPayload): FootieScene[] {
+export function getExportScenesFromPayload(payload: FootieExportPayload): ExportScene[] {
   return payload.timelineItems
     .filter(isExportSceneTimelineItem)
     .map((item) => item.scene);
@@ -117,7 +162,7 @@ export function getExportTransitionsFromPayload(
  * Returns scenes for the current scene-only export renderer.
  * Ignores transition items until renderTransitions is enabled.
  */
-export function getRenderableScenesFromPayload(payload: FootieExportPayload): FootieScene[] {
+export function getRenderableScenesFromPayload(payload: FootieExportPayload): ExportScene[] {
   if (payload.renderTransitions) {
     return getExportScenesFromPayload(payload);
   }
