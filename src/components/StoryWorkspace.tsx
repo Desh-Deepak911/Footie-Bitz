@@ -5,9 +5,10 @@ import type { ReactNode } from "react";
 
 import ExportPanel from "@/components/ExportPanel";
 import NarrationPanel from "@/components/NarrationPanel";
-import SceneEditor from "@/components/SceneEditor";
 import StoryReview from "@/components/StoryReview";
-import VideoPreview from "@/components/VideoPreview";
+import VoiceSettingsCard from "@/components/VoiceSettingsCard";
+import { TimelineEditor } from "@/features/editor/components";
+import { VideoPreview } from "@/features/preview/components";
 import {
   studioMobileActionBar,
   studioMobileActionButton,
@@ -22,7 +23,7 @@ import {
   studioWorkspacePanel,
   studioWorkspaceSection,
 } from "@/lib/studioUi";
-import type { FootieScript } from "@/types/footiebitz";
+import type { FootieScript } from "@/features/story/types";
 
 interface StoryWorkspaceProps {
   script: FootieScript;
@@ -96,13 +97,17 @@ export default function StoryWorkspace({
                 onStoryChange={onScriptChange}
                 variant="storyboard"
               />
+              <div className="mt-5 border-t border-border/25 pt-5 sm:mt-6 sm:pt-6">
+                <VoiceSettingsCard script={script} onScriptChange={onScriptChange} />
+              </div>
             </section>
 
             <section id="studio-timeline" className={studioWorkspaceSection}>
-              <SceneEditor
+              <TimelineEditor
                 script={script}
                 onScriptChange={onScriptChange}
                 selectedSceneIndex={selectedSceneIndex}
+                onSelectedSceneChange={onSelectedSceneChange}
                 variant="storyboard"
               />
             </section>
@@ -128,11 +133,7 @@ export default function StoryWorkspace({
             </WorkspacePanel>
 
             <WorkspacePanel step="Narration" title="Spoken audio">
-              <NarrationPanel
-                script={script}
-                onScriptChange={onScriptChange}
-                compact
-              />
+              <NarrationPanel script={script} compact />
             </WorkspacePanel>
 
             <WorkspacePanel id="studio-export" step="Export" title="Export video">

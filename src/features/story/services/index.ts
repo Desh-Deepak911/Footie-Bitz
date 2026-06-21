@@ -1,0 +1,43 @@
+export {
+  cleanJsonText,
+  extractJson,
+  normalizeFootieStory,
+  parseFootieScript,
+} from "./story-parse.service";
+export {
+  generateFootieScript,
+  type ScriptGenerationResult,
+} from "./story-generation.service";
+export {
+  generateStoryScript,
+  type GenerateStoryScriptOptions,
+  type StoryScriptGenerationResult,
+} from "./script-generation.service";
+export {
+  generateScenesFromScriptAndAudio,
+  type GenerateScenesFromScriptAndAudioInput,
+  type GenerateScenesFromScriptAndAudioOptions,
+  type ScenePlanningResult,
+} from "./scene-planning.service";
+export {
+  applyAudioFirstTiming,
+  generateAudioFirstStory,
+  type ApplyAudioFirstTimingOutcome,
+  type AudioFirstStoryGenerationResult,
+  type GenerateAudioFirstStoryInput,
+} from "./audio-first-generation.service";
+export {
+  generateStoryWithAudioFirstPipeline,
+  type AudioFirstStoryPipelineInput,
+} from "./story-pipeline.service";
+export {
+  generateVoiceover,
+  generateVoiceoverFromScript,
+  generateVoiceoverMp3,
+  resolveVoiceoverVoice,
+  type GenerateVoiceoverFromScriptOptions,
+  type GenerateVoiceoverInput,
+  type GenerateVoiceoverMp3Options,
+  type GenerateVoiceoverOutput,
+} from "./voiceover.service";
+export { adjustVoiceoverDurationForSpeed } from "@/features/story/utils/voiceover-duration.utils";

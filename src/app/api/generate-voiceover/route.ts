@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 
-import { generateVoiceoverMp3, resolveVoiceoverVoice } from "@/lib/generateVoiceover";
+import { generateVoiceover } from "@/features/story/services";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 interface GenerateVoiceoverRequest {
+  narration?: string;
+  /** @deprecated Use `narration`. */
   text?: string;
   voice?: string;
+  speed?: number;
 }
 
 function jsonError(message: string, status: number) {
@@ -35,9 +38,9 @@ export async function POST(request: Request) {
       return jsonError("Invalid request body", 400);
     }
 
-    const text = body.text?.trim();
-    if (!text) {
-      return jsonError("Text is required", 400);
+    const narration = body.narration?.trim() || body.text?.trim();
+    if (!narration) {
+      return jsonError("Narration is required", 400);
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -45,15 +48,22 @@ export async function POST(request: Request) {
       return jsonError("Server configuration error", 500);
     }
 
-    const voice = resolveVoiceoverVoice(body.voice);
-    const audioBuffer = await generateVoiceoverMp3(text, voice);
+    const voiceover = await generateVoiceover({
+      narration,
+      voice: body.voice,
+      speed: body.speed,
+    });
 
-    return new NextResponse(new Uint8Array(audioBuffer), {
+    return new NextResponse(new Uint8Array(voiceover.audioBuffer), {
       status: 200,
       headers: {
         "Content-Type": "audio/mpeg",
         "Content-Disposition": 'inline; filename="footiebitz-voiceover.mp3"',
         "Cache-Control": "no-store",
+        "X-Voiceover-Duration-Ms": String(voiceover.durationMs),
+        ...(voiceover.metadata?.speed != null
+          ? { "X-Voiceover-Speed": String(voiceover.metadata.speed) }
+          : {}),
       },
     });
   } catch (error) {

@@ -1,95 +1,19 @@
+import type { AudioFirstGenerationResult, FootieScript } from "@/features/story/types";
+
 export type Tone = "dramatic" | "funny" | "tactical" | "news" | "emotional";
 
 export type QualityMode = "cheap" | "balanced" | "best";
 
-export type SceneType = "intro" | "context" | "match" | "transition" | "ending";
+export const MIN_SCENE_COUNT = 3;
+export const MAX_SCENE_COUNT = 12;
+export const DEFAULT_SCENE_COUNT = 6;
 
-/** How on-screen captions are sourced for a scene. */
-export type CaptionMode = "generated" | "subtitles";
-
-/** Visual treatment when displaying captions (subtitles mode or generated text). */
-export type SubtitleEffect = "fade-up" | "typewriter" | "highlight";
-
-/** How a scene image fills its frame. */
-export type SceneImageFitMode = "fill" | "fit";
-
-/** Pan/zoom transform for a manually uploaded scene image. */
-export interface SceneImage {
-  url: string;
-  scale: number;
-  x: number;
-  y: number;
-  rotation?: number;
-  fitMode?: SceneImageFitMode;
-}
-
-/** Persisted image value — legacy string URL or normalized image object. */
-export type SceneImageInput = string | SceneImage;
-
-export interface FootieScene {
-  id: string;
-  start: number;
-  end: number;
-  duration: number;
-  subtitle: string;
-  sceneType?: SceneType;
-  /** Scene media with optional pan/zoom transform metadata. */
-  image?: SceneImage;
-  /**
-   * @deprecated Legacy string URL — migrated to `image` on sync.
-   * Still accepted on load for backward compatibility.
-   */
-  uploadedImage?: string;
-  /**
-   * Caption source — `generated` uses AI scene subtitles; `subtitles` derives
-   * captions from narration locally. Defaults to `generated` when omitted (legacy).
-   */
-  captionMode?: CaptionMode;
-  /** Caption animation style. Defaults to `fade-up` when omitted (legacy). */
-  subtitleEffect?: SubtitleEffect;
-  /**
-   * Narration excerpt for this scene when `captionMode` is `subtitles`.
-   * Populated locally from the story narration — not from AI.
-   */
-  narration?: string;
-}
-
-export type TransitionEffect =
-  | "cut"
-  | "fade"
-  | "slide-left"
-  | "slide-right"
-  | "zoom-in"
-  | "blur";
-
-/** A scene entry in the production timeline. */
-export interface SceneTimelineItem {
-  id: string;
-  type: "scene";
-  scene: FootieScene;
-}
-
-/** A transition between two scenes — app-side only, no AI generation. */
-export interface TransitionTimelineItem {
-  id: string;
-  type: "transition";
-  fromSceneId: string;
-  toSceneId: string;
-  effect: TransitionEffect;
-  durationMs: number;
-  label: string;
-}
-
-export type TimelineItem = SceneTimelineItem | TransitionTimelineItem;
-
-export interface FootieScript {
-  title: string;
-  totalDuration: number;
-  narration: string;
-  scenes: FootieScene[];
-  /** Interleaved scene + transition items. Omitted in legacy stories — auto-built on sync. */
-  timelineItems?: TimelineItem[];
-  voiceoverUrl?: string;
+export function resolveSceneCount(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_SCENE_COUNT;
+  }
+  return Math.max(MIN_SCENE_COUNT, Math.min(MAX_SCENE_COUNT, Math.round(parsed)));
 }
 
 export interface GenerateScriptRequest {
@@ -97,10 +21,49 @@ export interface GenerateScriptRequest {
   tone: Tone;
   duration: number;
   qualityMode?: QualityMode;
+  sceneCount?: number;
+  /** When true, responds with NDJSON progress events followed by a complete payload. */
+  stream?: boolean;
 }
+
+export const GENERATION_LOADING_STEPS = [
+  "Writing narration...",
+  "Generating voiceover...",
+  "Planning scenes...",
+  "Building storyboard...",
+] as const;
+
+export type GenerationLoadingStep = 1 | 2 | 3 | 4;
+
+export type GenerateScriptProgressEvent = {
+  type: "progress";
+  step: GenerationLoadingStep;
+  label: (typeof GENERATION_LOADING_STEPS)[number];
+};
+
+export type GenerateScriptStreamCompleteEvent = GenerateScriptResponse & {
+  type: "complete";
+  usedFallback?: boolean;
+};
+
+export type GenerateScriptStreamErrorEvent = {
+  type: "error";
+  error: string;
+};
+
+export type GenerateScriptStreamEvent =
+  | GenerateScriptProgressEvent
+  | GenerateScriptStreamCompleteEvent
+  | GenerateScriptStreamErrorEvent;
 
 export interface GenerateScriptResponse {
   success: boolean;
   data?: FootieScript;
+  /** Structured audio-first pipeline output when available. */
+  audioFirst?: AudioFirstGenerationResult;
+  /** Base64-encoded MP3 when the audio-first pipeline succeeds. */
+  voiceoverAudioBase64?: string;
+  /** True when scene timings were fitted to measured voiceover duration. */
+  audioFirstApplied?: boolean;
   error?: string;
 }

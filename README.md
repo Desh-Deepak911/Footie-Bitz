@@ -1,253 +1,283 @@
 # FootieBitz
 
-**Turn football ideas into narrated short-form videos in minutes.**
+**An AI-powered platform for creating football documentary shorts.**
 
-FootieBitz is a modern web application that transforms a football topic into a documentary-style narrated short. Go from a rough idea to a fully timed vertical video — with subtitles, uploaded scene images you can reposition and zoom, and optional narration audio — entirely in the browser.
+FootieBitz turns a topic into a narrated vertical video — from script and voiceover to timed scenes, visual editing, preview, and export. Built for creators who want story-first short-form production without a traditional editing suite.
+
+---
+
+## Project Overview
+
+FootieBitz is a modern web application for producing 9:16 football shorts. Enter a brief, and the platform generates a complete documentary narration, synthesizes voiceover audio, and plans a timed scene breakdown. Creators refine the result in a production timeline — editing copy, uploading images, adjusting captions, and applying transitions — then preview and export a finished video entirely in the browser.
+
+The product is built around one principle: **the story drives everything else.** Narration is written and spoken before scenes are planned, so timing follows the voice — not the other way around.
 
 ---
 
 ## Features
 
-### 🎙 Story Creation
+### AI generation
 
-- Generate 30s, 45s, or 60s football stories from a single prompt
-- Documentary-style continuous narration — one story, not disconnected captions
-- Structured JSON output with title, narration, and a timed scene breakdown
+- Documentary-style script generation from topic, tone, and duration
+- Audio-first pipeline: narration → voiceover → scene plan timed to measured audio
+- Configurable scene count, quality tier, and streaming generation progress
+- OpenAI text-to-speech with voice and speed control
 
-### 🎬 Production Timeline
+### Production timeline
 
-- Automatically split into scenes with calculated start/end timings
-- Edit subtitles and adjust scene durations (1–20 seconds each)
-- Add buffer scenes: **Intro**, **Context**, **Transition**, **Ending**
-- Move, duplicate, and delete scenes
-- Upload a custom image per scene and adjust how it appears in frame
-- Total timeline duration updates live
+- Scene editor — add, delete, duplicate, reorder, and type scenes
+- Manual scene duration (1–20 seconds) with live total timeline update
+- Buffer scene types: Intro, Context, Match, Transition, Ending
+- Scene-to-scene transitions: cut, fade, slide, zoom, blur
 
-### 🖼 Image Framing
+### Captions and subtitles
 
-For manually uploaded scene images:
+- **Generated captions** — static AI subtitle per scene
+- **Timed subtitles** — narration-derived chunks with even pacing
+- Subtitle effects: fade-up, typewriter, highlight
+- Up to three visible lines, bottom-centred content-sized pill
 
-- **Drag** to reposition the image inside the 9:16 video frame
-- **Zoom** to focus on the detail that matters
-- **Fit** shows the full image without cropping; **Fill** covers the frame
-- **Reset** restores the default framing
-- Exported video uses the same positioning you see in preview
+### Visual editing
 
-Works on desktop and touch devices. Legacy projects with older image URLs continue to work with sensible defaults.
+- Per-scene image upload with pan, zoom, and fit/fill framing
+- Ken Burns motion — subtle, medium, or strong zoom during playback
+- Type-labelled placeholders when no image is uploaded
+- Touch-friendly image positioning
 
-### 🔊 Narration
+### Preview and export
 
-- Generate natural narration audio via OpenAI Text-to-Speech
-- Preview narration directly in the browser before exporting
-- Narration plays independently of visual scene changes during preview
-
-### 📱 Preview
-
-- Vertical short preview (9:16) with a phone-style frame
-- Subtitle overlays per scene
-- Scene-by-scene playback with timeline progress
-- Uploaded images reflect your pan, zoom, and fit settings
-- Buffer scenes show type-labelled placeholders when no image is uploaded
-
-### 📤 Export
-
-- Client-side video rendering via HTML5 Canvas + FFmpeg.wasm
-- No server upload required — everything runs in the browser
-- Quality presets: **720p**, **1080p**, **1440p**, **4K**
-- Optional narration audio track muxed into the final video
-- Scene images export with the same framing as the preview
-- Exported as a `.webm` file ready to upload anywhere
+- Interactive 9:16 preview with narration-synced playback
+- Client-side export at 720p, 1080p, 1440p, or 4K vertical
+- Optional narration track muxed into final WebM
+- Preview and export share timing, subtitle, transition, and motion logic
 
 ---
 
-## Workflow
+## Architecture
 
-| Step | Section | What Happens |
-|------|---------|--------------|
-| 1 | **Story Brief** | Enter a football topic and pick a target duration |
-| 2 | **Story Draft** | Review the generated title and narration |
-| 3 | **Production Timeline** | Edit scenes, adjust durations, add buffer scenes |
-| 4 | **Upload & Frame Images** | Attach images to scenes; drag, zoom, and choose Fit or Fill |
-| 5 | **Narration** | Generate and preview the voiceover |
-| 6 | **Preview** | Watch the full short in the browser |
-| 7 | **Export** | Render and download the final video |
+FootieBitz is organized into three layers that share a common story model (`FootieScript`):
 
----
+| Layer | Responsibility |
+|-------|----------------|
+| **Generation** | AI script, voiceover, and scene planning (server) |
+| **Editing** | Timeline, captions, images, transitions (client) |
+| **Rendering** | Preview playback and canvas export (client) |
 
-## Tech Stack
-
-### Frontend
-
-| Technology | Role |
-|-----------|------|
-| [Next.js 16](https://nextjs.org) | React framework, App Router, API routes |
-| React 19 | UI components and state |
-| TypeScript | Type safety throughout |
-| Tailwind CSS v4 | Styling |
-| Lucide React | Icons |
-
-### AI
-
-| Service | Role |
-|---------|------|
-| OpenAI Responses API | Story and scene generation |
-| OpenAI Text-to-Speech | Narration audio (`tts-1`) |
-
-### Rendering
-
-| Technology | Role |
-|-----------|------|
-| HTML5 Canvas | Frame-by-frame scene rendering |
-| [FFmpeg.wasm](https://ffmpegwasm.netlify.app) | Client-side audio/video muxing |
-
-### Deployment
-
-| Platform | Notes |
-|----------|-------|
-| [Vercel](https://vercel.com) | Serverless Edge-compatible deployment |
-
----
-
-## Project Structure
-
-```
-footiebitz/
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── generate-script/   # POST /api/generate-script
-│   │   │   └── generate-voiceover/ # POST /api/generate-voiceover
-│   │   ├── globals.css            # Global theme variables
-│   │   ├── layout.tsx             # Root layout and metadata
-│   │   └── page.tsx               # Main studio page
-│   │
-│   ├── components/
-│   │   ├── StoryReview.tsx        # Step 2 — Edit title and narration
-│   │   ├── SceneEditor.tsx        # Step 3 — Production timeline editor
-│   │   ├── NarrationPanel.tsx     # Step 5 — Generate and preview voiceover
-│   │   ├── VideoPreview.tsx       # Step 6 — Full short preview
-│   │   ├── ExportPanel.tsx        # Step 7 — Export settings and download
-│   │   ├── BreakLongVideoSection.tsx
-│   │   └── CopyButton.tsx
-│   │
-│   ├── lib/
-│   │   ├── exportVideo.ts         # Canvas rendering and frame export
-│   │   ├── exportVideo.shared.ts  # Shared export utilities
-│   │   ├── ffmpegClient.ts        # FFmpeg.wasm loader
-│   │   ├── generateFootieScript.ts # Script generation logic
-│   │   ├── generateVoiceover.ts   # Voiceover generation logic
-│   │   ├── openai.ts              # OpenAI client
-│   │   ├── parseScript.ts         # JSON parsing and scene normalization
-│   │   ├── prompts.ts             # Prompt templates
-│   │   ├── sceneTiming.ts         # Scene start/end calculation
-│   │   ├── scriptModels.ts        # Model selection helpers
-│   │   ├── scriptSchema.ts        # Structured output schema
-│   │   ├── studioUi.ts            # Shared Tailwind class constants
-│   │   ├── timeline.ts            # Scene insertion, duplication, ordering
-│   │   ├── voiceover.ts           # Story state sync and narration validation
-│   │   ├── voiceoverOptions.ts    # TTS voice and model options
-│   │   └── blobUrl.ts             # Blob URL lifecycle helpers
-│   │
-│   └── types/
-│       └── footiebitz.ts          # Core data types (FootieScript, FootieScene)
-│
-├── public/                        # Static assets
-├── next.config.ts
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
-```
-
----
-
-## Local Setup
-
-### Prerequisites
-
-- Node.js 18+
-- An [OpenAI API key](https://platform.openai.com/api-keys)
-
-### Clone
-
-```bash
-git clone https://github.com/your-username/footiebitz.git
-cd footiebitz
-```
-
-### Install
-
-```bash
-npm install
-```
-
-### Environment Variables
-
-Create a `.env.local` file in the project root:
-
-```env
-OPENAI_API_KEY=sk-...
-```
-
-### Run
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
----
-
-## Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the development server |
-| `npm run build` | Production build |
-| `npm run start` | Serve the production build |
-| `npm run lint` | Run ESLint |
-| `npm run test:scene-image` | Verify image positioning logic |
+AI generation runs on server API routes. Editing, preview, and export run in the browser. Detailed documentation lives in [`docs/`](./docs/).
 
 ---
 
 ## Screenshots
 
-> _Screenshots coming soon._
+> Screenshots coming soon.
 
 | Screen | Description |
 |--------|-------------|
-| Home | Story brief input and topic selector |
-| Story Draft | Title and narration review |
-| Production Timeline | Scene editor with image framing and buffer controls |
-| Preview | Vertical short in a phone frame |
+| Story Brief | Topic input, tone, duration, and generation controls |
+| Production Timeline | Scene cards with image, caption, and timing controls |
+| Preview | Vertical phone-frame playback with subtitles |
 | Export | Quality presets and download |
 
 ---
 
-## Future Roadmap
+## Tech Stack
 
-- [ ] Timeline drag and drop
-- [ ] Scene splitting and merging
-- [ ] Multiple narration voices
-- [ ] Background music support
-- [ ] Auto subtitle timing from audio
-- [ ] Better transition animations
-- [ ] Team collaboration (shared projects)
-- [ ] Project save and load
-- [ ] Template library
+| Layer | Technology |
+|-------|------------|
+| Framework | [Next.js 16](https://nextjs.org) (App Router), React 19, TypeScript |
+| Styling | Tailwind CSS v4, Lucide React |
+| AI | OpenAI Responses API, OpenAI TTS (`tts-1`) |
+| Preview | React, CSS animations |
+| Export | HTML5 Canvas 2D, MediaRecorder, FFmpeg.wasm |
+| Deployment | Vercel-compatible serverless routes |
 
 ---
 
-## Design Philosophy
+## How It Works
 
-FootieBitz is built around one idea: **story first.**
+```
+Prompt → Script → Voiceover → Scene plan → Editor → Preview → Export
+```
 
-Most short-form video tools start with clips and ask you to add text. FootieBitz flips the workflow — start with a topic, generate a complete narrative, build the timeline around that narrative, and then add visuals. The story drives everything else.
+1. **Brief** — Creator enters a football topic, tone, duration, and scene count.
+2. **Script** — AI writes a continuous documentary narration.
+3. **Voiceover** — Text-to-speech produces narration audio; duration becomes the timing authority.
+4. **Scene plan** — AI designs visual beats (subtitles, scene types) mapped to the voiceover.
+5. **Editor** — Creator refines narration, scenes, images, captions, and transitions. All edits are local and non-destructive until voiceover is explicitly regenerated.
+6. **Preview** — Full vertical short plays in the browser, synced to narration.
+7. **Export** — Canvas renders each frame; optional FFmpeg mux adds narration audio. Download as WebM.
 
-The goal is to help creators produce documentary-quality short-form football content without needing a production team.
+---
+
+## Installation
+
+### Prerequisites
+
+- Node.js 18 or later
+- npm
+- An [OpenAI API key](https://platform.openai.com/api-keys)
+
+### Clone and install
+
+```bash
+git clone https://github.com/your-username/footiebitz.git
+cd footiebitz
+npm install
+```
+
+---
+
+## Environment Variables
+
+Create a `.env.local` file in the project root:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Yes | OpenAI API key for script generation and TTS |
+| `OPENAI_SCRIPT_MODEL` | No | Override the default model for all quality tiers |
+
+Example:
+
+```env
+OPENAI_API_KEY=sk-...
+```
+
+Optional override:
+
+```env
+OPENAI_SCRIPT_MODEL=gpt-4.1-mini
+```
+
+---
+
+## Running Locally
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+Run the linter:
+
+```bash
+npm run lint
+```
+
+Run regression verification scripts:
+
+```bash
+npm run test:export-subtitle-qa
+npm run test:transition-qa
+npm run test:audio-first-qa
+npm run build
+```
+
+See `package.json` for the full list of verify scripts.
+
+---
+
+## Build
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Serve the production build locally:
+
+```bash
+npm run start
+```
+
+---
+
+## Deployment
+
+FootieBitz deploys cleanly to [Vercel](https://vercel.com) or any Node.js host that supports Next.js App Router.
+
+1. Connect the repository to your deployment platform.
+2. Set `OPENAI_API_KEY` in the environment variables panel.
+3. Deploy. API routes use the Node.js runtime with a 120-second generation timeout.
+
+Client-side export requires a modern browser with Canvas, MediaRecorder, and WebAssembly support. No server-side video rendering is needed.
+
+---
+
+## Current Architecture
+
+```
+footiebitz/
+├── src/
+│   ├── app/                      # Pages and API routes
+│   │   ├── page.tsx              # Studio
+│   │   ├── api/generate-script/
+│   │   └── api/generate-voiceover/
+│   ├── components/               # Studio shell and panels
+│   ├── features/
+│   │   ├── story/                # Types, timing, generation services
+│   │   ├── editor/               # Timeline, scene cards, controls
+│   │   ├── preview/              # Playback and device frame
+│   │   └── export/               # Canvas render and FFmpeg mux
+│   ├── lib/                      # AI prompts, voiceover sync, tests
+│   └── types/                    # API request/response types
+├── docs/                         # Architecture and feature docs
+├── README.md
+└── ROADMAP.md
+```
+
+**Data flow:** `FootieScript` holds title, narration, scenes, timeline items, voiceover URL, and voice settings. All editor changes flow through immutable update helpers and `syncFootieScript()` normalization before reaching preview or export.
+
+**Server boundary:** OpenAI calls and API keys stay on the server. Preview, export, and image blobs run entirely in the browser.
+
+For deeper reading:
+
+| Document | Contents |
+|----------|----------|
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System layers and data flow |
+| [docs/GENERATION.md](./docs/GENERATION.md) | Audio-first pipeline |
+| [docs/EDITING.md](./docs/EDITING.md) | Editor philosophy and controls |
+| [docs/RENDERING.md](./docs/RENDERING.md) | Preview vs export |
+| [docs/DATA_MODEL.md](./docs/DATA_MODEL.md) | Story, scene, and timeline types |
+| [docs/FEATURES.md](./docs/FEATURES.md) | Feature reference |
+
+---
+
+## Roadmap
+
+Development is phased from core studio toward projects, deeper editing, rendering polish, and platform features (accounts, cloud storage, publishing).
+
+| Phase | Focus |
+|-------|--------|
+| **Completed** | Generation, editing, preview, export |
+| **Phase 1** | Draft system, landing page, `/create`, `/editor/:draftId`, autosave |
+| **Phase 2** | Generation improvements |
+| **Phase 3** | Editing improvements |
+| **Phase 4** | Rendering improvements |
+| **Phase 5** | Authentication, cloud storage, publishing |
+
+Full detail: [ROADMAP.md](./ROADMAP.md) · Long-term vision: [docs/FUTURE.md](./docs/FUTURE.md)
+
+---
+
+## Contributing
+
+Contributions are welcome. FootieBitz is structured around feature domains (`story`, `editor`, `preview`, `export`) with shared utilities keeping preview and export behaviour aligned.
+
+When proposing a change:
+
+1. Describe the **creator problem** being solved.
+2. Identify which layer is affected — generation, editing, or rendering.
+3. Note whether voiceover or scene timing behaviour must stay unchanged.
+4. Run relevant verify scripts and `npm run build` before opening a pull request.
+
+For architectural context, start with [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ---
 
 ## License
 
-[MIT](./LICENSE)
+MIT

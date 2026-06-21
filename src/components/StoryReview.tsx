@@ -2,7 +2,7 @@
 
 import { Clock } from "lucide-react";
 
-import CopyButton from "@/components/CopyButton";
+import { CopyButton } from "@/components/ui";
 import {
   studioBadge,
   studioInput,
@@ -13,7 +13,7 @@ import {
   studioSubtleText,
   studioTextarea,
 } from "@/lib/studioUi";
-import type { FootieScript } from "@/types/footiebitz";
+import type { FootieScript } from "@/features/story/types";
 
 interface StoryReviewProps {
   story: FootieScript;

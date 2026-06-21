@@ -9,7 +9,11 @@ const eslintConfig = defineConfig([
     rules: {
       "@next/next/no-img-element": "off",
     },
-    files: ["src/components/SceneEditor.tsx", "src/components/VideoPreview.tsx"],
+    files: [
+      "src/features/editor/components/TimelineEditor.tsx",
+      "src/features/editor/components/SceneFrameImage.tsx",
+      "src/features/preview/components/VideoPreview.tsx",
+    ],
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([

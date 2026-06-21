@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 
-import { generateFootieScript } from "@/lib/generateFootieScript";
-import { normalizeFootieStory } from "@/lib/parseScript";
-import { resolveQualityMode, resolveScriptModel } from "@/lib/scriptModels";
+import {
+  applyAudioFirstTiming,
+  generateAudioFirstStory,
+  generateFootieScript,
+  normalizeFootieStory,
+} from "@/features/story/services";
+import { resolveQualityMode, resolveScriptModel } from "@/lib/ai";
+import type { AudioFirstGenerationResult, FootieScript } from "@/features/story/types";
 import type {
-  FootieScript,
+  GenerateScriptProgressEvent,
   GenerateScriptRequest,
   GenerateScriptResponse,
+  GenerateScriptStreamEvent,
+  GenerationLoadingStep,
   Tone,
 } from "@/types/footiebitz";
+import { GENERATION_LOADING_STEPS, resolveSceneCount } from "@/types/footiebitz";
 
 const VALID_TONES: Tone[] = ["dramatic", "funny", "tactical", "news", "emotional"];
 const DEFAULT_TONE: Tone = "dramatic";
@@ -16,7 +24,9 @@ const DEFAULT_DURATION = 30;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
+
+type ProgressEmitter = (step: GenerationLoadingStep, label: string) => void | Promise<void>;
 
 function jsonResponse(body: GenerateScriptResponse, status = 200) {
   return NextResponse.json(body, { status });
@@ -59,6 +69,160 @@ function buildStoryResponse(story: FootieScript): FootieScript {
   return normalizeFootieStory(story);
 }
 
+function buildGenerateScriptResponse(
+  footieScript: FootieScript,
+  audioFirst: AudioFirstGenerationResult,
+  applied: boolean,
+): GenerateScriptResponse {
+  if (!applied || !audioFirst.voiceover?.audioBase64) {
+    return { success: true, data: footieScript, audioFirst };
+  }
+
+  return {
+    success: true,
+    data: footieScript,
+    audioFirst,
+    audioFirstApplied: true,
+    voiceoverAudioBase64: audioFirst.voiceover.audioBase64,
+  };
+}
+
+interface GenerationParams {
+  topic: string;
+  tone: Tone;
+  duration: number;
+  qualityMode: ReturnType<typeof resolveQualityMode>;
+  sceneCount: number;
+  model: string;
+}
+
+type GenerationSuccess = {
+  ok: true;
+  response: GenerateScriptResponse;
+  usedFallback: boolean;
+};
+
+type GenerationFailure = {
+  ok: false;
+  response: GenerateScriptResponse;
+  status: number;
+};
+
+async function runGeneration(
+  params: GenerationParams,
+  emitProgress?: ProgressEmitter,
+): Promise<GenerationSuccess | GenerationFailure> {
+  const audioFirstResult = await generateAudioFirstStory({
+    prompt: params.topic,
+    sceneCount: params.sceneCount,
+    tone: params.tone,
+    duration: params.duration,
+    qualityMode: params.qualityMode,
+    model: params.model,
+    onProgress: emitProgress,
+  });
+
+  if (audioFirstResult.success) {
+    return {
+      ok: true,
+      usedFallback: false,
+      response: buildGenerateScriptResponse(
+        audioFirstResult.footieScript,
+        audioFirstResult.data,
+        true,
+      ),
+    };
+  }
+
+  console.warn("audio-first pipeline:", audioFirstResult.error);
+
+  await emitProgress?.(1, GENERATION_LOADING_STEPS[0]);
+
+  const result = await generateFootieScript(
+    params.topic,
+    params.tone,
+    params.duration,
+    params.model,
+  );
+
+  if (!result.success) {
+    if (result.kind === "empty") {
+      console.error("FULL OPENAI RESPONSE:", safeStringify(result.response));
+      return { ok: false, response: { success: false, error: result.error }, status: 500 };
+    }
+
+    console.error("Story parse error:", result.error);
+    console.error("Model raw output:", result.rawText);
+    return { ok: false, response: { success: false, error: result.error }, status: 500 };
+  }
+
+  await emitProgress?.(2, GENERATION_LOADING_STEPS[1]);
+
+  const baseStory = buildStoryResponse(result.data);
+  const audioFirstOutcome = await applyAudioFirstTiming(baseStory);
+
+  await emitProgress?.(4, GENERATION_LOADING_STEPS[3]);
+
+  return {
+    ok: true,
+    usedFallback: true,
+    response: buildGenerateScriptResponse(
+      audioFirstOutcome.footieScript,
+      audioFirstOutcome.audioFirst,
+      audioFirstOutcome.applied,
+    ),
+  };
+}
+
+function streamResponse(
+  handler: (emit: ProgressEmitter) => Promise<GenerationSuccess | GenerationFailure>,
+): Response {
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const encoder = new TextEncoder();
+
+      const emitEvent = (event: GenerateScriptStreamEvent) => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
+
+      const emitProgress: ProgressEmitter = (step, label) => {
+        emitEvent({
+          type: "progress",
+          step,
+          label: label as GenerateScriptProgressEvent["label"],
+        });
+      };
+
+      try {
+        const outcome = await handler(emitProgress);
+
+        if (!outcome.ok) {
+          emitEvent({ type: "error", error: outcome.response.error ?? "Failed to create story" });
+          return;
+        }
+
+        emitEvent({
+          type: "complete",
+          ...outcome.response,
+          usedFallback: outcome.usedFallback,
+        });
+      } catch (error) {
+        console.error("generate-script stream error:", error);
+        emitEvent({ type: "error", error: mapOpenAIError(error) });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-cache",
+    },
+  });
+}
+
 export async function POST(request: Request) {
   try {
     let body: GenerateScriptRequest;
@@ -77,6 +241,7 @@ export async function POST(request: Request) {
     const tone = resolveTone(body.tone);
     const duration = resolveDuration(body.duration);
     const qualityMode = resolveQualityMode(body.qualityMode);
+    const sceneCount = resolveSceneCount(body.sceneCount);
     const model = resolveScriptModel(qualityMode);
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -87,22 +252,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await generateFootieScript(topic, tone, duration, model);
+    const params: GenerationParams = {
+      topic,
+      tone,
+      duration,
+      qualityMode,
+      sceneCount,
+      model,
+    };
 
-    if (!result.success) {
-      if (result.kind === "empty") {
-        console.error("FULL OPENAI RESPONSE:", safeStringify(result.response));
-        return jsonResponse({ success: false, error: result.error }, 500);
-      }
-
-      console.error("Story parse error:", result.error);
-      console.error("Model raw output:", result.rawText);
-      return jsonResponse({ success: false, error: result.error }, 500);
+    if (body.stream) {
+      return streamResponse((emitProgress) => runGeneration(params, emitProgress));
     }
 
-    const data = buildStoryResponse(result.data);
+    const outcome = await runGeneration(params);
 
-    return jsonResponse({ success: true, data });
+    if (!outcome.ok) {
+      return jsonResponse(outcome.response, outcome.status);
+    }
+
+    return jsonResponse(outcome.response);
   } catch (error) {
     console.error("generate-script error:", error);
     return jsonResponse({ success: false, error: mapOpenAIError(error) }, 500);

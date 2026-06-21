@@ -22,7 +22,7 @@ import {
   type ExportAudioMode,
   type ExportProgress,
   type ExportQualityId,
-} from "@/lib/exportVideo";
+} from "@/features/export/services";
 import {
   studioBadge,
   studioChecklistItem,
@@ -41,8 +41,8 @@ import {
   studioWarningPanel,
 } from "@/lib/studioUi";
 import { syncFootieScript } from "@/lib/voiceover";
-import { sceneHasImage } from "@/lib/sceneImage";
-import type { FootieScript } from "@/types/footiebitz";
+import { sceneHasImage } from "@/features/story/utils";
+import type { FootieScript } from "@/features/story/types";
 
 interface ExportPanelProps {
   script: FootieScript;

@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 
-import { buildFootieExportPayload } from "./exportPayload";
+import { buildFootieExportPayload } from "@/features/export/services";
 import {
   applyReferencePanFromScreenDelta,
   applySceneImageFitMode,
@@ -16,17 +16,22 @@ import {
   getSceneImageTransformStyle,
   getSceneImageUrl,
   normalizeSceneImage,
+  normalizeSceneImageMotion,
   normalizeSceneImageSettings,
+  getDefaultImageMotion,
+  resetSceneImageSettings,
+  updateSceneImageSettings,
   patchSceneImageTransform,
   resetSceneImageTransform,
   resolveExportSceneImage,
   resolveSceneImageTransformForFrame,
   sceneHasImage,
+  duplicateScene,
   SCENE_IMAGE_REFERENCE_HEIGHT,
   SCENE_IMAGE_REFERENCE_WIDTH,
   withScreenDragOffset,
-} from "./sceneImage";
-import type { FootieScene, FootieScript } from "@/types/footiebitz";
+} from "@/features/story/utils";
+import type { FootieScene, FootieScript } from "@/features/story/types";
 
 function test(name: string, fn: () => void) {
   fn();
@@ -60,7 +65,7 @@ test("1. legacy string uploadedImage normalizes with defaults", () => {
   assert.equal(normalized.image?.scale, 1);
   assert.equal(normalized.image?.x, 0);
   assert.equal(normalized.image?.y, 0);
-  assert.equal(normalized.image?.fitMode, "fill");
+  assert.equal(normalized.image?.fitMode, "fit");
   assert.equal(sceneHasImage(normalized), true);
   assert.equal(getSceneImageUrl(normalized), "https://example.com/legacy.jpg");
 });
@@ -204,7 +209,7 @@ test("9. partial transform metadata falls back to defaults", () => {
   assert.equal(partial?.scale, 1);
   assert.equal(partial?.x, 0);
   assert.equal(partial?.rotation, 0);
-  assert.equal(partial?.fitMode, "fill");
+  assert.equal(partial?.fitMode, "fit");
   assert.equal(getSceneImage(sampleScene(undefined)), undefined);
   assert.equal(sceneHasImage(sampleScene(undefined)), false);
 });
@@ -221,6 +226,128 @@ test("10. generated scenes without images remain image-free", () => {
     scenes: [generated],
   });
   assert.equal(payload.scenes[0].image, undefined);
+});
+
+test("11. image settings updates target scene by id only", () => {
+  const scenes: FootieScene[] = [
+    sampleScene(createSceneImageFromUrl("blob:scene-a")),
+    {
+      ...sampleScene(createSceneImageFromUrl("blob:scene-b")),
+      id: "scene-b",
+    },
+  ];
+  scenes[0]!.id = "scene-a";
+  scenes[0]!.image!.scale = 1;
+
+  const updated = updateSceneImageSettings(scenes, "scene-b", { scale: 2, fitMode: "fit" });
+  assert.equal(updated[0]?.image?.scale, 1);
+  assert.equal(updated[0]?.image?.fitMode, "fit");
+  assert.equal(updated[1]?.image?.scale, 2);
+  assert.equal(updated[1]?.image?.fitMode, "fit");
+
+  const reset = resetSceneImageSettings(updated, "scene-b");
+  assert.equal(reset[1]?.image?.scale, 1);
+  assert.equal(reset[1]?.image?.x, 0);
+  assert.equal(reset[1]?.image?.fitMode, "fit");
+  assert.equal(reset[0]?.image?.scale, 1);
+});
+
+test("12. new uploads default to centered fit framing", () => {
+  const uploaded = createSceneImageFromUrl("blob:fresh-upload");
+  assert.equal(uploaded.scale, 1);
+  assert.equal(uploaded.x, 0);
+  assert.equal(uploaded.y, 0);
+  assert.equal(uploaded.fitMode, "fit");
+  assert.equal(getSceneImageObjectFit(uploaded), "contain");
+});
+
+test("13. existing explicit fill mode is preserved on normalize", () => {
+  const preserved = normalizeSceneImage({
+    url: "blob:existing-fill",
+    scale: 1.4,
+    x: 40,
+    y: -20,
+    fitMode: "fill",
+  });
+
+  assert.equal(preserved?.fitMode, "fill");
+  assert.equal(preserved?.scale, 1.4);
+  assert.equal(preserved?.x, 40);
+});
+
+test("14. duplicate scene clones image settings independently", () => {
+  const original = sampleScene({
+    url: "blob:dup-test",
+    scale: 1.2,
+    x: 20,
+    y: 10,
+    fitMode: "fill",
+    rotation: 12,
+  });
+  const duplicate = duplicateScene(original);
+
+  assert.notEqual(duplicate.id, original.id);
+  assert.notEqual(duplicate.image, original.image);
+  assert.equal(duplicate.image?.scale, 1.2);
+  assert.equal(duplicate.image?.fitMode, "fill");
+
+  const updated = updateSceneImageSettings([original, duplicate], duplicate.id, {
+    scale: 2.8,
+    x: 50,
+  });
+
+  assert.equal(updated[0].image?.scale, 1.2);
+  assert.equal(updated[0].image?.x, 20);
+  assert.equal(updated[1].image?.scale, 2.8);
+  assert.equal(updated[1].image?.x, 50);
+});
+
+test("15. image motion defaults to none/subtle and patches independently of transform", () => {
+  const legacy = normalizeSceneImage("blob:legacy-motion");
+  assert.deepEqual(legacy?.imageMotion, getDefaultImageMotion());
+
+  const partial = normalizeSceneImage({
+    url: "blob:partial-motion",
+    scale: 1.5,
+    x: 10,
+    y: -5,
+    fitMode: "fill",
+    imageMotion: { type: "zoom-in" },
+  });
+  assert.equal(partial?.scale, 1.5);
+  assert.equal(partial?.fitMode, "fill");
+  assert.deepEqual(partial?.imageMotion, { type: "zoom-in", intensity: "subtle" });
+
+  const reset = resetSceneImageTransform(partial!);
+  assert.equal(reset.scale, 1);
+  assert.equal(reset.x, 0);
+  assert.equal(reset.fitMode, "fill");
+  assert.deepEqual(reset.imageMotion, { type: "zoom-in", intensity: "subtle" });
+
+  const scenes: FootieScene[] = [
+    { ...sampleScene({ url: "blob:motion-a", scale: 1, fitMode: "fit" }), id: "scene-a" },
+    { ...sampleScene({ url: "blob:motion-b", scale: 1, fitMode: "fit" }), id: "scene-b" },
+  ];
+  const updated = updateSceneImageSettings(scenes, "scene-b", {
+    imageMotion: { type: "zoom-out", intensity: "strong" },
+  });
+
+  assert.deepEqual(normalizeSceneImageMotion(getSceneImage(updated[0])?.imageMotion), getDefaultImageMotion());
+  assert.deepEqual(normalizeSceneImageMotion(updated[1]?.image?.imageMotion), {
+    type: "zoom-out",
+    intensity: "strong",
+  });
+
+  const payload = buildFootieExportPayload({
+    title: "Motion export",
+    narration: "Test",
+    totalDuration: 4,
+    scenes: updated,
+  });
+  assert.deepEqual(normalizeSceneImageMotion(payload.scenes[1]?.image?.imageMotion), {
+    type: "zoom-out",
+    intensity: "strong",
+  });
 });
 
 console.log("\nAll scene image positioning checks passed.");

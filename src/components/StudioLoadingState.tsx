@@ -9,11 +9,16 @@ import {
   studioWorkspaceMain,
   studioWorkspacePanel,
 } from "@/lib/studioUi";
+import {
+  GENERATION_LOADING_STEPS,
+  type GenerationLoadingStep,
+} from "@/types/footiebitz";
 
 interface StudioLoadingStateProps {
   topic?: string;
   tone?: string;
   duration?: number;
+  loadingStep?: GenerationLoadingStep;
 }
 
 function SkeletonBlock({ className = "" }: { className?: string }) {
@@ -58,21 +63,84 @@ function SkeletonAsidePanel({ lines = 2 }: { lines?: number }) {
   );
 }
 
+function StepIndicator({
+  state,
+}: {
+  state: "done" | "active" | "pending";
+}) {
+  if (state === "done") {
+    return (
+      <span
+        aria-hidden
+        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[10px] text-accent"
+      >
+        ✓
+      </span>
+    );
+  }
+
+  if (state === "active") {
+    return (
+      <span
+        aria-hidden
+        className="flex h-4 w-4 shrink-0 items-center justify-center"
+      >
+        <span className="h-3 w-3 animate-spin rounded-full border border-accent/30 border-t-accent" />
+      </span>
+    );
+  }
+
+  return (
+    <span
+      aria-hidden
+      className="h-4 w-4 shrink-0 rounded-full ring-1 ring-border/30"
+    />
+  );
+}
+
 export default function StudioLoadingState({
   topic,
   tone,
   duration,
+  loadingStep = 1,
 }: StudioLoadingStateProps) {
   const detail =
     topic?.trim() && tone && duration
       ? `${duration}s · ${tone} · “${topic.trim().slice(0, 48)}${topic.trim().length > 48 ? "…" : ""}”`
       : undefined;
 
+  const activeLabel = GENERATION_LOADING_STEPS[loadingStep - 1];
+
   return (
     <section aria-busy="true" aria-live="polite" aria-label="Building storyboard" className="min-w-0 w-full overflow-hidden">
       <div className="mb-4 sm:mb-6">
-        <p className={studioLoadingMessage}>Building your storyboard...</p>
+        <p className={studioLoadingMessage}>{activeLabel}</p>
         {detail ? <p className={studioLoadingSubtext}>{detail}</p> : null}
+        <ol className="mx-auto mt-4 max-w-sm space-y-2">
+          {GENERATION_LOADING_STEPS.map((label, index) => {
+            const step = (index + 1) as GenerationLoadingStep;
+            const isActive = loadingStep === step;
+            const isDone = loadingStep > step;
+            const state = isDone ? "done" : isActive ? "active" : "pending";
+
+            return (
+              <li
+                key={label}
+                aria-current={isActive ? "step" : undefined}
+                className={`flex items-center gap-2.5 text-xs ${
+                  isActive
+                    ? "font-medium text-foreground/90"
+                    : isDone
+                      ? "text-muted"
+                      : "text-muted/45"
+                }`}
+              >
+                <StepIndicator state={state} />
+                <span>{label}</span>
+              </li>
+            );
+          })}
+        </ol>
       </div>
 
       <div className={`${studioWorkspaceGrid} pointer-events-none min-w-0 select-none opacity-90`}>

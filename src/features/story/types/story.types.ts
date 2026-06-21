@@ -1,0 +1,127 @@
+export type SceneType = "intro" | "context" | "match" | "transition" | "ending";
+
+/** How on-screen captions are sourced for a scene. */
+export type CaptionMode = "generated" | "subtitles";
+
+/** Visual treatment when displaying captions (subtitles mode or generated text). */
+export type SubtitleEffect = "fade-up" | "typewriter" | "highlight";
+
+/** How a scene image fills its frame. */
+export type SceneImageFitMode = "fill" | "fit";
+
+/** Ken Burns-style motion applied during scene playback. */
+export type SceneImageMotionType = "none" | "zoom-in" | "zoom-out";
+
+export type SceneImageMotionIntensity = "subtle" | "medium" | "strong";
+
+export interface SceneImageMotion {
+  type: SceneImageMotionType;
+  intensity: SceneImageMotionIntensity;
+}
+
+/** Pan/zoom transform for a manually uploaded scene image. */
+export interface SceneImage {
+  url: string;
+  scale: number;
+  x: number;
+  y: number;
+  rotation?: number;
+  fitMode?: SceneImageFitMode;
+  /** Slow drift/zoom during playback. Defaults to none/subtle when omitted. */
+  imageMotion?: SceneImageMotion;
+}
+
+/** Persisted image value — legacy string URL or normalized image object. */
+export type SceneImageInput = string | SceneImage;
+
+/** How a scene's duration was determined. */
+export type SceneDurationSource = "manual" | "voiceover";
+
+export interface FootieScene {
+  id: string;
+  start: number;
+  end: number;
+  duration: number;
+  subtitle: string;
+  sceneType?: SceneType;
+  /** Scene media with optional pan/zoom transform metadata. */
+  image?: SceneImage;
+  /**
+   * @deprecated Legacy string URL — migrated to `image` on sync.
+   * Still accepted on load for backward compatibility.
+   */
+  uploadedImage?: string;
+  /**
+   * Caption source — `generated` uses AI scene subtitles; `subtitles` derives
+   * captions from narration locally. Defaults to `generated` when omitted (legacy).
+   */
+  captionMode?: CaptionMode;
+  /** Caption animation style. Defaults to `fade-up` when omitted (legacy). */
+  subtitleEffect?: SubtitleEffect;
+  /**
+   * Per-scene voiceover excerpt derived from story narration (timing reference).
+   * On-screen subtitles use `subtitleText` when in subtitles mode.
+   */
+  narration?: string;
+  /**
+   * Editable on-screen subtitle copy when `captionMode` is `subtitles`.
+   * Separate from voiceover narration and generated captions.
+   */
+  subtitleText?: string;
+  /** Millisecond timing — optional companion to second-based `start`/`end`/`duration`. */
+  startMs?: number;
+  endMs?: number;
+  durationMs?: number;
+  /** Set to `manual` when the user edits scene duration in the editor. */
+  durationSource?: SceneDurationSource;
+}
+
+export type TransitionEffect =
+  | "cut"
+  | "fade"
+  | "slide-left"
+  | "slide-right"
+  | "zoom-in"
+  | "zoom-out"
+  | "blur";
+
+/** A scene entry in the production timeline. */
+export interface SceneTimelineItem {
+  id: string;
+  type: "scene";
+  scene: FootieScene;
+}
+
+/** A transition between two scenes — app-side only, no AI generation. */
+export interface TransitionTimelineItem {
+  id: string;
+  type: "transition";
+  fromSceneId: string;
+  toSceneId: string;
+  effect: TransitionEffect;
+  durationMs: number;
+  label: string;
+}
+
+export type TimelineItem = SceneTimelineItem | TransitionTimelineItem;
+
+/** Story-level TTS voice preferences (one per story, not per scene). */
+export interface StoryVoiceSettings {
+  voice?: string;
+  speed: number;
+}
+
+export interface FootieScript {
+  title: string;
+  totalDuration: number;
+  narration: string;
+  scenes: FootieScene[];
+  /** Interleaved scene + transition items. Omitted in legacy stories — auto-built on sync. */
+  timelineItems?: TimelineItem[];
+  /** Blob or remote URL for generated narration audio. */
+  voiceoverUrl?: string;
+  /** Measured or estimated narration length in milliseconds. */
+  voiceoverDurationMs?: number;
+  /** Story-level narrator voice and speed preferences. */
+  voiceSettings?: StoryVoiceSettings;
+}

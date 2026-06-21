@@ -20,6 +20,7 @@ import {
   studioStepLabel,
 } from "@/lib/studioUi";
 import type { QualityMode, Tone } from "@/types/footiebitz";
+import { MAX_SCENE_COUNT, MIN_SCENE_COUNT } from "@/types/footiebitz";
 
 const TONE_OPTIONS: { value: Tone; label: string; description: string }[] = [
   { value: "dramatic", label: "Dramatic", description: "High stakes, cinematic" },
@@ -47,6 +48,8 @@ interface StoryComposerProps {
   onDurationChange: (duration: number) => void;
   qualityMode: QualityMode;
   onQualityModeChange: (mode: QualityMode) => void;
+  sceneCount: number;
+  onSceneCountChange: (count: number) => void;
   sampleTopics: readonly string[];
   loading: boolean;
   error: string | null;
@@ -64,6 +67,8 @@ export default function StoryComposer({
   onDurationChange,
   qualityMode,
   onQualityModeChange,
+  sceneCount,
+  onSceneCountChange,
   sampleTopics,
   loading,
   error,
@@ -106,7 +111,7 @@ export default function StoryComposer({
             Generate scenes, narration, captions, and timeline-ready story blocks.
           </p>
 
-          <div className="mt-3 grid grid-cols-1 gap-2.5 border-t border-border/50 pt-3.5 sm:mt-4 sm:grid-cols-3 sm:gap-4 sm:pt-4">
+          <div className="mt-3 grid grid-cols-1 gap-2.5 border-t border-border/50 pt-3.5 sm:mt-4 sm:grid-cols-2 sm:gap-4 sm:pt-4 lg:grid-cols-4">
             <div>
               <label htmlFor="tone" className={`${studioFieldLabel} px-2 sm:px-0`}>
                 Tone
@@ -171,6 +176,31 @@ export default function StoryComposer({
                 </select>
                 <ChevronDown className={studioSelectChevronCompact} />
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="sceneCount" className={`${studioFieldLabel} px-2 sm:px-0`}>
+                Number of scenes
+              </label>
+              <input
+                id="sceneCount"
+                type="number"
+                min={MIN_SCENE_COUNT}
+                max={MAX_SCENE_COUNT}
+                step={1}
+                value={sceneCount}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  if (!Number.isFinite(next)) {
+                    return;
+                  }
+                  onSceneCountChange(
+                    Math.max(MIN_SCENE_COUNT, Math.min(MAX_SCENE_COUNT, Math.round(next))),
+                  );
+                }}
+                disabled={loading}
+                className={studioComposerSelect}
+              />
             </div>
           </div>
         </div>

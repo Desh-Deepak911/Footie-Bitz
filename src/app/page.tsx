@@ -1,26 +1,29 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import BreakLongVideoSection from "@/components/BreakLongVideoSection";
+import { AppShell } from "@/components/layout";
+import { Card } from "@/components/ui";
 import StoryComposer from "@/components/StoryComposer";
 import StudioEmptyState from "@/components/StudioEmptyState";
 import StudioLoadingState from "@/components/StudioLoadingState";
 import StoryWorkspace from "@/components/StoryWorkspace";
-import StudioShell from "@/components/StudioShell";
-import { applyStoryUpdate, syncFootieScript } from "@/lib/voiceover";
+import { applyStoryUpdate, attachVoiceoverToScript, createVoiceoverBlobUrl, syncFootieScript } from "@/lib/voiceover";
+import { consumeGenerateScriptStream } from "@/lib/generateScriptStream";
 import {
-  studioCard,
   studioPanel,
   studioSectionTitle,
   studioStepLabel,
 } from "@/lib/studioUi";
+import type { FootieScript } from "@/features/story/types";
 import type {
-  FootieScript,
   GenerateScriptResponse,
+  GenerationLoadingStep,
   QualityMode,
   Tone,
 } from "@/types/footiebitz";
+import { DEFAULT_SCENE_COUNT } from "@/types/footiebitz";
 
 const SAMPLE_TOPICS = [
   "Top 5 matches to watch: USA vs Iran, Portugal vs Argentina, Morocco vs Senegal, England vs Spain, France vs Norway",
@@ -40,30 +43,16 @@ const WORKFLOW_STEPS = [
   { step: "06", title: "Export", desc: "Download a finished WebM short" },
 ] as const;
 
-function Card({
-  children,
-  className = "",
-  id,
-}: {
-  children: ReactNode;
-  className?: string;
-  id?: string;
-}) {
-  return (
-    <section id={id} className={`${studioCard} ${className}`}>
-      {children}
-    </section>
-  );
-}
-
 export default function Home() {
   const [topic, setTopic] = useState("");
   const [tone, setTone] = useState<Tone>("dramatic");
   const [duration, setDuration] = useState<number>(30);
   const [qualityMode, setQualityMode] = useState<QualityMode>("cheap");
+  const [sceneCount, setSceneCount] = useState<number>(DEFAULT_SCENE_COUNT);
   const [script, setScript] = useState<FootieScript | null>(null);
   const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<GenerationLoadingStep>(1);
   const [error, setError] = useState<string | null>(null);
   const topicInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -103,6 +92,7 @@ export default function Home() {
     }
 
     setLoading(true);
+    setLoadingStep(1);
     setError(null);
     setScript(null);
     setSelectedSceneIndex(0);
@@ -111,21 +101,63 @@ export default function Home() {
       const response = await fetch("/api/generate-script", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: topic.trim(), tone, duration, qualityMode }),
+        body: JSON.stringify({
+          topic: topic.trim(),
+          tone,
+          duration,
+          qualityMode,
+          sceneCount,
+          stream: true,
+        }),
       });
 
       let data: GenerateScriptResponse;
-      try {
-        data = (await response.json()) as GenerateScriptResponse;
-      } catch {
-        throw new Error("Invalid response from server");
+
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (contentType.includes("ndjson")) {
+        data = await consumeGenerateScriptStream(response, (step) => {
+          setLoadingStep(step);
+        });
+      } else {
+        try {
+          data = (await response.json()) as GenerateScriptResponse;
+        } catch {
+          throw new Error("Invalid response from server");
+        }
       }
 
       if (!response.ok || !data.success || !data.data) {
         throw new Error(data.error ?? "Failed to create story");
       }
 
-      setScript(syncFootieScript(data.data));
+      let nextScript = syncFootieScript(data.data);
+
+      const voiceoverBase64 =
+        data.audioFirst?.voiceover?.audioBase64 ?? data.voiceoverAudioBase64;
+      const voiceoverDurationMs =
+        data.audioFirst?.voiceover?.durationMs ?? data.data.voiceoverDurationMs;
+
+      if (voiceoverBase64) {
+        nextScript = attachVoiceoverToScript(nextScript, {
+          voiceoverUrl: createVoiceoverBlobUrl(voiceoverBase64),
+          voiceoverDurationMs,
+          voiceSettings: data.audioFirst?.voiceover?.metadata
+            ? {
+                ...(data.audioFirst.voiceover.metadata.voice
+                  ? { voice: data.audioFirst.voiceover.metadata.voice }
+                  : {}),
+                ...(data.audioFirst.voiceover.metadata.speed != null
+                  ? { speed: data.audioFirst.voiceover.metadata.speed }
+                  : {}),
+              }
+            : undefined,
+        });
+      } else if (voiceoverDurationMs != null && voiceoverDurationMs > 0) {
+        nextScript = { ...nextScript, voiceoverDurationMs };
+      }
+
+      setScript(nextScript);
       setSelectedSceneIndex(0);
     } catch (err) {
       if (err instanceof TypeError) {
@@ -150,7 +182,7 @@ export default function Home() {
     <div className="min-h-screen min-w-0 overflow-x-hidden bg-background text-foreground">
       <div aria-hidden className="studio-grid pointer-events-none fixed inset-0 opacity-60" />
 
-      <StudioShell
+      <AppShell
         hasProject={Boolean(studioScript) || loading}
         projectTitle={loading ? "New story" : studioScript?.title}
         projectMeta={
@@ -180,6 +212,8 @@ export default function Home() {
               onDurationChange={setDuration}
               qualityMode={qualityMode}
               onQualityModeChange={setQualityMode}
+              sceneCount={sceneCount}
+              onSceneCountChange={setSceneCount}
               sampleTopics={SAMPLE_TOPICS}
               loading={loading}
               error={error}
@@ -208,7 +242,12 @@ export default function Home() {
           )}
 
           {loading && (
-            <StudioLoadingState topic={topic} tone={tone} duration={duration} />
+            <StudioLoadingState
+              topic={topic}
+              tone={tone}
+              duration={duration}
+              loadingStep={loadingStep}
+            />
           )}
 
           {script && studioScript && !loading && (
@@ -223,7 +262,7 @@ export default function Home() {
 
           {!script && !loading && <BreakLongVideoSection />}
         </div>
-      </StudioShell>
+      </AppShell>
     </div>
   );
 }

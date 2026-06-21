@@ -1,0 +1,26 @@
+---
+description: Scope lock for visual-only scene transitions — do not disturb audio, subtitles, or timing
+globs: src/features/preview/**,src/features/export/**,src/features/editor/**,src/features/story/utils/timeline.utils.ts
+alwaysApply: false
+---
+
+# Visual-only transitions (scope lock)
+
+Read `footiebitz/docs/TRANSITIONS-SCOPE.md` before changing preview, export, or timeline transition behavior.
+
+## Frozen systems
+
+Do **not** modify behavior of: voiceover generation, voice speed, `voiceoverDurationMs`, scene `durationMs`/`startMs`/`endMs`, subtitle chunk timing, subtitle effects, caption mode, generated captions, export audio mux, or scene image fit/fill/position.
+
+## Rules
+
+1. Transitions are **visual overlays only** — use `transition.effect` and `transition.durationMs`.
+2. **Never** add transition duration to total playback length.
+3. Overlay within existing scene time (prefer tail of outgoing scene or head of incoming scene).
+4. **Never** render `TRANSITION_CARD_TITLE` or fake transition scenes in preview/export video.
+5. Scene/subtitle/voiceover sync stays on `getSceneTimingAtGlobalTime` — transitions are a render layer, not a second timeline.
+6. Export: keep scene-only render path until overlay compositing is implemented; do not enable `renderTransitions` without scope QA passing.
+
+## Before merging transition work
+
+Run: `npm run test:transitions-scope`, `npm run test:voice-speed-qa`, `npm run test:timing-subtitle-qa`, `npm run lint`, `npm run build`.
