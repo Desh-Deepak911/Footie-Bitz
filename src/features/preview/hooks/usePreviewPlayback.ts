@@ -12,6 +12,8 @@ import {
 import { getDisplayCaption, getSceneTimingMap, getSceneVoiceoverExcerpt } from "@/features/story/utils";
 import {
   getPreviewFrameAtTime,
+  resolvePreviewBackgroundMusicPlaybackVolume,
+  resolvePreviewBackgroundMusicUrl,
   resolveTimelineItems,
   type PreviewSceneFrame,
 } from "@/features/preview/utils";
@@ -68,6 +70,9 @@ export function usePreviewPlayback({
   const advanceToSceneRef = useRef<(index: number) => void>(() => {});
   const advanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const narrationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const backgroundMusicAudioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackStartedAtMsRef = useRef<number | null>(null);
+  const isSpeakingRef = useRef(false);
   const [browserSceneStartedAtMs, setBrowserSceneStartedAtMs] = useState<number | null>(null);
   const voiceInitializedRef = useRef(false);
   const voiceSettingsRef = useRef({ rate: 1, pitch: 1, volume: 1, voiceURI: "" });
@@ -104,6 +109,60 @@ export function usePreviewPlayback({
     audio.currentTime = 0;
   }, []);
 
+  const stopBackgroundMusic = useCallback(() => {
+    const audio = backgroundMusicAudioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+  }, []);
+
+  const pauseBackgroundMusic = useCallback(() => {
+    backgroundMusicAudioRef.current?.pause();
+  }, []);
+
+  const startBackgroundMusic = useCallback(async (startAtSec = 0) => {
+    const audio = backgroundMusicAudioRef.current;
+    if (!audio) return;
+
+    audio.loop = true;
+    audio.currentTime = startAtSec;
+
+    try {
+      await audio.play();
+    } catch {
+      // Background music is optional — preview still works without it.
+    }
+  }, []);
+
+  const syncBackgroundMusicVolume = useCallback(() => {
+    const musicAudio = backgroundMusicAudioRef.current;
+    if (!musicAudio || !script) {
+      return;
+    }
+
+    const narrationAudio = narrationAudioRef.current;
+    const mode = playbackModeRef.current;
+    let elapsedSec = 0;
+    let voiceoverIsPlaying = false;
+
+    if (mode === "narration" && narrationAudio) {
+      elapsedSec = narrationAudio.currentTime;
+      voiceoverIsPlaying = !narrationAudio.paused && !narrationAudio.ended;
+    } else if (mode === "browser") {
+      if (playbackStartedAtMsRef.current != null) {
+        elapsedSec = (Date.now() - playbackStartedAtMsRef.current) / 1000;
+      }
+      voiceoverIsPlaying = isSpeakingRef.current;
+    }
+
+    musicAudio.volume = resolvePreviewBackgroundMusicPlaybackVolume({
+      script,
+      elapsedSec,
+      totalDurationSec: totalDuration,
+      voiceoverIsPlaying,
+    });
+  }, [script, totalDuration]);
+
   const resetTimeline = useCallback(() => {
     setCurrentSceneIndex(0);
     setElapsedSec(0);
@@ -113,6 +172,8 @@ export function usePreviewPlayback({
   const stopVoice = useCallback(() => {
     clearAdvanceTimeout();
     stopNarrationAudio();
+    stopBackgroundMusic();
+    playbackStartedAtMsRef.current = null;
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
@@ -122,7 +183,7 @@ export function usePreviewPlayback({
     setIsSpeaking(false);
     setPlaybackMode(null);
     resetTimeline();
-  }, [clearAdvanceTimeout, resetTimeline, stopNarrationAudio]);
+  }, [clearAdvanceTimeout, resetTimeline, stopBackgroundMusic, stopNarrationAudio]);
 
   const pauseVoice = useCallback(() => {
     clearAdvanceTimeout();
@@ -131,10 +192,11 @@ export function usePreviewPlayback({
     } else if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
+    pauseBackgroundMusic();
     isPlayingRef.current = false;
     setIsPlaying(false);
     setIsSpeaking(false);
-  }, [clearAdvanceTimeout]);
+  }, [clearAdvanceTimeout, pauseBackgroundMusic]);
 
   const syncSceneToAudioTime = useCallback(
     (currentTimeSec: number) => {
@@ -162,10 +224,12 @@ export function usePreviewPlayback({
           isPlayingRef.current = false;
           setIsPlaying(false);
           setIsSpeaking(false);
+          stopBackgroundMusic();
+          playbackStartedAtMsRef.current = null;
         }
       }, remainingMs);
     },
-    [clearAdvanceTimeout, sceneCount, scenes],
+    [clearAdvanceTimeout, sceneCount, scenes, stopBackgroundMusic],
   );
 
   const speakSceneAt = useCallback(
@@ -253,12 +317,18 @@ export function usePreviewPlayback({
         }
       }
 
+      syncBackgroundMusicVolume();
+
       frameId = window.requestAnimationFrame(tick);
     };
 
     frameId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frameId);
-  }, [isPlaying, syncSceneToAudioTime]);
+  }, [isPlaying, syncBackgroundMusicVolume, syncSceneToAudioTime]);
+
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
 
   useEffect(() => {
     advanceToSceneRef.current = advanceToScene;
@@ -308,8 +378,10 @@ export function usePreviewPlayback({
     setIsPlaying(true);
     setCurrentSceneIndex(0);
     onSelectedSceneChange(0);
+    playbackStartedAtMsRef.current = Date.now();
+    void startBackgroundMusic(0);
     speakSceneAt(0);
-  }, [onSelectedSceneChange, sceneCount, speakSceneAt, stopNarrationAudio]);
+  }, [onSelectedSceneChange, sceneCount, speakSceneAt, startBackgroundMusic, stopNarrationAudio]);
 
   const playPreview = async () => {
     const voiceoverUrl = script?.voiceoverUrl;
@@ -338,6 +410,9 @@ export function usePreviewPlayback({
 
     try {
       await playbackAudio.play();
+      playbackStartedAtMsRef.current = Date.now();
+      await startBackgroundMusic(0);
+      syncBackgroundMusicVolume();
     } catch {
       stopVoice();
     }
@@ -379,14 +454,41 @@ export function usePreviewPlayback({
   }, [script?.voiceoverUrl, stopVoice, syncSceneToAudioTime]);
 
   useEffect(() => {
+    const musicUrl = resolvePreviewBackgroundMusicUrl(script);
+    if (!musicUrl) {
+      backgroundMusicAudioRef.current = null;
+      return;
+    }
+
+    const audio = new Audio(musicUrl);
+    audio.loop = true;
+    audio.preload = "auto";
+    backgroundMusicAudioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audio.src = "";
+      if (backgroundMusicAudioRef.current === audio) {
+        backgroundMusicAudioRef.current = null;
+      }
+    };
+  }, [
+    script?.backgroundMusic?.enabled,
+    script?.backgroundMusic?.source,
+    script?.backgroundMusic?.fileUrl,
+    script?.backgroundMusic?.trackId,
+  ]);
+
+  useEffect(() => {
     return () => {
       clearAdvanceTimeout();
       stopNarrationAudio();
+      stopBackgroundMusic();
       if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
       isPlayingRef.current = false;
       playbackModeRef.current = null;
     };
-  }, [clearAdvanceTimeout, stopNarrationAudio]);
+  }, [clearAdvanceTimeout, stopBackgroundMusic, stopNarrationAudio]);
 
   const activeBrowserSceneStartedAtMs = isPlaying ? browserSceneStartedAtMs : null;
 

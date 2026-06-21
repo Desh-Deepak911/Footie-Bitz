@@ -25,3 +25,21 @@ export async function fetchNarrationBlob(voiceoverUrl: string): Promise<Blob> {
 
   return new Blob([await blob.arrayBuffer()], { type: "audio/mpeg" });
 }
+
+export async function fetchBackgroundMusicBlob(musicUrl: string): Promise<Blob> {
+  const response = await fetch(musicUrl);
+  if (!response.ok) {
+    throw new Error("Failed to load background music");
+  }
+
+  const blob = await response.blob();
+  if (blob.size === 0) {
+    throw new Error("Background music file is empty");
+  }
+
+  if (blob.type.includes("audio") || blob.type.includes("video/webm")) {
+    return blob;
+  }
+
+  return new Blob([await blob.arrayBuffer()], { type: "audio/mpeg" });
+}

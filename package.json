@@ -29,7 +29,11 @@
     "test:transitions-scope": "tsx src/lib/transitionsScope.verify.ts",
     "test:transition-overlay": "tsx src/lib/transitionOverlay.verify.ts",
     "test:export-transition": "tsx src/lib/exportTransition.verify.ts",
-    "test:transition-qa": "tsx src/lib/transitionQa.verify.ts"
+    "test:transition-qa": "tsx src/lib/transitionQa.verify.ts",
+    "test:export-settings": "tsx src/lib/exportSettings.verify.ts",
+    "test:background-music": "tsx src/lib/backgroundMusic.verify.ts",
+    "test:preview-background-music": "tsx src/lib/previewBackgroundMusic.verify.ts",
+    "test:export-background-music": "tsx src/lib/exportBackgroundMusic.verify.ts"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",

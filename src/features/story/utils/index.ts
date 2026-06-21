@@ -7,6 +7,8 @@ export * from "./scene.utils";
 export * from "./timeline.utils";
 export * from "./transition-overlay.utils";
 export * from "./audio-first.utils";
+export * from "./background-music-library.utils";
+export * from "./background-music.utils";
 export * from "./legacy-story.utils";
 export * from "./voice-settings.utils";
 export * from "./voiceover-duration.utils";

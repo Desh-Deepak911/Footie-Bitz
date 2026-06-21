@@ -3,6 +3,7 @@
 import { Download, Film, Play } from "lucide-react";
 import type { ReactNode } from "react";
 
+import BackgroundMusicCard from "@/components/BackgroundMusicCard";
 import ExportPanel from "@/components/ExportPanel";
 import NarrationPanel from "@/components/NarrationPanel";
 import StoryReview from "@/components/StoryReview";
@@ -99,6 +100,9 @@ export default function StoryWorkspace({
               />
               <div className="mt-5 border-t border-border/25 pt-5 sm:mt-6 sm:pt-6">
                 <VoiceSettingsCard script={script} onScriptChange={onScriptChange} />
+              </div>
+              <div className="mt-5 border-t border-border/25 pt-5 sm:mt-6 sm:pt-6">
+                <BackgroundMusicCard script={script} onScriptChange={onScriptChange} />
               </div>
             </section>
 

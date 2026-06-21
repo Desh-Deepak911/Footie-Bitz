@@ -1,4 +1,5 @@
 import type { FootieScript } from "@/features/story/types";
+import type { ExportSettings } from "@/features/story/types";
 
 import { getStoryVoiceoverDurationSec } from "@/lib/voiceover";
 
@@ -57,8 +58,10 @@ export function getDefaultExportAudioMode(hasVoiceover: boolean): ExportAudioMod
 }
 
 export interface FootieExportOptions {
+  /** @deprecated Prefer `exportSettings` on the script or in options. */
   qualityId?: ExportQualityId;
   audioMode?: ExportAudioMode;
+  exportSettings?: Partial<ExportSettings>;
 }
 
 export function getExportQualityPreset(id: ExportQualityId): ExportQualityPreset {

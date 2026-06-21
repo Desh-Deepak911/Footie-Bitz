@@ -13,14 +13,27 @@ import {
   type ExportScene,
   type FootieExportPayload,
 } from "./export-payload.service";
-import { downloadBlob, fetchNarrationBlob } from "@/features/export/utils/download.utils";
+import { downloadBlob, fetchBackgroundMusicBlob, fetchNarrationBlob } from "@/features/export/utils/download.utils";
 import {
-  DEFAULT_EXPORT_QUALITY,
-  getExportQualityPreset,
+  EXPORT_BACKGROUND_MUSIC_FALLBACK_WARNING,
+  EXPORT_BACKGROUND_MUSIC_MIXING_ENABLED,
+  EXPORT_BACKGROUND_MUSIC_PARTIAL_FALLBACK_WARNING,
+  isExportBackgroundMusicActive,
+  resolveExportBackgroundMusicMixSettings,
+} from "@/features/export/utils/export-background-music.utils";
+import { resolvePreviewBackgroundMusicUrl } from "@/features/preview/utils";
+import { getStoryBackgroundMusic } from "@/features/story/utils";
+import {
   type ExportProgress,
   type ExportQualityPreset,
   type FootieExportOptions,
 } from "@/features/export/utils/export-quality.utils";
+import {
+  buildExportDownloadFileName,
+  resolveEffectiveExportSettings,
+  resolveExportRenderPreset,
+  resolveExportSettings,
+} from "@/features/export/utils/export-settings.utils";
 import {
   drawExportGeneratedCaption,
   drawExportSubtitlesCaption,
@@ -462,6 +475,10 @@ export async function exportSilentVideoBlob(
   return new Blob(chunks, { type: mimeType.split(";")[0] });
 }
 
+function getDownloadFormatFromBlob(blob: Blob): "mp4" | "webm" {
+  return blob.type.toLowerCase().includes("mp4") ? "mp4" : "webm";
+}
+
 export async function exportFootieShort(
   script: FootieScript,
   onProgress: (progress: ExportProgress) => void,
@@ -469,72 +486,221 @@ export async function exportFootieShort(
 ): Promise<void> {
   assertBrowserExportEnvironment();
 
+  const requestedSettings = resolveExportSettings(script, options);
+  const { settings: exportSettings, formatFallback } =
+    resolveEffectiveExportSettings(requestedSettings);
   const payload = buildFootieExportPayload(script);
-  const quality = getExportQualityPreset(options.qualityId ?? DEFAULT_EXPORT_QUALITY);
+  const quality = resolveExportRenderPreset(script, options);
   const exportDurationSec = getExportTotalDurationSec(payload);
   const includeNarration =
     options.audioMode === "with-voice" && Boolean(payload.voiceoverUrl);
+  const formatWarning = formatFallback
+    ? "WebM export is coming soon — downloaded as MP4 instead."
+    : undefined;
 
   const silentBlob = await exportSilentVideoBlob(script, quality, (update) => {
     onProgress(mapRenderingProgress(update, includeNarration));
   }, payload);
 
   let finalBlob = silentBlob;
-  let filename = `footiebitz-${quality.id}.webm`;
+  let musicWarning: string | undefined;
+  const backgroundMusicActive = isExportBackgroundMusicActive(script);
+  const musicMixSettings = backgroundMusicActive
+    ? resolveExportBackgroundMusicMixSettings(script, includeNarration)
+    : null;
+  const backgroundMusicSettings = getStoryBackgroundMusic(script);
+  let backgroundMusicBlob: Blob | undefined;
+  let audioMixed = false;
 
-  if (includeNarration && payload.voiceoverUrl) {
+  if (backgroundMusicActive && !EXPORT_BACKGROUND_MUSIC_MIXING_ENABLED) {
+    musicWarning = EXPORT_BACKGROUND_MUSIC_FALLBACK_WARNING;
+  }
+
+  const shouldAttemptMusicMix =
+    Boolean(
+      backgroundMusicActive &&
+        EXPORT_BACKGROUND_MUSIC_MIXING_ENABLED &&
+        musicMixSettings &&
+        resolvePreviewBackgroundMusicUrl(script),
+    );
+
+  if (shouldAttemptMusicMix) {
+    onProgress({
+      status: "loading-voiceover",
+      progress: 70,
+      message: "Loading background music",
+    });
+
+    try {
+      backgroundMusicBlob = await fetchBackgroundMusicBlob(resolvePreviewBackgroundMusicUrl(script)!);
+    } catch {
+      backgroundMusicBlob = undefined;
+      musicWarning = EXPORT_BACKGROUND_MUSIC_FALLBACK_WARNING;
+    }
+  }
+
+  const shouldMuxAudio =
+    Boolean(includeNarration && payload.voiceoverUrl) ||
+    Boolean(backgroundMusicBlob && musicMixSettings);
+
+  if (shouldMuxAudio) {
     onProgress({
       status: "loading-voiceover",
       progress: 72,
-      message: "Loading narration",
+      message: includeNarration ? "Loading narration" : "Preparing audio mix",
     });
 
-    const audioBlob = await fetchNarrationBlob(payload.voiceoverUrl);
+    let voiceoverBlob: Blob | undefined;
+    if (includeNarration && payload.voiceoverUrl) {
+      voiceoverBlob = await fetchNarrationBlob(payload.voiceoverUrl);
+    }
 
     onProgress({
       status: "combining",
       progress: 78,
-      message: "Combining audio (0%)",
+      message: backgroundMusicBlob
+        ? "Mixing narration and background music (0%)"
+        : "Combining audio (0%)",
     });
 
     try {
-      const { muxVideoWithAudio } = await import("@/features/export/utils/ffmpeg.utils");
-      finalBlob = await muxVideoWithAudio(silentBlob, audioBlob, {
+      const { muxVideoWithExportAudio } = await import("@/features/export/utils/ffmpeg.utils");
+      finalBlob = await muxVideoWithExportAudio(silentBlob, {
         videoDurationSec: exportDurationSec,
+        voiceoverBlob,
+        backgroundMusicBlob,
+        backgroundMusicFileName: backgroundMusicSettings.fileName,
+        backgroundMusicMix: musicMixSettings ?? undefined,
         onProgress: (muxPercent) => {
           onProgress({
             status: "combining",
-            progress: 78 + Math.round(muxPercent * 0.2),
-            message: `Combining audio (${muxPercent}%)`,
+            progress: 78 + Math.round(muxPercent * 0.12),
+            message: backgroundMusicBlob
+              ? `Mixing narration and background music (${muxPercent}%)`
+              : `Combining audio (${muxPercent}%)`,
           });
         },
       });
-      filename = "footiebitz-with-narration.webm";
+      audioMixed = true;
     } catch (error) {
-      const mergeError =
-        error instanceof Error ? error.message : "Audio merge failed";
-      filename = `footiebitz-${quality.id}.webm`;
-      finalBlob = silentBlob;
+      const mergeError = error instanceof Error ? error.message : "Audio merge failed";
 
-      downloadBlob(finalBlob, filename);
+      if (includeNarration && voiceoverBlob) {
+        try {
+          const { muxVideoWithAudio } = await import("@/features/export/utils/ffmpeg.utils");
+          finalBlob = await muxVideoWithAudio(silentBlob, voiceoverBlob, {
+            videoDurationSec: exportDurationSec,
+          });
+          audioMixed = true;
+          musicWarning = EXPORT_BACKGROUND_MUSIC_PARTIAL_FALLBACK_WARNING;
+        } catch {
+          finalBlob = silentBlob;
+          audioMixed = false;
 
-      onProgress({
-        status: "done",
-        progress: 100,
-        message: `Downloaded silent video (${filename}) — audio merge failed`,
-        warning: mergeError,
-      });
-      return;
+          if (exportSettings.format === "mp4") {
+            onProgress({
+              status: "finalizing",
+              progress: 90,
+              message: "Converting to MP4...",
+            });
+
+            try {
+              const { transcodeWebmToMp4 } = await import("@/features/export/utils/ffmpeg.utils");
+              finalBlob = await transcodeWebmToMp4(finalBlob, { hasAudio: false });
+            } catch {
+              // Fall back to silent WebM when MP4 transcode also fails.
+            }
+          }
+
+          const filename = buildExportDownloadFileName(
+            exportSettings,
+            getDownloadFormatFromBlob(finalBlob),
+          );
+
+          downloadBlob(finalBlob, filename);
+
+          onProgress({
+            status: "done",
+            progress: 100,
+            message: `Downloaded silent video (${filename}) — audio merge failed`,
+            warning: mergeError,
+          });
+          return;
+        }
+      } else {
+        finalBlob = silentBlob;
+        musicWarning = EXPORT_BACKGROUND_MUSIC_FALLBACK_WARNING;
+
+        if (exportSettings.format === "mp4") {
+          onProgress({
+            status: "finalizing",
+            progress: 90,
+            message: "Converting to MP4...",
+          });
+
+          try {
+            const { transcodeWebmToMp4 } = await import("@/features/export/utils/ffmpeg.utils");
+            finalBlob = await transcodeWebmToMp4(finalBlob, { hasAudio: false });
+          } catch {
+            // Fall back to silent WebM when MP4 transcode also fails.
+          }
+        }
+
+        const filename = buildExportDownloadFileName(
+          exportSettings,
+          getDownloadFormatFromBlob(finalBlob),
+        );
+
+        downloadBlob(finalBlob, filename);
+
+        onProgress({
+          status: "done",
+          progress: 100,
+          message: `Downloaded silent video (${filename}) — background music mix failed`,
+          warning: musicWarning,
+        });
+        return;
+      }
     }
   }
 
+  const exportHasAudio = audioMixed && (includeNarration || Boolean(backgroundMusicBlob));
+
+  if (exportSettings.format === "mp4") {
+    onProgress({
+      status: "finalizing",
+      progress: 90,
+      message: "Converting to MP4 (0%)",
+    });
+
+    const { transcodeWebmToMp4 } = await import("@/features/export/utils/ffmpeg.utils");
+    finalBlob = await transcodeWebmToMp4(finalBlob, {
+      hasAudio: exportHasAudio,
+      onProgress: (transcodePercent) => {
+        onProgress({
+          status: "finalizing",
+          progress: 90 + Math.round(transcodePercent * 0.1),
+          message: `Converting to MP4 (${transcodePercent}%)`,
+        });
+      },
+    });
+  }
+
+  const filename = buildExportDownloadFileName(
+    exportSettings,
+    getDownloadFormatFromBlob(finalBlob),
+  );
+
   downloadBlob(finalBlob, filename);
+
+  const combinedWarning = [formatWarning, musicWarning].filter(Boolean).join(" ") || undefined;
 
   onProgress({
     status: "done",
     progress: 100,
-    message: includeNarration
+    message: exportHasAudio
       ? `Download ready — ${filename}`
       : `Download ready — ${filename} (${quality.width}×${quality.height})`,
+    warning: combinedWarning,
   });
 }

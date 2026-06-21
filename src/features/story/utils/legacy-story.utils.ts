@@ -1,6 +1,7 @@
 import type { FootieScript } from "@/features/story/types";
 
 import { getStoryTotalDuration, scenesHaveMsTiming } from "./scene.utils";
+import { normalizeStoryBackgroundMusic } from "./background-music.utils";
 import { normalizeStoryVoiceSettings } from "./voice-settings.utils";
 
 /** True when the story has a playable narration blob or URL. */
@@ -41,6 +42,7 @@ export function coerceLegacyStoryFields(script: FootieScript): FootieScript {
       voiceSettings: script.voiceSettings,
       voiceoverSpeed: legacyVoiceoverSpeed,
     }),
+    backgroundMusic: normalizeStoryBackgroundMusic(script.backgroundMusic),
     ...(script.timelineItems?.length ? { timelineItems: script.timelineItems } : {}),
     ...(script.voiceoverUrl ? { voiceoverUrl: script.voiceoverUrl } : {}),
     ...(script.voiceoverDurationMs != null && script.voiceoverDurationMs > 0

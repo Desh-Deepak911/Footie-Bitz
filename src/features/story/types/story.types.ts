@@ -111,6 +111,38 @@ export interface StoryVoiceSettings {
   speed: number;
 }
 
+export type BackgroundMusicSource = "none" | "upload" | "library";
+
+/** Story-level background music preferences. Omitted on legacy stories — defaults applied on sync. */
+export interface StoryBackgroundMusic {
+  enabled: boolean;
+  source: BackgroundMusicSource;
+  fileUrl?: string;
+  fileName?: string;
+  trackId?: string;
+  trackName?: string;
+  artist?: string;
+  license?: string;
+  attributionRequired?: boolean;
+  attributionText?: string;
+  volume: number;
+  duckingEnabled: boolean;
+  fadeIn: boolean;
+  fadeOut: boolean;
+}
+
+export type ExportFormat = "mp4" | "webm";
+export type ExportQualityTier = "standard" | "high";
+export type ExportResolution = "1080x1920" | "720x1280";
+
+/** Per-story export preferences. Omitted on legacy stories — defaults applied on export. */
+export interface ExportSettings {
+  fileName: string;
+  format: ExportFormat;
+  quality: ExportQualityTier;
+  resolution: ExportResolution;
+}
+
 export interface FootieScript {
   title: string;
   totalDuration: number;
@@ -124,4 +156,8 @@ export interface FootieScript {
   voiceoverDurationMs?: number;
   /** Story-level narrator voice and speed preferences. */
   voiceSettings?: StoryVoiceSettings;
+  /** Story-level background music preferences. Optional for legacy stories. */
+  backgroundMusic?: StoryBackgroundMusic;
+  /** Download filename, format, quality tier, and resolution. Optional for legacy stories. */
+  exportSettings?: ExportSettings;
 }

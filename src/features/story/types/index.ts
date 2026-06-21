@@ -1,5 +1,10 @@
 export type {
+  BackgroundMusicSource,
   CaptionMode,
+  ExportFormat,
+  ExportQualityTier,
+  ExportResolution,
+  ExportSettings,
   FootieScene,
   FootieScript,
   SceneDurationSource,
@@ -11,6 +16,7 @@ export type {
   SceneImageMotionType,
   SceneTimelineItem,
   SceneType,
+  StoryBackgroundMusic,
   StoryVoiceSettings,
   SubtitleEffect,
   TimelineItem,

@@ -9,19 +9,22 @@ import {
   Film,
   Loader2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
-  DEFAULT_EXPORT_QUALITY,
-  EXPORT_QUALITY_PRESETS,
+  buildExportDownloadFileName,
   exportFootieShort,
   getDefaultExportAudioMode,
-  getExportQualityPreset,
-  isExportQualityId,
-  isHighQualityExport,
+  isExportFormat,
+  isExportQualityTier,
+  isExportResolution,
+  isHighQualityExportSettings,
+  isWebmExportAvailable,
+  normalizeExportSettings,
+  resolveEffectiveExportSettings,
+  resolveExportSettings,
   type ExportAudioMode,
   type ExportProgress,
-  type ExportQualityId,
 } from "@/features/export/services";
 import {
   studioBadge,
@@ -29,6 +32,7 @@ import {
   studioError,
   studioGlass,
   studioIconBox,
+  studioInput,
   studioLabel,
   studioOptionRow,
   studioPanel,
@@ -42,7 +46,7 @@ import {
 } from "@/lib/studioUi";
 import { syncFootieScript } from "@/lib/voiceover";
 import { sceneHasImage } from "@/features/story/utils";
-import type { FootieScript } from "@/features/story/types";
+import type { ExportSettings, FootieScript } from "@/features/story/types";
 
 interface ExportPanelProps {
   script: FootieScript;
@@ -58,16 +62,38 @@ interface ChecklistItem {
 
 type ExportState = ExportProgress["status"] | "idle";
 
-export default function ExportPanel({ script, disabled = false, compact = false }: ExportPanelProps) {
+export default function ExportPanel({
+  script,
+  disabled = false,
+  compact = false,
+}: ExportPanelProps) {
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [progress, setProgress] = useState(0);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [exportWarning, setExportWarning] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [qualityId, setQualityId] = useState<ExportQualityId>(DEFAULT_EXPORT_QUALITY);
   const [includeNarrationPreference, setIncludeNarrationPreference] = useState(true);
+  const [exportSettings, setExportSettings] = useState<ExportSettings>(() =>
+    resolveExportSettings(script),
+  );
 
-  const selectedQuality = getExportQualityPreset(qualityId);
+  useEffect(() => {
+    const next = resolveExportSettings(script);
+    setExportSettings(
+      !isWebmExportAvailable() && next.format === "webm"
+        ? { ...next, format: "mp4" }
+        : next,
+    );
+  }, [script.title, script.exportSettings]);
+
+  const updateExportSettings = (patch: Partial<ExportSettings>) => {
+    setExportSettings((current) => ({ ...current, ...patch }));
+  };
+
+  const effectiveExportSettings = useMemo(
+    () => resolveEffectiveExportSettings(exportSettings).settings,
+    [exportSettings],
+  );
 
   const sceneCount = script.scenes.length;
   const uploadedCount = script.scenes.filter((scene) => sceneHasImage(scene)).length;
@@ -120,7 +146,12 @@ export default function ExportPanel({ script, disabled = false, compact = false 
     return getDefaultExportAudioMode(true);
   }, [includeNarration]);
   const exportWithNarration = exportAudioMode === "with-voice" && hasNarration;
-  const showAudioMergeNote = exportWithNarration && isHighQualityExport(qualityId);
+  const showAudioMergeNote =
+    exportWithNarration && isHighQualityExportSettings(effectiveExportSettings);
+  const downloadFileName = buildExportDownloadFileName(effectiveExportSettings);
+  const [exportWidth, exportHeight] = effectiveExportSettings.resolution
+    .split("x")
+    .map(Number);
   const isBusy = isExporting || disabled;
 
   const handleExport = async () => {
@@ -131,6 +162,8 @@ export default function ExportPanel({ script, disabled = false, compact = false 
     setExportState("preparing");
 
     try {
+      const normalizedExportSettings = normalizeExportSettings(exportSettings, script.title);
+
       await exportFootieShort(
         syncFootieScript(script),
         (update) => {
@@ -140,8 +173,8 @@ export default function ExportPanel({ script, disabled = false, compact = false 
           setExportWarning(update.warning ?? null);
         },
         {
-          qualityId,
           audioMode: exportAudioMode,
+          exportSettings: normalizedExportSettings,
         },
       );
     } catch (error) {
@@ -163,7 +196,7 @@ export default function ExportPanel({ script, disabled = false, compact = false 
             <div>
               <p className={studioStepLabel}>Step 6</p>
               <h2 className={studioSectionTitle}>Export</h2>
-              <p className={studioSectionDesc}>Render a vertical 9:16 WebM from your timeline.</p>
+              <p className={studioSectionDesc}>Render a vertical 9:16 video from your timeline.</p>
             </div>
           </div>
           <span className={`${studioBadge} self-start`}>
@@ -262,40 +295,107 @@ export default function ExportPanel({ script, disabled = false, compact = false 
             <span className="block text-sm font-medium text-foreground/90">Include Narration</span>
             <span className="mt-0.5 block text-xs text-muted">
               {hasNarration
-                ? "Muxes narration into the final WebM export"
+                ? `Muxes narration into the final ${effectiveExportSettings.format.toUpperCase()} export`
                 : "Create narration in step 4 first"}
             </span>
           </span>
         </label>
 
-        <label htmlFor="export-quality" className={studioLabel}>
-          Export Quality
-        </label>
-        <div className="relative mb-4">
-          <select
-            id="export-quality"
-            value={qualityId}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (isExportQualityId(value)) {
-                setQualityId(value);
-              }
-            }}
+        <div className="mb-5 border-t border-border/20 pt-4">
+          <p className="mb-4 text-sm font-medium text-foreground/90">Export settings</p>
+
+          <label htmlFor="export-file-name" className={studioLabel}>
+            File name
+          </label>
+          <input
+            id="export-file-name"
+            type="text"
+            value={exportSettings.fileName}
+            onChange={(e) => updateExportSettings({ fileName: e.target.value })}
             disabled={isBusy}
-            className={studioSelect}
-          >
-            {EXPORT_QUALITY_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.id === "4k" ? "4K" : preset.id} — {preset.width}×{preset.height}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className={studioSelectChevron} />
+            className={`${studioInput} mb-4`}
+            placeholder="story-short"
+          />
+
+          <label htmlFor="export-format" className={studioLabel}>
+            Format
+          </label>
+          <div className="relative mb-1">
+            <select
+              id="export-format"
+              value={effectiveExportSettings.format}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (isExportFormat(value)) {
+                  updateExportSettings({ format: value });
+                }
+              }}
+              disabled={isBusy}
+              className={studioSelect}
+            >
+              <option value="mp4">MP4</option>
+              {isWebmExportAvailable() ? (
+                <option value="webm">WebM</option>
+              ) : (
+                <option value="webm" disabled>
+                  WebM (Coming soon)
+                </option>
+              )}
+            </select>
+            <ChevronDown className={studioSelectChevron} />
+          </div>
+          {!isWebmExportAvailable() && (
+            <p className="mb-4 text-xs text-muted">WebM export is coming soon. MP4 is fully supported.</p>
+          )}
+
+          <label htmlFor="export-resolution" className={studioLabel}>
+            Resolution
+          </label>
+          <div className="relative mb-4">
+            <select
+              id="export-resolution"
+              value={exportSettings.resolution}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (isExportResolution(value)) {
+                  updateExportSettings({ resolution: value });
+                }
+              }}
+              disabled={isBusy}
+              className={studioSelect}
+            >
+              <option value="1080x1920">1080×1920</option>
+              <option value="720x1280">720×1280</option>
+            </select>
+            <ChevronDown className={studioSelectChevron} />
+          </div>
+
+          <label htmlFor="export-quality-tier" className={studioLabel}>
+            Quality
+          </label>
+          <div className="relative">
+            <select
+              id="export-quality-tier"
+              value={exportSettings.quality}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (isExportQualityTier(value)) {
+                  updateExportSettings({ quality: value });
+                }
+              }}
+              disabled={isBusy}
+              className={studioSelect}
+            >
+              <option value="standard">Standard</option>
+              <option value="high">High</option>
+            </select>
+            <ChevronDown className={studioSelectChevron} />
+          </div>
         </div>
 
         {showAudioMergeNote && (
           <p className="mb-4 text-xs leading-relaxed text-muted">
-            Narration merge can take longer for 1080p or higher exports.
+            Narration merge can take longer for high-quality 1080p exports.
           </p>
         )}
 
@@ -319,12 +419,7 @@ export default function ExportPanel({ script, disabled = false, compact = false 
         </button>
         <p className="mt-3 text-center text-[11px] text-muted">
           Download{" "}
-          <span className="text-muted">
-            {exportWithNarration
-              ? "footiebitz-with-narration.webm"
-              : `footiebitz-${selectedQuality.id}.webm`}
-          </span>{" "}
-          · {selectedQuality.width}×{selectedQuality.height} · 9:16
+          <span className="text-muted">{downloadFileName}</span> · {exportWidth}×{exportHeight} · 9:16
           {exportWithNarration && " · with narration"}
         </p>
       </div>
