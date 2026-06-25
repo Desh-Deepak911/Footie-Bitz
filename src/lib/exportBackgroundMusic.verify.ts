@@ -49,23 +49,26 @@ test("resolveExportBackgroundMusicBedVolume uses track volume without ducking", 
   assert.equal(resolveExportBackgroundMusicBedVolume(music, false), 0.2);
 });
 
-test("resolveExportBackgroundMusicMixSettings includes fade windows", () => {
-  const settings = resolveExportBackgroundMusicMixSettings(scriptWithMusic, true);
+test("resolveExportBackgroundMusicMixSettings includes fade windows and export duration", () => {
+  const settings = resolveExportBackgroundMusicMixSettings(scriptWithMusic, true, 30_000);
   assert.ok(settings);
+  assert.equal(settings?.exportDurationMs, 30_000);
   assert.equal(settings?.fadeInSec, 2);
   assert.equal(settings?.fadeOutSec, 2);
 });
 
-test("buildExportBackgroundMusicFilterChain applies volume without fades", () => {
-  const settings = resolveExportBackgroundMusicMixSettings(scriptWithMusic, true)!;
-  const chain = buildExportBackgroundMusicFilterChain(2, 12, settings, "music");
+test("buildExportBackgroundMusicFilterChain loops and trims to export duration", () => {
+  const settings = resolveExportBackgroundMusicMixSettings(scriptWithMusic, true, 12_000)!;
+  const chain = buildExportBackgroundMusicFilterChain(2, settings, "music");
 
   assert.match(chain, /\[2:a\]/);
   assert.match(chain, /aresample=48000/);
   assert.match(chain, /aformat=sample_fmts=fltp:channel_layouts=stereo/);
+  assert.match(chain, /aloop=loop=-1:size=2e\+09/);
   assert.match(chain, /atrim=0:12\.000/);
-  assert.match(chain, /apad=whole_dur=12\.000/);
+  assert.match(chain, /asetpts=PTS-STARTPTS/);
   assert.match(chain, /volume=0\.2000/);
+  assert.doesNotMatch(chain, /apad=/);
   assert.doesNotMatch(chain, /afade=/);
   assert.match(chain, /\[music\]$/);
 });

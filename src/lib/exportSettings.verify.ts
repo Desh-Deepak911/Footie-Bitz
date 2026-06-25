@@ -13,9 +13,9 @@ import {
   resolveExportSettings,
   sanitizeExportFileName,
   slugifyStoryTitle,
-} from "../features/export/utils/export-settings.utils";
-import { getExportQualityPreset } from "../features/export/utils/export-quality.utils";
-import type { FootieScript } from "../features/story/types";
+} from "@/features/export/utils/export-settings.utils";
+import { getExportQualityPreset } from "@/features/export/utils/export-quality.utils";
+import type { FootieScript } from "@/features/story/types";
 
 function test(name: string, fn: () => void) {
   fn();

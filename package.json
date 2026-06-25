@@ -31,6 +31,8 @@
     "test:export-transition": "tsx src/lib/exportTransition.verify.ts",
     "test:transition-qa": "tsx src/lib/transitionQa.verify.ts",
     "test:export-settings": "tsx src/lib/exportSettings.verify.ts",
+    "test:export-preflight": "tsx src/lib/exportPreflight.verify.ts",
+    "test:export-sync-qa": "tsx src/lib/exportSyncQa.verify.ts",
     "test:export-path": "tsx src/lib/exportPath.verify.ts",
     "test:export-format-qa": "tsx src/lib/exportFormatQa.verify.ts",
     "test:background-music": "tsx src/lib/backgroundMusic.verify.ts",

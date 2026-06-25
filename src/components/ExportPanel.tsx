@@ -30,6 +30,10 @@ import {
   type ExportProgress,
 } from "@/features/export/services";
 import {
+  EXPORT_NARRATION_VOICEOVER_MISMATCH_WARNING,
+  hasNarrationVoiceoverMismatch,
+} from "@/features/export/utils/export-narration-voiceover.utils";
+import {
   EXPORT_AUDIO_VOICE_ONLY_FALLBACK_WARNING,
   isExportBackgroundMusicActiveFromMix,
 } from "@/features/export/utils/export-background-music.utils";
@@ -133,6 +137,10 @@ export default function ExportPanel({
     exportState === "finalizing";
   const audioMix = useMemo(() => buildAudioMixFromStory(script), [script]);
   const voiceoverSrc = audioMix.voiceover?.src;
+  const narrationVoiceoverMismatch = useMemo(
+    () => hasNarrationVoiceoverMismatch(script),
+    [script],
+  );
   const webmBackgroundMusicNotice = useMemo(
     () =>
       resolveWebmBackgroundMusicExportNotice({
@@ -286,6 +294,18 @@ export default function ExportPanel({
             <p className="mt-1 text-xs leading-relaxed text-amber-200/60">
               {uploadedCount} of {sceneCount} scenes have images. Missing scenes will use
               gradient placeholders in the export.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {narrationVoiceoverMismatch && voiceoverSrc && (
+        <div className={`${studioWarningPanel} flex items-start gap-3`}>
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
+          <div>
+            <p className="text-sm font-medium text-amber-100/90">Narration out of sync</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-200/60">
+              {EXPORT_NARRATION_VOICEOVER_MISMATCH_WARNING}
             </p>
           </div>
         </div>

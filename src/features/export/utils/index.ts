@@ -6,4 +6,6 @@ export * from "./export-settings.utils";
 export * from "./export-quality.utils";
 export * from "./export-subtitle.utils";
 export * from "./export-caption-canvas.utils";
+export * from "./export-narration-voiceover.utils";
+export * from "./export-preflight.utils";
 export * from "./ffmpeg.utils";

@@ -31,11 +31,18 @@ export const EXPORT_AUDIO_SILENT_FALLBACK_MESSAGE =
   "Audio merge failed. Exported silent video.";
 
 export interface ExportBackgroundMusicMixSettings {
+  /** Normalized export timeline length from prepareStoryForExport. */
+  exportDurationMs: number;
   volume: number;
   fadeIn: boolean;
   fadeOut: boolean;
   fadeInSec: number;
   fadeOutSec: number;
+}
+
+/** Converts preflight export duration to seconds for FFmpeg/browser mix. */
+export function resolveExportBackgroundMusicDurationSec(exportDurationMs: number): number {
+  return Math.max(0.001, exportDurationMs / 1000);
 }
 
 export function isExportBackgroundMusicActive(
@@ -71,6 +78,7 @@ function resolveExportBackgroundMusicBedVolumeFromMix(
 export function resolveExportBackgroundMusicMixSettings(
   script: Parameters<typeof getStoryBackgroundMusic>[0],
   includeNarration: boolean,
+  exportDurationMs: number,
 ): ExportBackgroundMusicMixSettings | null {
   const music = getStoryBackgroundMusic(script);
   if (!music.enabled || !resolvePreviewBackgroundMusicUrl(script)) {
@@ -78,6 +86,7 @@ export function resolveExportBackgroundMusicMixSettings(
   }
 
   return {
+    exportDurationMs: Math.max(0, Math.round(exportDurationMs)),
     volume: resolveExportBackgroundMusicBedVolume(music, includeNarration),
     fadeIn: music.fadeIn,
     fadeOut: music.fadeOut,
@@ -90,12 +99,14 @@ export function resolveExportBackgroundMusicMixSettings(
 export function resolveExportBackgroundMusicMixSettingsFromMix(
   audioMix: AudioMix,
   includeNarration: boolean,
+  exportDurationMs: number,
 ): ExportBackgroundMusicMixSettings | null {
   if (!isExportBackgroundMusicActiveFromMix(audioMix)) {
     return null;
   }
 
   return {
+    exportDurationMs: Math.max(0, Math.round(exportDurationMs)),
     volume: resolveExportBackgroundMusicBedVolumeFromMix(audioMix, includeNarration),
     fadeIn: audioMix.fadeIn,
     fadeOut: audioMix.fadeOut,
@@ -112,15 +123,15 @@ export const EXPORT_FFMPEG_AUDIO_FORMAT_FILTERS = [
 
 export function buildExportBackgroundMusicFilterChain(
   inputIndex: number,
-  durationSec: number,
   settings: ExportBackgroundMusicMixSettings,
   outputLabel: string,
 ): string {
-  const duration = Math.max(0.001, durationSec).toFixed(3);
+  const duration = resolveExportBackgroundMusicDurationSec(settings.exportDurationMs).toFixed(3);
   const filters = [
     ...EXPORT_FFMPEG_AUDIO_FORMAT_FILTERS,
+    "aloop=loop=-1:size=2e+09",
     `atrim=0:${duration}`,
-    `apad=whole_dur=${duration}`,
+    "asetpts=PTS-STARTPTS",
     `volume=${settings.volume.toFixed(4)}`,
   ];
 

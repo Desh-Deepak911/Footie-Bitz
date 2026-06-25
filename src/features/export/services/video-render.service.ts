@@ -43,6 +43,7 @@ import {
   resolveWebmBackgroundMusicExportNotice,
   type ExportPath,
 } from "@/features/export/utils/export-path.utils";
+import { prepareStoryForExport } from "@/features/export/utils/export-preflight.utils";
 import type { ExportAudioMuxOutputFormat } from "@/features/export/utils/ffmpeg.utils";
 import {
   drawExportGeneratedCaption,
@@ -354,6 +355,7 @@ export async function exportSilentVideoBlob(
   qualityPreset: ExportQualityPreset,
   onProgress?: (progress: ExportProgress) => void,
   payloadOverride?: FootieExportPayload,
+  exportDurationSec?: number,
 ): Promise<Blob> {
   assertBrowserExportEnvironment();
 
@@ -416,8 +418,8 @@ export async function exportSilentVideoBlob(
   };
 
   const totalDurationSec = Math.max(
-    getExportTotalDurationSec(payload),
-    resolveStoryDurationSec(script),
+    exportDurationSec ??
+      Math.max(getExportTotalDurationSec(payload), resolveStoryDurationSec(script)),
     0.001,
   );
   const totalFrames = Math.max(1, Math.round(totalDurationSec * fps));
@@ -628,7 +630,6 @@ async function muxWebmExportWithBrowserMixedAudio(options: {
   const mixedAudio = await mixExportVoiceoverAndBackgroundMusic({
     voiceoverInput: options.voiceoverInput,
     backgroundMusicInput: options.backgroundMusicInput,
-    durationSec: options.exportDurationSec,
     mixSettings: options.backgroundMusicMix,
   });
 
@@ -685,11 +686,26 @@ export async function exportFootieShort(
     throw new Error(exportPath.blockReason ?? "Selected export format is unavailable.");
   }
 
-  const payload = buildFootieExportPayload(script);
-  const quality = resolveExportRenderPreset(script, options);
-  const exportDurationSec = getExportTotalDurationSec(payload);
-  const audioMix = buildAudioMixFromStory(script);
-  logAudioEngineState(script, "export");
+  const preflight = prepareStoryForExport(script);
+  const exportScript = preflight.story;
+  const exportDurationMs = preflight.exportDurationMs;
+  const exportDurationSec = exportDurationMs / 1000;
+  const preflightWarning =
+    preflight.warnings.length > 0 ? preflight.warnings.join(" ") : undefined;
+
+  if (preflightWarning) {
+    onProgress({
+      status: "preparing",
+      progress: 2,
+      message: "Prepared export timeline",
+      warning: preflightWarning,
+    });
+  }
+
+  const payload = buildFootieExportPayload(exportScript);
+  const quality = resolveExportRenderPreset(exportScript, options);
+  const audioMix = buildAudioMixFromStory(exportScript);
+  logAudioEngineState(exportScript, "export");
   const voiceoverSrc = audioMix.voiceover?.src;
   const backgroundTrack = audioMix.background;
   const backgroundMusicSrc =
@@ -697,9 +713,15 @@ export async function exportFootieShort(
   const includeNarration =
     options.audioMode === "with-voice" && Boolean(voiceoverSrc);
 
-  const silentBlob = await exportSilentVideoBlob(script, quality, (update) => {
-    onProgress(mapRenderingProgress(update, includeNarration));
-  }, payload);
+  const silentBlob = await exportSilentVideoBlob(
+    exportScript,
+    quality,
+    (update) => {
+      onProgress(mapRenderingProgress(update, includeNarration));
+    },
+    payload,
+    exportDurationSec,
+  );
 
   let finalBlob = silentBlob;
   let musicWarning: string | undefined;
@@ -709,7 +731,7 @@ export async function exportFootieShort(
     backgroundMusicActive,
   });
   const musicMixSettings = backgroundMusicActive
-    ? resolveExportBackgroundMusicMixSettingsFromMix(audioMix, includeNarration)
+    ? resolveExportBackgroundMusicMixSettingsFromMix(audioMix, includeNarration, exportDurationMs)
     : null;
   let audioMixed = false;
   let audioMergeResultKind: ExportResultKind = "default";
@@ -889,10 +911,15 @@ export async function exportFootieShort(
     )}`;
   }
 
-  const combinedWarning =
+  const combinedWarning = [
+    preflightWarning,
     audioMergeResultKind === "audio-voice-only"
       ? EXPORT_AUDIO_VOICE_ONLY_FALLBACK_WARNING
-      : musicWarning;
+      : musicWarning,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || undefined;
 
   await finishExportDownload({
     exportPath: exportPath.path,

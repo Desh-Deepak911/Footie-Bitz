@@ -91,6 +91,26 @@ function mergeVoiceSettings(
   });
 }
 
+function resolveVoiceoverNarrationSnapshot(script: FootieScript): string {
+  return script.narration.trim();
+}
+
+function buildVoiceoverAttachmentFields(
+  script: FootieScript,
+  attachment: VoiceoverAttachment,
+): Pick<FootieScript, "voiceoverUrl" | "voiceoverDurationMs" | "voiceoverNarration" | "voiceSettings"> {
+  const voiceSettings = mergeVoiceSettings(script, attachment.voiceSettings);
+
+  return {
+    voiceoverUrl: attachment.voiceoverUrl,
+    voiceoverNarration: resolveVoiceoverNarrationSnapshot(script),
+    ...(attachment.voiceoverDurationMs != null && attachment.voiceoverDurationMs > 0
+      ? { voiceoverDurationMs: Math.round(attachment.voiceoverDurationMs) }
+      : {}),
+    voiceSettings,
+  };
+}
+
 /** Updates story-level voice settings without regenerating narration or scenes. */
 export function applyStoryVoiceSettings(
   script: FootieScript,
@@ -113,11 +133,7 @@ export function attachVoiceoverToScript(
   return syncFootieScript(
     {
       ...script,
-      voiceoverUrl: attachment.voiceoverUrl,
-      ...(attachment.voiceoverDurationMs != null && attachment.voiceoverDurationMs > 0
-        ? { voiceoverDurationMs: Math.round(attachment.voiceoverDurationMs) }
-        : {}),
-      voiceSettings: mergeVoiceSettings(script, attachment.voiceSettings),
+      ...buildVoiceoverAttachmentFields(script, attachment),
     },
     script,
   );
@@ -131,16 +147,10 @@ export function applyVoiceoverRegeneration(
   script: FootieScript,
   attachment: VoiceoverAttachment,
 ): FootieScript {
-  const voiceSettings = mergeVoiceSettings(script, attachment.voiceSettings);
-
   return syncFootieScript(
     {
       ...script,
-      voiceoverUrl: attachment.voiceoverUrl,
-      ...(attachment.voiceoverDurationMs != null && attachment.voiceoverDurationMs > 0
-        ? { voiceoverDurationMs: Math.round(attachment.voiceoverDurationMs) }
-        : {}),
-      voiceSettings,
+      ...buildVoiceoverAttachmentFields(script, attachment),
     },
     script,
   );
@@ -166,6 +176,7 @@ export function applyVoiceoverChanges(
       {
         ...script,
         voiceoverUrl: attachment.voiceoverUrl,
+        voiceoverNarration: resolveVoiceoverNarrationSnapshot(script),
         voiceSettings,
       },
       script,
@@ -179,6 +190,7 @@ export function applyVoiceoverChanges(
       ...script,
       voiceoverUrl: attachment.voiceoverUrl,
       voiceoverDurationMs: Math.round(voiceoverDurationMs),
+      voiceoverNarration: resolveVoiceoverNarrationSnapshot(script),
       voiceSettings,
       scenes,
     },
@@ -207,7 +219,12 @@ export function applyStoryUpdate(prev: FootieScript, next: FootieScript): Footie
   }
 
   revokeBlobUrl(prev.voiceoverUrl);
-  return { ...synced, voiceoverUrl: undefined, voiceoverDurationMs: undefined };
+  return {
+    ...synced,
+    voiceoverUrl: undefined,
+    voiceoverDurationMs: undefined,
+    voiceoverNarration: undefined,
+  };
 }
 
 /**

@@ -156,6 +156,8 @@ export interface FootieScript {
   voiceoverUrl?: string;
   /** Measured or estimated narration length in milliseconds. */
   voiceoverDurationMs?: number;
+  /** Story narration text used when the current voiceover audio was generated. */
+  voiceoverNarration?: string;
   /** Story-level narrator voice and speed preferences. */
   voiceSettings?: StoryVoiceSettings;
   /** Story-level background music preferences. Optional for legacy stories. */

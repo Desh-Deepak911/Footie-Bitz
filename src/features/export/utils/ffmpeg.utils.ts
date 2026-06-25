@@ -2,7 +2,11 @@ const FFMPEG_CORE_VERSION = "0.12.6";
 const FFMPEG_CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/umd`;
 
 import type { ExportBackgroundMusicMixSettings } from "./export-background-music.utils";
-import { buildExportBackgroundMusicFilterChain, EXPORT_FFMPEG_AUDIO_FORMAT_FILTERS } from "./export-background-music.utils";
+import {
+  buildExportBackgroundMusicFilterChain,
+  EXPORT_FFMPEG_AUDIO_FORMAT_FILTERS,
+  resolveExportBackgroundMusicDurationSec,
+} from "./export-background-music.utils";
 import {
   buildFfmpegMusicInputFilename,
   buildFfmpegVoiceInputFilename,
@@ -248,7 +252,10 @@ export async function muxVideoWithExportAudio(
     getFFmpeg(),
   ]);
 
-  const durationSec = options.videoDurationSec;
+  const musicExportDurationSec = options.backgroundMusicMix
+    ? resolveExportBackgroundMusicDurationSec(options.backgroundMusicMix.exportDurationMs)
+    : null;
+  const durationSec = musicExportDurationSec ?? options.videoDurationSec;
   const duration = formatFfmpegDuration(durationSec);
   const hasVoiceover = Boolean(options.voiceoverInput);
   const hasMusic = Boolean(options.backgroundMusicInput && options.backgroundMusicMix);
@@ -297,7 +304,6 @@ export async function muxVideoWithExportAudio(
     filterComplex = [
       buildExportBackgroundMusicFilterChain(
         musicInputIndex,
-        durationSec,
         options.backgroundMusicMix!,
         "music",
       ),
@@ -307,7 +313,6 @@ export async function muxVideoWithExportAudio(
   } else if (hasMusic && musicInputIndex != null && options.backgroundMusicMix) {
     filterComplex = buildExportBackgroundMusicFilterChain(
       musicInputIndex,
-      durationSec,
       options.backgroundMusicMix,
       "aout",
     );

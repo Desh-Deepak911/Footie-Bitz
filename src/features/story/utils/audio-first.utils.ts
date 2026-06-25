@@ -141,6 +141,9 @@ export function footieScriptFromAudioFirst(result: AudioFirstGenerationResult): 
     ...(result.voiceover?.durationMs
       ? { voiceoverDurationMs: result.voiceover.durationMs }
       : {}),
+    ...(result.voiceover?.audioUrl
+      ? { voiceoverNarration: result.script.narration.trim() }
+      : {}),
     ...(result.voiceover?.metadata?.speed != null
       ? {
           voiceSettings: {

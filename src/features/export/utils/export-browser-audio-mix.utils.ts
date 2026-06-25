@@ -2,7 +2,10 @@ import {
   normalizeExportAudioInput,
   type ExportAudioInput,
 } from "./export-audio-input.utils";
-import type { ExportBackgroundMusicMixSettings } from "./export-background-music.utils";
+import {
+  resolveExportBackgroundMusicDurationSec,
+  type ExportBackgroundMusicMixSettings,
+} from "./export-background-music.utils";
 
 export const EXPORT_BROWSER_MIX_SAMPLE_RATE = 48000;
 export const EXPORT_BROWSER_MIX_CHANNELS = 2;
@@ -11,7 +14,6 @@ export const EXPORT_BROWSER_MIXED_AUDIO_FILENAME = "mixed-audio.webm";
 export interface ExportBrowserAudioMixOptions {
   voiceoverInput: ExportAudioInput;
   backgroundMusicInput: ExportAudioInput;
-  durationSec: number;
   mixSettings: ExportBackgroundMusicMixSettings;
 }
 
@@ -216,7 +218,7 @@ export async function mixExportVoiceoverAndBackgroundMusic(
     throw new Error("Browser audio mixing is not supported");
   }
 
-  const durationSec = Math.max(0.001, options.durationSec);
+  const durationSec = resolveExportBackgroundMusicDurationSec(options.mixSettings.exportDurationMs);
   const frameCount = Math.ceil(durationSec * EXPORT_BROWSER_MIX_SAMPLE_RATE);
   const decodeContext = new AudioContext({ sampleRate: EXPORT_BROWSER_MIX_SAMPLE_RATE });
 
