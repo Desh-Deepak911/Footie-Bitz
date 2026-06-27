@@ -58,14 +58,12 @@ export function isExportBackgroundMusicActiveFromMix(audioMix: AudioMix): boolea
 
 export function resolveExportBackgroundMusicBedVolume(
   music: StoryBackgroundMusic,
-  _includeNarration: boolean,
 ): number {
   return Math.min(1, Math.max(0, music.volume));
 }
 
 function resolveExportBackgroundMusicBedVolumeFromMix(
   audioMix: AudioMix,
-  _includeNarration: boolean,
 ): number {
   const background = audioMix.background;
   if (!background) {
@@ -77,7 +75,7 @@ function resolveExportBackgroundMusicBedVolumeFromMix(
 
 export function resolveExportBackgroundMusicMixSettings(
   script: Parameters<typeof getStoryBackgroundMusic>[0],
-  includeNarration: boolean,
+  _includeNarration: boolean,
   exportDurationMs: number,
 ): ExportBackgroundMusicMixSettings | null {
   const music = getStoryBackgroundMusic(script);
@@ -87,7 +85,7 @@ export function resolveExportBackgroundMusicMixSettings(
 
   return {
     exportDurationMs: Math.max(0, Math.round(exportDurationMs)),
-    volume: resolveExportBackgroundMusicBedVolume(music, includeNarration),
+    volume: resolveExportBackgroundMusicBedVolume(music),
     fadeIn: music.fadeIn,
     fadeOut: music.fadeOut,
     fadeInSec: PREVIEW_BACKGROUND_MUSIC_FADE_IN_SEC,
@@ -98,7 +96,7 @@ export function resolveExportBackgroundMusicMixSettings(
 /** Builds FFmpeg mix settings from a normalized story audio mix. */
 export function resolveExportBackgroundMusicMixSettingsFromMix(
   audioMix: AudioMix,
-  includeNarration: boolean,
+  _includeNarration: boolean,
   exportDurationMs: number,
 ): ExportBackgroundMusicMixSettings | null {
   if (!isExportBackgroundMusicActiveFromMix(audioMix)) {
@@ -107,7 +105,7 @@ export function resolveExportBackgroundMusicMixSettingsFromMix(
 
   return {
     exportDurationMs: Math.max(0, Math.round(exportDurationMs)),
-    volume: resolveExportBackgroundMusicBedVolumeFromMix(audioMix, includeNarration),
+    volume: resolveExportBackgroundMusicBedVolumeFromMix(audioMix),
     fadeIn: audioMix.fadeIn,
     fadeOut: audioMix.fadeOut,
     fadeInSec: PREVIEW_BACKGROUND_MUSIC_FADE_IN_SEC,

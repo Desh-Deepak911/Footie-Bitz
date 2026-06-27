@@ -1,0 +1,30 @@
+export {
+  getFixture,
+  getFixtureEvents,
+  getFixtureLineups,
+  getFixturePlayers,
+  getFixtureStatistics,
+  getPlayerSearch,
+  getPlayerStatistics,
+  getStandings,
+  getTopScorers,
+  isApiFootballConfigured,
+  searchFixturesByTeam,
+  searchTeams,
+} from "./api-football.client";
+export { resolveConfiguredSeason, resolveDefaultSeason } from "./season.utils";
+export type {
+  ApiFootballFixtureEvent,
+  ApiFootballFixtureEventsResponse,
+  ApiFootballFixtureItem,
+  ApiFootballFixtureLineup,
+  ApiFootballFixturePlayersResponse,
+  ApiFootballFixtureStatistics,
+  ApiFootballPlayerSearchItem,
+  ApiFootballStandingsResponse,
+  ApiFootballTeam,
+  ApiFootballTopScorerItem,
+  ApiFootballTopScorerRanking,
+  GetTopScorersParams,
+  SearchFixturesByTeamOptions,
+} from "./types";

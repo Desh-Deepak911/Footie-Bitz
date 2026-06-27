@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { PRODUCT_NAME } from "@/lib/product-brand";
+import { isPrimaryNavLinkActive, PRIMARY_NAV_LINKS } from "@/lib/product-navigation";
 import {
   studioFooter,
   studioHeader,
@@ -17,11 +19,6 @@ import {
 interface SiteNavProps {
   children?: ReactNode;
 }
-
-const NAV_LINKS = [
-  { href: "/create", label: "Create" },
-  { href: "/drafts", label: "Drafts" },
-] as const;
 
 function navLinkClass(active: boolean) {
   return active
@@ -44,18 +41,18 @@ export default function SiteNav({ children }: SiteNavProps) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-[13px] font-semibold tracking-tight text-foreground sm:text-sm">
-                FootieBitz
+                {PRODUCT_NAME}
               </p>
-              <p className="hidden text-[11px] text-muted sm:block">Short-form studio</p>
+              <p className="hidden text-[11px] text-muted sm:block">Creator platform for football shorts</p>
             </div>
           </Link>
 
           <nav className="hidden items-center gap-5 sm:flex" aria-label="Primary">
-            {NAV_LINKS.map((link) => (
+            {PRIMARY_NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={navLinkClass(pathname === link.href || pathname.startsWith(`${link.href}/`))}
+                className={navLinkClass(isPrimaryNavLinkActive(pathname, link.href))}
               >
                 {link.label}
               </Link>
@@ -66,9 +63,9 @@ export default function SiteNav({ children }: SiteNavProps) {
 
           <Link href="/create" className={`${studioNavPrimaryButton} hidden sm:inline-flex`}>
             <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-            New Story
+            Write Story
           </Link>
-          <Link href="/create" aria-label="New story" className={`${studioNavPrimaryButton} sm:hidden`}>
+          <Link href="/create" aria-label="Write story" className={`${studioNavPrimaryButton} sm:hidden`}>
             <Plus className="h-4 w-4" strokeWidth={2} />
           </Link>
         </div>
@@ -80,7 +77,7 @@ export default function SiteNav({ children }: SiteNavProps) {
 
       <footer className={studioFooter}>
         <div className={`${studioShellContainer} flex flex-col items-center justify-between gap-2 sm:flex-row`}>
-          <p className="text-xs font-medium text-muted">FootieBitz</p>
+          <p className="text-xs font-medium text-muted">{PRODUCT_NAME}</p>
           <p className="text-[11px] text-muted">Football shorts · 9:16 · MP4</p>
         </div>
       </footer>

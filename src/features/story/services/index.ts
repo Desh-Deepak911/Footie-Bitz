@@ -22,9 +22,13 @@ export {
 export {
   applyAudioFirstTiming,
   generateAudioFirstStory,
+  generateScenesForReviewedScript,
+  generateScriptOnlyStory,
   type ApplyAudioFirstTimingOutcome,
   type AudioFirstStoryGenerationResult,
   type GenerateAudioFirstStoryInput,
+  type GenerateScenesForReviewedScriptInput,
+  type ScriptOnlyStoryGenerationResult,
 } from "./audio-first-generation.service";
 export {
   generateStoryWithAudioFirstPipeline,

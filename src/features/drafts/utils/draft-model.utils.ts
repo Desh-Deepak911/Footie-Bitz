@@ -9,6 +9,11 @@ import type {
   StoryDraftSummary,
 } from "../types";
 
+import {
+  draftWorkflowStatusLabel,
+  resolveDraftWorkflowStatus,
+} from "./draft-pipeline.utils";
+
 import type { DraftPersistedScript } from "./draft-audio-persistence.utils";
 import { createDraftId } from "./draft-id.utils";
 
@@ -124,6 +129,7 @@ export function normalizeDraft(
     totalDuration: summary.totalDuration,
     hasVoiceover: summary.hasVoiceover,
     creationBrief,
+    pipelineStage: input.pipelineStage,
   };
 }
 
@@ -136,6 +142,7 @@ export function coerceLegacyDraft(
     status: stored.status ?? "draft",
     prompt: stored.prompt ?? stored.creationBrief?.topic,
     script: stored.script,
+    pipelineStage: stored.pipelineStage,
   });
 }
 
@@ -144,6 +151,8 @@ export function draftToScript(draft: Draft): FootieScript {
 }
 
 export function toDraftSummary(draft: Draft): StoryDraftSummary {
+  const workflowStatus = resolveDraftWorkflowStatus(draft);
+
   return {
     id: draft.id,
     title: draft.title,
@@ -154,6 +163,8 @@ export function toDraftSummary(draft: Draft): StoryDraftSummary {
     hasVoiceover: draft.hasVoiceover,
     status: draft.status,
     prompt: draft.prompt,
+    workflowStatus,
+    workflowStatusLabel: draftWorkflowStatusLabel(workflowStatus),
   };
 }
 
@@ -161,6 +172,7 @@ export function createDraftFromScript(
   script: FootieScript,
   creationBrief?: StoryCreationBrief,
   id?: string,
+  pipelineStage?: Draft["pipelineStage"],
 ): Draft {
   const now = new Date().toISOString();
 
@@ -172,6 +184,7 @@ export function createDraftFromScript(
     status: "draft",
     createdAt: now,
     updatedAt: now,
+    pipelineStage,
   });
 }
 

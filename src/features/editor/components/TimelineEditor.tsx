@@ -5,13 +5,14 @@ import {
   ChevronRight,
   Clock,
   Layers,
+  ListPlus,
   PlusCircle,
   SkipBack,
   SkipForward,
-  Workflow,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { PRODUCT_NAME } from "@/lib/product-brand";
 import SceneCard from "@/features/editor/components/SceneCard";
 import TransitionCard from "@/features/editor/components/TransitionCard";
 
@@ -249,9 +250,9 @@ export default function TimelineEditor({
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className={studioStepLabel}>{isStoryboard ? "Timeline" : "Step 3"}</p>
+          <p className={studioStepLabel}>{isStoryboard ? "Storyboard" : "Editor"}</p>
           <h2 className={studioSectionTitle}>
-            {isStoryboard ? "Scene timeline" : "Production Timeline"}
+            {isStoryboard ? "Scene timeline" : "Timeline"}
           </h2>
           {!isStoryboard ? (
             <p className={studioSectionDesc}>
@@ -290,7 +291,7 @@ export default function TimelineEditor({
           </summary>
           <div className={`${studioSubtleText} mt-3 space-y-1.5`}>
             <p>
-              FootieBitz creates a first draft timeline. Add intro, context, transition, or ending
+              {PRODUCT_NAME} creates a first draft timeline. Add intro, context, transition, or ending
               scenes to better match your narration.
             </p>
             <p>
@@ -301,7 +302,7 @@ export default function TimelineEditor({
       ) : (
         <div className={`${studioPanel} space-y-1.5 ${studioSubtleText}`}>
           <p>
-            FootieBitz creates a first draft timeline. You can add intro, context, transition, or
+            {PRODUCT_NAME} creates a first draft timeline. You can add intro, context, transition, or
             ending scenes to better match your narration.
           </p>
           <p>
@@ -314,7 +315,7 @@ export default function TimelineEditor({
       {/* ── Quick buffer inserts ── */}
       <div className={studioPanel}>
         <div className="mb-2.5 flex items-center gap-2 sm:mb-3">
-          <Workflow className="h-3.5 w-3.5 text-muted" />
+          <ListPlus className="h-3.5 w-3.5 text-muted" />
           <p className={`${studioFieldLabel} mb-0`}>Quick add</p>
         </div>
         <div className="flex flex-wrap gap-1.5 sm:gap-2">

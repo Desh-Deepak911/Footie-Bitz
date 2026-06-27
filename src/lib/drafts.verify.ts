@@ -10,6 +10,7 @@ import {
   getDraft,
   isJsonSerializable,
   listDrafts,
+  mergeDraftUpdatesSafely,
   normalizeDraft,
   resolveDraftScriptForEditor,
   serializeEditorStateForDraft,
@@ -325,6 +326,104 @@ test("resolveDraftScriptForEditor hydrates playable voiceover for preview and ex
   assert.match(mix.voiceover!.src, /^blob:/);
   assert.equal(mix.voiceover?.durationMs, 12_000);
   assert.equal(resolved.voiceSettings?.speed, 1.4);
+});
+
+test("mergeDraftUpdatesSafely preserves scenes when a stale voiceover save arrives later", () => {
+  const options = { adapter: createMemoryDraftStorageAdapter() };
+  const withScenes = createDraft(
+    {
+      script: baseScript,
+      pipelineStage: "editor_ready",
+    },
+    options,
+  );
+
+  const staleVoiceoverScript: FootieScript = {
+    title: "Derby Day Chaos",
+    narration: "Updated narration from voiceover pass.",
+    totalDuration: 12,
+    scenes: [],
+    voiceoverUrl: "blob:new-voice",
+    voiceoverDurationMs: 12_000,
+    voiceSettings: { voice: "nova", speed: 1.1 },
+  };
+
+  const updated = updateDraft(
+    withScenes.id,
+    {
+      script: staleVoiceoverScript,
+      pipelineStage: "voiceover_ready",
+    },
+    options,
+  );
+
+  assert.ok(updated);
+  assert.equal(updated!.script.scenes.length, 1);
+  assert.equal(updated!.pipelineStage, "editor_ready");
+  assert.equal(updated!.script.voiceoverUrl, "blob:new-voice");
+  assert.equal(updated!.script.narration, "Updated narration from voiceover pass.");
+  assert.equal(updated!.script.voiceSettings?.voice, "nova");
+});
+
+test("mergeDraftUpdatesSafely never downgrades pipelineStage from editor_ready", () => {
+  const existing = normalizeDraft({
+    id: "draft-merge-stage",
+    script: baseScript,
+    pipelineStage: "editor_ready",
+    updatedAt: "2026-01-01T12:00:00.000Z",
+  });
+
+  const incoming = normalizeDraft({
+    id: "draft-merge-stage",
+    script: {
+      ...baseScript,
+      scenes: [],
+      voiceoverUrl: "blob:late-voice",
+    },
+    pipelineStage: "voiceover_ready",
+    updatedAt: "2026-01-02T12:00:00.000Z",
+  });
+
+  const merged = mergeDraftUpdatesSafely(existing, incoming);
+
+  assert.equal(merged.pipelineStage, "editor_ready");
+  assert.equal(merged.script.scenes.length, 1);
+});
+
+test("updateDraft applies mergeDraftUpdatesSafely before writing to storage", () => {
+  const options = { adapter: createMemoryDraftStorageAdapter() };
+  const draft = createDraft(
+    {
+      script: {
+        title: "Stage test",
+        narration: "Voice first.",
+        totalDuration: 12,
+        scenes: [],
+        voiceoverUrl: "blob:voice",
+        voiceoverDurationMs: 12_000,
+      },
+      pipelineStage: "voiceover_ready",
+    },
+    options,
+  );
+
+  const withScenes = updateDraft(
+    draft.id,
+    {
+      script: baseScript,
+      pipelineStage: "editor_ready",
+    },
+    options,
+  );
+
+  assert.ok(withScenes);
+  assert.equal(withScenes!.script.scenes.length, 1);
+  assert.equal(withScenes!.pipelineStage, "editor_ready");
+
+  const reloaded = getDraft(draft.id, options);
+  assert.ok(reloaded);
+  assert.equal(reloaded!.script.scenes.length, 1);
+  assert.equal(reloaded!.pipelineStage, "editor_ready");
 });
 
 console.log("All draft checks passed.");

@@ -10,7 +10,7 @@ The Editing layer is where creators refine AI output after generation. Every cha
 
 ## Editor philosophy
 
-FootieBitz treats the generated story as a **first draft**. The editor's job is to make everything refinable without surprise overwrites.
+ShortForge Studio treats the generated story as a **first draft**. The editor's job is to make everything refinable without surprise overwrites.
 
 ### Everything editable
 
@@ -387,7 +387,7 @@ Design choices reflected in the current editor implementation:
 
 ### First draft, not final cut
 
-Timeline helper copy explains that FootieBitz creates a first draft. Buffer scene buttons (Intro, Context, Transition, Ending) help creators pad structure without re-generating.
+Timeline helper copy explains that ShortForge Studio creates a first draft. Buffer scene buttons (Intro, Context, Transition, Ending) help creators pad structure without re-generating.
 
 ### Visual layer separated from narration
 

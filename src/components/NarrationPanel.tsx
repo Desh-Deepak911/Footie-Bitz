@@ -19,7 +19,7 @@ export default function NarrationPanel({ script, compact = false }: NarrationPan
     <div className={compact ? "space-y-4" : "space-y-6 sm:space-y-7"}>
       {!compact ? (
         <div>
-          <p className={studioStepLabel}>Step 4</p>
+          <p className={studioStepLabel}>Narration</p>
           <h2 className={studioSectionTitle}>Narration</h2>
           <p className={studioSectionDesc}>
             Turn your story narration into spoken audio for preview and export.
@@ -38,7 +38,7 @@ export default function NarrationPanel({ script, compact = false }: NarrationPan
         </div>
       ) : (
         <p className={studioSubtleText}>
-          Use Voice Settings in the story draft to generate narration audio.
+          Create narration to synchronize your scenes.
         </p>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 
+import { getCanonicalVoiceover } from "@/features/audio";
 import { getStoryVoiceSettings } from "@/features/story/utils";
 import type { FootieScript } from "@/features/story/types";
 import { useStoryVoiceoverApply } from "@/hooks/useStoryVoiceoverApply";
@@ -30,12 +31,15 @@ interface VoiceSettingsCardProps {
   script: FootieScript;
   onScriptChange: (script: FootieScript) => void;
   disabled?: boolean;
+  /** Review flow uses Create/Update Narration; editor keeps Apply Changes. */
+  variant?: "editor" | "review";
 }
 
 export default function VoiceSettingsCard({
   script,
   onScriptChange,
   disabled = false,
+  variant = "editor",
 }: VoiceSettingsCardProps) {
   const { applyVoiceoverChanges, loading, error } = useStoryVoiceoverApply(
     script,
@@ -46,6 +50,13 @@ export default function VoiceSettingsCard({
   const selectedSpeed = voiceSettings.speed;
   const controlsDisabled = disabled;
   const hasNarration = script.narration.trim().length > 0;
+  const hasVoiceover = Boolean(getCanonicalVoiceover(script)?.url);
+  const applyButtonLabel =
+    variant === "review"
+      ? hasVoiceover
+        ? "Update Narration"
+        : "Create Narration"
+      : "Apply Changes";
 
   return (
     <div className={`${studioPanel} space-y-4`}>
@@ -113,22 +124,30 @@ export default function VoiceSettingsCard({
         disabled={loading || controlsDisabled || !hasNarration}
         className={`${studioPrimaryButton} w-full`}
       >
-        Apply Changes
+        {loading
+          ? variant === "review"
+            ? "Creating narration..."
+            : "Updating narration..."
+          : applyButtonLabel}
       </button>
 
       {loading ? (
         <p className={`${studioSubtleText} text-center tabular-nums`} role="status" aria-live="polite">
-          Updating voiceover...
+          {variant === "review" ? "Creating narration from your story..." : "Updating narration..."}
         </p>
       ) : (
         <p className={studioSubtleText}>
-          Regenerates the voiceover audio at the selected speed. Scene timings and subtitles stay as they are.
+          {variant === "review"
+            ? hasVoiceover
+              ? "Updates the narration audio at the selected speed. Scene timings and subtitles stay as they are."
+              : "Create narration to synchronize your scenes."
+            : "Updates the narration audio at the selected speed. Scene timings and subtitles stay as they are."}
         </p>
       )}
 
       {error ? (
         <div className={studioError} role="alert">
-          <p className="text-xs font-medium leading-relaxed">Voiceover update failed</p>
+          <p className="text-xs font-medium leading-relaxed">Narration update failed</p>
           <p className="mt-1 text-xs leading-relaxed">{error}</p>
         </div>
       ) : null}

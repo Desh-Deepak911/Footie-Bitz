@@ -6,7 +6,7 @@ import {
 } from "@/features/story/utils/caption.utils";
 
 export const EXPORT_NARRATION_VOICEOVER_MISMATCH_WARNING =
-  "Narration changed after voiceover generation. Regenerate voiceover before exporting for best sync.";
+  "Narration changed after audio was created. Update narration before publishing for best sync.";
 
 function normalizeNarrationText(value: string | undefined): string {
   return value?.trim() ?? "";

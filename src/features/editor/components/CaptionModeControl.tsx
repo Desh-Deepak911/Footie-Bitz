@@ -5,7 +5,7 @@ import { studioFieldLabel, studioSegment, studioSegmentActive, studioSegmentedCo
 import type { CaptionMode } from "@/features/story/types";
 
 const CAPTION_STYLE_OPTIONS: { value: CaptionMode; label: string }[] = [
-  { value: "generated", label: "Generated Caption" },
+  { value: "generated", label: "Written Caption" },
   { value: "subtitles", label: "Narration Subtitles" },
 ];
 

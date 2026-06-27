@@ -34,7 +34,7 @@ export const BACKGROUND_MUSIC_LIBRARY_CATALOG: BackgroundMusicLibraryTrack[] = [
 export const SHIPPED_BACKGROUND_MUSIC_FILES: string[] = [];
 
 export const BACKGROUND_MUSIC_LIBRARY_EMPTY_MESSAGE =
-  "No built-in tracks yet. Upload your own licensed music.";
+  "Upload your own licensed music to add a soundtrack.";
 
 export function isBackgroundMusicLibraryTrackAvailable(
   track: BackgroundMusicLibraryTrack,

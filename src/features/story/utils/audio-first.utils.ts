@@ -1,4 +1,5 @@
-import { estimateNarrationDurationMs, getMp3DurationSeconds } from "@/lib/audio";
+import { estimateNarrationDurationMs } from "./narration-duration-budget.utils";
+import { getMp3DurationSeconds } from "@/lib/audio";
 
 import type {
   AudioFirstGenerationResult,
@@ -16,7 +17,7 @@ import { attachSceneNarrationFromScript } from "./caption.utils";
 
 const TTS_MODEL = "tts-1";
 
-export { estimateNarrationDurationMs } from "@/lib/audio";
+export { estimateNarrationDurationMs } from "./narration-duration-budget.utils";
 
 export function resolveVoiceoverDurationMs(
   mp3: ArrayBuffer,

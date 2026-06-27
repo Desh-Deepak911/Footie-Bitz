@@ -147,7 +147,7 @@ test("built-in library is empty when no public music assets are shipped", () => 
   assert.deepEqual(BACKGROUND_MUSIC_LIBRARY_TRACKS, []);
   assert.equal(
     BACKGROUND_MUSIC_LIBRARY_EMPTY_MESSAGE,
-    "No built-in tracks yet. Upload your own licensed music.",
+    "Upload your own licensed music to add a soundtrack.",
   );
 });
 

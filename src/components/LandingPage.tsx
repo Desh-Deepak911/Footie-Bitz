@@ -1,16 +1,18 @@
 import {
-  ArrowLeftRight,
   Download,
   FolderOpen,
+  Layers,
   Mic,
-  Move,
+  PenLine,
+  Search,
   Sparkles,
-  Subtitles,
   Wand2,
 } from "lucide-react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
+import { PRODUCT_NAME } from "@/lib/product-brand";
+import { WORKFLOW_STEPS } from "@/lib/studioConstants";
 import {
   studioPanel,
   studioPrimaryButton,
@@ -24,33 +26,33 @@ const FEATURES: {
   icon: LucideIcon;
 }[] = [
   {
-    title: "Script generation",
-    description: "Turn a football brief into a documentary-style narration and timed scene plan.",
+    title: "Research",
+    description: "Find relevant facts automatically.",
+    icon: Search,
+  },
+  {
+    title: "Story",
+    description: "Turn ideas into engaging narratives.",
     icon: Wand2,
   },
   {
-    title: "Voiceover",
-    description: "Generate spoken audio with story-level voice and speed controls.",
+    title: "Narration",
+    description: "Generate natural voiceovers.",
     icon: Mic,
   },
   {
-    title: "Subtitles",
-    description: "Timed captions with fade-up, typewriter, and highlight effects.",
-    icon: Subtitles,
+    title: "Storyboard",
+    description: "Split stories into editable scenes.",
+    icon: Layers,
   },
   {
-    title: "Image motion",
-    description: "Ken Burns-style zoom on scene images while text stays crisp and stable.",
-    icon: Move,
-  },
-  {
-    title: "Transitions",
-    description: "Fade, slide, zoom, and blur overlays between scenes in preview and export.",
-    icon: ArrowLeftRight,
+    title: "Editor",
+    description: "Adjust every scene visually.",
+    icon: PenLine,
   },
   {
     title: "Export",
-    description: "Download a vertical MP4 with narration and background music mixed in-browser.",
+    description: "Download production-ready videos.",
     icon: Download,
   },
 ];
@@ -60,7 +62,7 @@ export default function LandingPage() {
     <div className="mx-auto min-w-0 max-w-5xl">
       {/* Hero */}
       <section
-        aria-label="FootieBitz hero"
+        aria-label={`${PRODUCT_NAME} hero`}
         className="relative overflow-hidden px-1 pb-16 pt-4 text-center sm:pb-20 sm:pt-8 lg:pb-24 lg:pt-12"
       >
         <div
@@ -68,16 +70,15 @@ export default function LandingPage() {
           className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[min(100%,42rem)] -translate-x-1/2 rounded-full bg-accent/[0.07] blur-3xl"
         />
 
-        <p className={`${studioStepLabel} relative`}>Football documentary shorts</p>
+        <p className={`${studioStepLabel} relative`}>{PRODUCT_NAME}</p>
 
-        <h1 className="relative mt-4 text-[2rem] font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl sm:leading-[1.05] lg:text-[3.25rem]">
-          From idea to narrated short.
-          <span className="mt-2 block text-muted sm:mt-3">Built for vertical storytelling.</span>
+        <h1 className="relative mx-auto mt-4 max-w-3xl text-[2rem] font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl sm:leading-[1.05] lg:text-[3.25rem]">
+          Create cinematic short-form videos from ideas, events and research.
         </h1>
 
-        <p className="relative mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted sm:mt-6 sm:text-lg sm:leading-relaxed">
-          FootieBitz is a story-first studio for 9:16 football content — script, voiceover,
-          timeline, preview, and export in one calm workflow.
+        <p className="relative mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted sm:mt-6 sm:text-lg sm:leading-relaxed">
+          Write stories, create narration, build storyboards and export polished short-form videos
+          in minutes.
         </p>
 
         <div className="relative mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-10 sm:flex-row sm:items-center">
@@ -86,7 +87,7 @@ export default function LandingPage() {
             className={`${studioPrimaryButton} w-full px-6 py-3 text-[15px] sm:w-auto sm:min-w-[12.5rem]`}
           >
             <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-            Create a Story
+            Create Story
           </Link>
           <Link
             href="/drafts"
@@ -103,10 +104,10 @@ export default function LandingPage() {
         <div className="mx-auto max-w-2xl text-center">
           <p className={studioStepLabel}>Features</p>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
-            Everything in one studio.
+            Everything you need to publish.
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-muted sm:text-[15px]">
-            Generate once, refine in the timeline, preview in 9:16, and export when it feels right.
+            From research to export — one calm path for short-form video.
           </p>
         </div>
 
@@ -133,6 +134,35 @@ export default function LandingPage() {
         </ul>
       </section>
 
+      {/* Documentation */}
+      <section
+        id="documentation"
+        aria-label="Documentation"
+        className="mt-14 border-t border-border/20 px-1 pt-14 sm:pt-16"
+      >
+        <div className="mx-auto max-w-2xl text-center">
+          <p className={studioStepLabel}>Documentation</p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+            How {PRODUCT_NAME} works
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-muted sm:text-[15px]">
+            A simple path from brief to finished short — no editing suite required.
+          </p>
+        </div>
+
+        <ol className="mx-auto mt-10 grid max-w-3xl gap-2.5 sm:grid-cols-2 sm:gap-3">
+          {WORKFLOW_STEPS.map((item) => (
+            <li
+              key={item.title}
+              className={`${studioPanel} px-5 py-4 sm:px-6 sm:py-5`}
+            >
+              <p className="text-sm font-medium text-foreground/90">{item.title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{item.desc}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {/* Closing CTA */}
       <section
         aria-label="Get started"
@@ -146,7 +176,7 @@ export default function LandingPage() {
         </p>
         <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
           <Link href="/create" className={`${studioPrimaryButton} w-full sm:w-auto`}>
-            Create a Story
+            Create Story
           </Link>
           <Link href="/drafts" className={`${studioSecondaryButton} w-full sm:w-auto`}>
             View Drafts

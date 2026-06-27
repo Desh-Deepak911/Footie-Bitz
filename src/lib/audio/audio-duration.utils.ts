@@ -1,23 +1,10 @@
 import { getMp3DurationSeconds } from "./mp3-duration.utils";
 
-const WORDS_PER_SECOND = 2.4;
-const ESTIMATION_BUFFER_MS = 400;
-const MIN_NARRATION_DURATION_MS = 3000;
-
-function countNarrationWords(text: string): number {
-  return text.trim().replace(/\s+/g, " ").split(" ").filter(Boolean).length;
-}
-
-/** Estimates spoken narration length from word count. */
-export function estimateNarrationDurationMs(text: string): number {
-  const words = countNarrationWords(text);
-  if (words === 0) {
-    return MIN_NARRATION_DURATION_MS;
-  }
-
-  const estimatedMs = Math.round((words / WORDS_PER_SECOND) * 1000 + ESTIMATION_BUFFER_MS);
-  return Math.max(MIN_NARRATION_DURATION_MS, estimatedMs);
-}
+export {
+  countWords,
+  estimateNarrationDurationMs,
+  NARRATION_WORDS_PER_SECOND,
+} from "@/features/story/utils/narration-duration-budget.utils";
 
 async function getDurationMsFromMp3Blob(blob: Blob): Promise<number | null> {
   const buffer = await blob.arrayBuffer();

@@ -1,8 +1,8 @@
 # Future Vision
 
-Long-term product direction for FootieBitz. This document describes **where the product is going** — not how to build it.
+Long-term product direction for ShortForge Studio. This document describes **where the product is going** — not how to build it.
 
-FootieBitz today is a browser studio that turns a football topic into a narrated vertical short. The vision is to become the default **story-first short-form production tool** for football creators — from solo TikTok editors to club media teams.
+ShortForge Studio today is a browser studio that turns a football topic into a narrated vertical short. The vision is to become the default **story-first short-form production tool** for football creators — from solo TikTok editors to club media teams.
 
 For near-term phased delivery, see [ROADMAP.md](../ROADMAP.md). For what exists today, see [FEATURES.md](./FEATURES.md).
 
@@ -12,7 +12,7 @@ For near-term phased delivery, see [ROADMAP.md](../ROADMAP.md). For what exists 
 
 > **Start with the story. Everything else follows.**
 
-Creators should spend their time on ideas, pacing, and visuals — not fighting tools. FootieBitz should feel like a documentary producer in the browser: write once, refine freely, preview instantly, publish anywhere.
+Creators should spend their time on ideas, pacing, and visuals — not fighting tools. ShortForge Studio should feel like a documentary producer in the browser: write once, refine freely, preview instantly, publish anywhere.
 
 ---
 
@@ -159,7 +159,7 @@ The current studio is a single-page app with ephemeral state. The vision is a **
 
 ## Future AI features
 
-AI is the engine behind FootieBitz today. The vision treats it as an **ongoing collaborator** throughout the production lifecycle — not only at the start.
+AI is the engine behind ShortForge Studio today. The vision treats it as an **ongoing collaborator** throughout the production lifecycle — not only at the start.
 
 ### During creation
 
@@ -193,7 +193,7 @@ AI is the engine behind FootieBitz today. The vision treats it as an **ongoing c
 
 ## Future collaboration features
 
-FootieBitz today is a solo creator tool. The vision supports **teams** — fan channels, club media, agencies, and editorial desks.
+ShortForge Studio today is a solo creator tool. The vision supports **teams** — fan channels, club media, agencies, and editorial desks.
 
 ### Shared workspaces
 
@@ -303,7 +303,7 @@ Images and voiceover today live as temporary browser blobs. Cloud storage makes 
 
 ## Publishing
 
-Export today ends with a file download. The vision closes the loop — **from idea to live post** without leaving FootieBitz.
+Export today ends with a file download. The vision closes the loop — **from idea to live post** without leaving ShortForge Studio.
 
 ### Direct platform publishing
 
@@ -319,7 +319,7 @@ Export today ends with a file download. The vision closes the loop — **from id
 
 ### Post-publish
 
-- Link back to the FootieBitz project from the live post
+- Link back to the ShortForge Studio project from the live post
 - Basic analytics surfacing — views, engagement where APIs allow
 - "Create follow-up" — duplicate a published story as the base for the next episode in a series
 

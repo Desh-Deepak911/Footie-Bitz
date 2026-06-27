@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { PRODUCT_NAME } from "@/lib/product-brand";
 import {
   studioBadge,
   studioCard,
@@ -24,8 +25,7 @@ import {
   studioUploadZone,
 } from "@/lib/studioUi";
 
-const COMING_SOON_MESSAGE =
-  "Coming soon: FootieBitz will extract audio, detect key moments, and create multiple shorts from one upload.";
+const COMING_SOON_MESSAGE = `Coming soon: ${PRODUCT_NAME} will extract audio, detect key moments, and create multiple shorts from one upload.`;
 
 const PIPELINE_STEPS = [
   { step: "1", title: "Upload video", icon: Upload },
@@ -163,7 +163,7 @@ export default function BreakLongVideoSection() {
         </div>
 
         <div>
-          <p className={`${studioFieldLabel} mb-4`}>Future pipeline</p>
+          <p className={`${studioFieldLabel} mb-4`}>What&apos;s next</p>
           <ol className="space-y-2">
             {PIPELINE_STEPS.map((item) => {
               const Icon = item.icon;

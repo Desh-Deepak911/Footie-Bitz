@@ -4,19 +4,25 @@ import {
   applyAudioFirstTiming,
   generateAudioFirstStory,
   generateFootieScript,
+  generateScenesForReviewedScript,
+  generateScriptOnlyStory,
   normalizeFootieStory,
 } from "@/features/story/services";
+import { resolveScriptResearchContext } from "@/features/research/utils/script-research-context.server.utils";
 import { resolveQualityMode, resolveScriptModel } from "@/lib/ai";
 import type { AudioFirstGenerationResult, FootieScript } from "@/features/story/types";
 import type {
+  GenerateScriptMode,
   GenerateScriptProgressEvent,
   GenerateScriptRequest,
   GenerateScriptResponse,
   GenerateScriptStreamEvent,
   GenerationLoadingStep,
+  GenerateScriptResearchPreview,
+  ScriptMode,
   Tone,
 } from "@/types/footiebitz";
-import { GENERATION_LOADING_STEPS, resolveSceneCount } from "@/types/footiebitz";
+import { GENERATION_LOADING_STEPS, resolveSceneCount, resolveScriptMode } from "@/types/footiebitz";
 
 const VALID_TONES: Tone[] = ["dramatic", "funny", "tactical", "news", "emotional"];
 const DEFAULT_TONE: Tone = "dramatic";
@@ -94,6 +100,14 @@ interface GenerationParams {
   qualityMode: ReturnType<typeof resolveQualityMode>;
   sceneCount: number;
   model: string;
+  mode: GenerateScriptMode;
+  scriptMode: ScriptMode;
+  context?: string;
+  enableResearch?: boolean;
+  researchPreview?: GenerateScriptResearchPreview;
+  title?: string;
+  narration?: string;
+  voiceoverDurationMs?: number;
 }
 
 type GenerationSuccess = {
@@ -108,10 +122,117 @@ type GenerationFailure = {
   status: number;
 };
 
+async function resolveScriptOnlyGenerationContext(params: {
+  topic: string;
+  scriptMode: ScriptMode;
+  manualContext?: string;
+  enableResearch?: boolean;
+  researchPreview?: GenerateScriptResearchPreview;
+}) {
+  return resolveScriptResearchContext(params);
+}
+
 async function runGeneration(
   params: GenerationParams,
   emitProgress?: ProgressEmitter,
 ): Promise<GenerationSuccess | GenerationFailure> {
+  if (params.mode === "script-only") {
+    const resolvedContext = await resolveScriptOnlyGenerationContext({
+      topic: params.topic,
+      scriptMode: params.scriptMode,
+      manualContext: params.context,
+      enableResearch: params.enableResearch,
+      researchPreview: params.researchPreview,
+    });
+
+    const scriptOnlyResult = await generateScriptOnlyStory({
+      prompt: params.topic,
+      sceneCount: params.sceneCount,
+      tone: params.tone,
+      duration: params.duration,
+      qualityMode: params.qualityMode,
+      model: params.model,
+      scriptMode: params.scriptMode,
+      context: resolvedContext.context,
+      researchAttemptedWithoutData:
+        params.enableResearch === true && !resolvedContext.researchApplied,
+      top5RankedDataAvailable: resolvedContext.top5RankedDataAvailable,
+      onProgress: emitProgress,
+    });
+
+    if (!scriptOnlyResult.success) {
+      return {
+        ok: false,
+        response: { success: false, error: scriptOnlyResult.error },
+        status: 500,
+      };
+    }
+
+    return {
+      ok: true,
+      usedFallback: false,
+      response: {
+        success: true,
+        data: buildStoryResponse(scriptOnlyResult.footieScript),
+        generationContext: resolvedContext.context,
+        researchApplied: resolvedContext.researchApplied,
+        researchWarning: resolvedContext.researchWarning,
+        scriptLengthWarning: scriptOnlyResult.scriptLengthWarning,
+      },
+    };
+  }
+
+  if (params.mode === "scenes-only") {
+    const title = params.title?.trim();
+    const narration = params.narration?.trim();
+    const voiceoverDurationMs = Number(params.voiceoverDurationMs);
+
+    if (!title || !narration) {
+      return {
+        ok: false,
+        response: { success: false, error: "Title and narration are required" },
+        status: 400,
+      };
+    }
+
+    if (!Number.isFinite(voiceoverDurationMs) || voiceoverDurationMs <= 0) {
+      return {
+        ok: false,
+        response: { success: false, error: "Valid voiceover duration is required" },
+        status: 400,
+      };
+    }
+
+    const scenesResult = await generateScenesForReviewedScript({
+      prompt: params.topic,
+      title,
+      narration,
+      voiceoverDurationMs,
+      sceneCount: params.sceneCount,
+      tone: params.tone,
+      qualityMode: params.qualityMode,
+      model: params.model,
+      onProgress: emitProgress,
+    });
+
+    if (!scenesResult.success) {
+      return {
+        ok: false,
+        response: { success: false, error: scenesResult.error },
+        status: 500,
+      };
+    }
+
+    return {
+      ok: true,
+      usedFallback: false,
+      response: {
+        success: true,
+        data: buildStoryResponse(scenesResult.footieScript),
+      },
+    };
+  }
+
   const audioFirstResult = await generateAudioFirstStory({
     prompt: params.topic,
     sceneCount: params.sceneCount,
@@ -240,6 +361,9 @@ export async function POST(request: Request) {
 
     const tone = resolveTone(body.tone);
     const duration = resolveDuration(body.duration);
+    const scriptMode = resolveScriptMode(body.scriptMode);
+    const context = body.context?.trim() || undefined;
+    const enableResearch = body.enableResearch === true || body.footballResearch === true;
     const qualityMode = resolveQualityMode(body.qualityMode);
     const sceneCount = resolveSceneCount(body.sceneCount);
     const model = resolveScriptModel(qualityMode);
@@ -259,6 +383,14 @@ export async function POST(request: Request) {
       qualityMode,
       sceneCount,
       model,
+      mode: body.mode === "script-only" || body.mode === "scenes-only" ? body.mode : "full",
+      scriptMode,
+      context,
+      enableResearch,
+      researchPreview: body.researchPreview,
+      title: body.title,
+      narration: body.narration,
+      voiceoverDurationMs: body.voiceoverDurationMs,
     };
 
     if (body.stream) {

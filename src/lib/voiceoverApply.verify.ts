@@ -27,8 +27,8 @@ test("Apply Changes hook uses applyVoiceoverRegeneration", () => {
 
 test("Apply Changes UI shows loading and error states", () => {
   const card = readFileSync(join(process.cwd(), "src/components/VoiceSettingsCard.tsx"), "utf8");
-  assert.match(card, /Updating voiceover/);
-  assert.match(card, /Voiceover update failed/);
+  assert.match(card, /Updating narration/);
+  assert.match(card, /Narration update failed/);
   assert.match(card, /disabled=\{loading \|\| controlsDisabled/);
 });
 

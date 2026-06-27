@@ -142,7 +142,7 @@ export default function StoryWorkspace({
               <NarrationPanel script={script} compact />
             </WorkspacePanel>
 
-            <WorkspacePanel id="studio-export" step="Export" title="Export video">
+            <WorkspacePanel id="studio-export" step="Export" title="Export Video">
               <ExportPanel
                 script={script}
                 compact
@@ -166,7 +166,7 @@ export default function StoryWorkspace({
           </button>
           <button type="button" onClick={onScrollToExport} className={studioMobileActionButtonPrimary}>
             <Download className="h-3.5 w-3.5" />
-            Export
+            Download
           </button>
         </div>
       </div>

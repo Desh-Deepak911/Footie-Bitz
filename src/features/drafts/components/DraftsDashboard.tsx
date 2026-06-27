@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
-import { deleteDraft, listDrafts, toDraftSummary } from "@/features/drafts";
-import type { DraftStatus, StoryDraftSummary } from "@/features/drafts";
+import { deleteDraft, getDraft, listDrafts, resolveDraftHref, toDraftSummary } from "@/features/drafts";
+import { clearDraftSession, seedDraftSession } from "@/features/drafts/session";
+import type { DraftWorkflowStatus, StoryDraftSummary } from "@/features/drafts";
 import {
   studioChip,
   studioPanel,
@@ -30,14 +31,18 @@ function formatDraftTimestamp(iso: string): string {
   }).format(date);
 }
 
-function formatDraftStatus(status: DraftStatus): string {
-  return status === "exported" ? "Exported" : "Draft";
-}
-
-function statusChipClass(status: DraftStatus): string {
-  return status === "exported"
-    ? `${studioChip} shrink-0 bg-accent-soft/80 text-accent ring-accent/20`
-    : `${studioChip} shrink-0`;
+function workflowStatusChipClass(status: DraftWorkflowStatus): string {
+  switch (status) {
+    case "exported":
+      return `${studioChip} shrink-0 bg-accent-soft/80 text-accent ring-accent/20`;
+    case "storyboard_ready":
+      return `${studioChip} shrink-0 bg-emerald-500/10 text-emerald-300/90 ring-emerald-500/20`;
+    case "voice_ready":
+      return `${studioChip} shrink-0 bg-sky-500/10 text-sky-300/90 ring-sky-500/20`;
+    case "script_review":
+    default:
+      return `${studioChip} shrink-0`;
+  }
 }
 
 function promptPreview(prompt: string | undefined, title: string): string {
@@ -70,6 +75,7 @@ export default function DraftsDashboard() {
     }
 
     deleteDraft(draft.id);
+    clearDraftSession(draft.id);
     refreshDrafts();
   };
 
@@ -85,17 +91,17 @@ export default function DraftsDashboard() {
         </div>
         <Link href="/create" className={`${studioPrimaryButton} w-full sm:w-auto`}>
           <Plus className="h-4 w-4" strokeWidth={2} />
-          New Story
+          Write Story
         </Link>
       </div>
 
       {drafts.length === 0 ? (
         <div className={`${studioPanel} space-y-4 px-5 py-10 text-center sm:px-8 sm:py-12`}>
           <p className="text-sm font-medium text-foreground/90">
-            No drafts yet. Create your first story.
+            Your projects will appear here once you start creating.
           </p>
           <Link href="/create" className={`${studioPrimaryButton} inline-flex`}>
-            Create a Story
+            Write Story
           </Link>
         </div>
       ) : (
@@ -109,8 +115,8 @@ export default function DraftsDashboard() {
                       <h2 className="min-w-0 truncate text-sm font-semibold text-foreground/95 sm:text-[15px]">
                         {draft.title}
                       </h2>
-                      <span className={statusChipClass(draft.status)}>
-                        {formatDraftStatus(draft.status)}
+                      <span className={workflowStatusChipClass(draft.workflowStatus)}>
+                        {draft.workflowStatusLabel}
                       </span>
                     </div>
 
@@ -141,7 +147,16 @@ export default function DraftsDashboard() {
                   <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-stretch">
                     <button
                       type="button"
-                      onClick={() => router.push(`/editor/${draft.id}`)}
+                      onClick={() => {
+                        const storedDraft = getDraft(draft.id);
+                        if (storedDraft) {
+                          seedDraftSession(storedDraft);
+                          router.push(resolveDraftHref(storedDraft));
+                          return;
+                        }
+
+                        router.push(`/editor/${draft.id}`);
+                      }}
                       className={`${studioPrimaryButton} w-full sm:min-w-[6.5rem]`}
                     >
                       Open

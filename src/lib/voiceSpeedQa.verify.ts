@@ -314,8 +314,8 @@ test("Apply Changes flow only hits voiceover API and restores on failure", () =>
   assert.match(hook, /\/api\/generate-voiceover/);
   assert.doesNotMatch(hook, /\/api\/generate-script/);
   assert.match(hook, /restoreVoiceoverBaseline/);
-  assert.match(card, /Updating voiceover/);
-  assert.match(card, /Voiceover update failed/);
+  assert.match(card, /Updating narration/);
+  assert.match(card, /Narration update failed/);
 });
 
 test("voice speed UI does not auto-regenerate on chip change", () => {

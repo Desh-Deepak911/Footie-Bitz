@@ -12,4 +12,5 @@ export * from "./background-music.utils";
 export * from "./legacy-story.utils";
 export * from "./voice-settings.utils";
 export * from "./voiceover-duration.utils";
+export * from "./narration-duration-budget.utils";
 export * from "./scene-image-motion.utils";

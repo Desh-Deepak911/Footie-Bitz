@@ -81,9 +81,9 @@ test("orchestrator runs script → voiceover → scenes in order", () => {
 
 test("loading steps match generation pipeline labels", () => {
   assert.deepEqual([...GENERATION_LOADING_STEPS], [
-    "Writing narration...",
-    "Generating voiceover...",
-    "Planning scenes...",
+    "Writing your story...",
+    "Creating narration...",
+    "Planning storyboard...",
     "Building storyboard...",
   ]);
 });

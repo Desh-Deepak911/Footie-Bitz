@@ -1,6 +1,6 @@
 # Features
 
-Complete reference for every implemented FootieBitz feature. Each entry covers **purpose**, **current status**, **known limitations**, and **future improvements**.
+Complete reference for every implemented ShortForge Studio feature. Each entry covers **purpose**, **current status**, **known limitations**, and **future improvements**.
 
 For architecture and data flow, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 

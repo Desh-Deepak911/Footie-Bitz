@@ -66,18 +66,27 @@ test("/create hosts generator without editor shell", () => {
   assert.doesNotMatch(flow, /StoryWorkspace/);
 });
 
-test("generation success creates draft and redirects to editor", () => {
+test("generation success creates draft and redirects to script review", () => {
   const flow = readSrc("src/features/create/components/CreateStoryFlow.tsx");
   assert.match(flow, /createDraft\(/);
-  assert.match(flow, /router\.push\(`\/editor\/\$\{draft\.id\}`\)/);
+  assert.match(flow, /router\.replace\(`\/create\/review\/\$\{draft\.id\}`\)/);
+  assert.match(flow, /variant="script-only"/);
+  assert.doesNotMatch(flow, /router\.push\(`\/editor\/\$\{draft\.id\}`\)/);
 });
 
-test("editor loads draft from storage without AI calls", () => {
+test("editor loads draft from story document store without AI calls", () => {
   const editorFlow = readSrc("src/features/drafts/components/DraftEditorFlow.tsx");
-  assert.match(editorFlow, /getDraft\(draftId\)/);
-  assert.match(editorFlow, /resolveDraftScriptForEditor/);
+  const editorHook = readSrc("src/features/drafts/hooks/useEditorStoryDocument.ts");
+  assert.match(editorFlow, /useEditorStoryDocument/);
+  assert.match(editorHook, /hydrateFromDraft/);
+  assert.match(editorHook, /getStoryDocumentState/);
+  assert.match(editorHook, /storyDocumentHasScenes/);
+  assert.match(editorHook, /shouldOpenScriptReview/);
   assert.match(editorFlow, /StoryWorkspace/);
+  assert.match(editorFlow, /needsReviewRedirect/);
+  assert.match(editorFlow, /DraftLoadingState/);
   assert.doesNotMatch(editorFlow, /generate-script/);
+  assert.doesNotMatch(editorFlow, /generate-voiceover/);
   assert.doesNotMatch(editorFlow, /fetch\(/);
 });
 
@@ -184,7 +193,7 @@ test("/drafts lists saved drafts with open and delete actions", () => {
   assert.match(dashboard, /listDrafts\(/);
   assert.match(dashboard, /\/editor\/\$\{draft\.id\}/);
   assert.match(dashboard, /deleteDraft\(/);
-  assert.match(dashboard, /No drafts yet\. Create your first story\./);
+  assert.match(dashboard, /Your projects will appear here once you start creating\./);
 
   const adapter = createMemoryDraftStorageAdapter();
   const options = { adapter };

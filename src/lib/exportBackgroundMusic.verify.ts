@@ -45,8 +45,8 @@ console.log("exportBackgroundMusic");
 
 test("resolveExportBackgroundMusicBedVolume uses track volume without ducking", () => {
   const music = scriptWithMusic.backgroundMusic!;
-  assert.equal(resolveExportBackgroundMusicBedVolume(music, true), 0.2);
-  assert.equal(resolveExportBackgroundMusicBedVolume(music, false), 0.2);
+  assert.equal(resolveExportBackgroundMusicBedVolume(music), 0.2);
+  assert.equal(resolveExportBackgroundMusicBedVolume(music), 0.2);
 });
 
 test("resolveExportBackgroundMusicMixSettings includes fade windows and export duration", () => {

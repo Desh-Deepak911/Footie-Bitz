@@ -6,10 +6,19 @@ import type {
   StoryVoiceSettings,
   TimelineItem,
 } from "@/features/story/types";
-import type { QualityMode, Tone } from "@/types/footiebitz";
+import type { QualityMode, ScriptMode, Tone } from "@/types/footiebitz";
 
 /** Lifecycle state for a saved story draft. */
 export type DraftStatus = "draft" | "exported";
+
+/** Dashboard workflow status derived from pipeline stage, script content, and export state. */
+export type DraftWorkflowStatus = "script_review" | "voice_ready" | "storyboard_ready" | "exported";
+
+/**
+ * Staged create workflow progress. Omitted on legacy drafts that were generated
+ * in one step — those are treated as editor-ready when scenes exist.
+ */
+export type DraftPipelineStage = "script_review" | "voiceover_ready" | "editor_ready";
 
 /** Optional brief captured when a draft is first generated. */
 export interface StoryCreationBrief {
@@ -18,6 +27,18 @@ export interface StoryCreationBrief {
   duration: number;
   qualityMode: QualityMode;
   sceneCount: number;
+  /** Content format — omitted on legacy briefs (treated as `story`). */
+  scriptMode?: ScriptMode;
+  /** Optional match stats, formations, events, or extra context. */
+  context?: string;
+  /** User opted into API-Football enrichment at create time. */
+  enableResearch?: boolean;
+  /** @deprecated Use `enableResearch`. */
+  footballResearch?: boolean;
+  /** True when API-Football data was merged into context for script generation. */
+  researchApplied?: boolean;
+  /** Non-fatal research failure message when enableResearch was requested. */
+  researchWarning?: string;
 }
 
 /** Voiceover audio attached to a draft. Mirrors `FootieScript` voiceover fields. */
@@ -62,6 +83,9 @@ export interface Draft {
 
   /** Full generation brief captured at create time. Preserved alongside `prompt`. */
   creationBrief?: StoryCreationBrief;
+
+  /** Where the user left off in the staged create workflow. */
+  pipelineStage?: DraftPipelineStage;
 }
 
 /** @deprecated Prefer `Draft`. Kept for backward compatibility. */
@@ -78,6 +102,8 @@ export interface StoryDraftSummary {
   hasVoiceover: boolean;
   status: DraftStatus;
   prompt?: string;
+  workflowStatus: DraftWorkflowStatus;
+  workflowStatusLabel: string;
 }
 
 export interface DraftStoreV1 {

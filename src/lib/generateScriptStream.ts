@@ -49,6 +49,10 @@ export async function consumeGenerateScriptStream(
           audioFirst: event.audioFirst,
           voiceoverAudioBase64: event.voiceoverAudioBase64,
           audioFirstApplied: event.audioFirstApplied,
+          generationContext: event.generationContext,
+          researchApplied: event.researchApplied,
+          researchWarning: event.researchWarning,
+          scriptLengthWarning: event.scriptLengthWarning,
           error: event.error,
           usedFallback: event.usedFallback,
         };

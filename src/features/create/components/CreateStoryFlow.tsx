@@ -3,6 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
+import type { FootballResearchContext } from "@/features/research/types/football-research.types";
+import {
+  IDLE_RESEARCH_PREVIEW,
+  type ResearchPreviewState,
+} from "@/features/create/types/research-preview.types";
+import { resolveResearchPreviewStatus, buildGenerateScriptResearchPreview } from "@/features/create/utils/research-preview.utils";
+
 import BreakLongVideoSection from "@/components/BreakLongVideoSection";
 import { AppShell } from "@/components/layout";
 import { Card } from "@/components/ui";
@@ -10,7 +17,7 @@ import StoryComposer from "@/components/StoryComposer";
 import StudioEmptyState from "@/components/StudioEmptyState";
 import StudioLoadingState from "@/components/StudioLoadingState";
 import { createDraft } from "@/features/drafts";
-import { getAudioEngine } from "@/features/audio";
+import { seedDraftSession } from "@/features/drafts/session";
 import { consumeGenerateScriptStream } from "@/lib/generateScriptStream";
 import { SAMPLE_TOPICS, WORKFLOW_STEPS } from "@/lib/studioConstants";
 import {
@@ -18,14 +25,14 @@ import {
   studioSectionTitle,
   studioStepLabel,
 } from "@/lib/studioUi";
-import { attachVoiceoverToScript, syncFootieScript } from "@/lib/voiceover";
+import { syncFootieScript } from "@/lib/voiceover";
 import type {
   GenerateScriptResponse,
-  GenerationLoadingStep,
   QualityMode,
+  ScriptMode,
   Tone,
 } from "@/types/footiebitz";
-import { DEFAULT_SCENE_COUNT } from "@/types/footiebitz";
+import { DEFAULT_SCENE_COUNT, DEFAULT_SCRIPT_MODE, isResearchDefaultEnabledForScriptMode } from "@/types/footiebitz";
 
 /**
  * Prompt entry, generation options, and post-success draft persistence.
@@ -34,40 +41,132 @@ import { DEFAULT_SCENE_COUNT } from "@/types/footiebitz";
 export default function CreateStoryFlow() {
   const router = useRouter();
   const [topic, setTopic] = useState("");
+  const [scriptMode, setScriptMode] = useState<ScriptMode>(DEFAULT_SCRIPT_MODE);
+  const [context, setContext] = useState("");
+  const [enableResearch, setEnableResearch] = useState(() =>
+    isResearchDefaultEnabledForScriptMode(DEFAULT_SCRIPT_MODE),
+  );
   const [tone, setTone] = useState<Tone>("dramatic");
   const [duration, setDuration] = useState<number>(30);
   const [qualityMode, setQualityMode] = useState<QualityMode>("cheap");
   const [sceneCount, setSceneCount] = useState<number>(DEFAULT_SCENE_COUNT);
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState<GenerationLoadingStep>(1);
   const [error, setError] = useState<string | null>(null);
+  const [researchPreview, setResearchPreview] = useState<ResearchPreviewState>(IDLE_RESEARCH_PREVIEW);
   const topicInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const resetResearchPreview = useCallback(() => {
+    setResearchPreview(IDLE_RESEARCH_PREVIEW);
+  }, []);
 
   const scrollToBrief = useCallback(() => {
     document.getElementById("studio-brief")?.scrollIntoView({ behavior: "smooth", block: "start" });
     window.setTimeout(() => topicInputRef.current?.focus(), 320);
   }, []);
 
+  const handleScriptModeChange = useCallback((mode: ScriptMode) => {
+    setScriptMode(mode);
+    setEnableResearch(isResearchDefaultEnabledForScriptMode(mode));
+    resetResearchPreview();
+  }, [resetResearchPreview]);
+
+  const previewResearch = useCallback(async () => {
+    if (!enableResearch) {
+      setResearchPreview({
+        status: "error",
+        errorMessage: "Enable Smart Research to gather supporting information.",
+      });
+      return;
+    }
+
+    const trimmedTopic = topic.trim();
+    if (!trimmedTopic) {
+      setResearchPreview({
+        status: "error",
+        errorMessage: "Enter a topic before running Research Preview.",
+      });
+      return;
+    }
+
+    setResearchPreview({ status: "loading" });
+
+    try {
+      const response = await fetch("/api/research-football", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: trimmedTopic,
+          mode: scriptMode,
+          manualContext: context.trim() || undefined,
+        }),
+      });
+
+      let payload: { researchContext?: FootballResearchContext; contextText?: string };
+      try {
+        payload = (await response.json()) as typeof payload;
+      } catch {
+        throw new Error("Invalid response from research service.");
+      }
+
+      const researchContext = payload.researchContext;
+      if (!researchContext) {
+        throw new Error("Research returned no supporting information.");
+      }
+
+      setResearchPreview({
+        status: resolveResearchPreviewStatus(researchContext, response.ok),
+        topic: trimmedTopic,
+        mode: scriptMode,
+        researchContext,
+        contextText: payload.contextText,
+        ...(response.ok
+          ? {}
+          : {
+              errorMessage:
+                researchContext.warnings[0] ?? "Research request could not be completed.",
+            }),
+      });
+    } catch (err) {
+      setResearchPreview({
+        status: "error",
+        errorMessage:
+          err instanceof TypeError
+            ? "Network error. Check your connection and try again."
+            : err instanceof Error
+              ? err.message
+              : "Research Preview failed.",
+      });
+    }
+  }, [context, enableResearch, scriptMode, topic]);
+
   const generateScript = async () => {
     if (!topic.trim()) {
-      setError("Enter a content brief first.");
+      setError("Enter a topic first.");
       return;
     }
 
     setLoading(true);
-    setLoadingStep(1);
     setError(null);
 
     try {
+      const trimmedTopic = topic.trim();
+      const manualContext = context.trim() || undefined;
+      const researchPreviewPayload = buildGenerateScriptResearchPreview(researchPreview);
+
       const response = await fetch("/api/generate-script", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic: topic.trim(),
+          topic: trimmedTopic,
+          scriptMode,
+          context: manualContext,
+          enableResearch,
+          ...(researchPreviewPayload ? { researchPreview: researchPreviewPayload } : {}),
           tone,
           duration,
           qualityMode,
           sceneCount,
+          mode: "script-only",
           stream: true,
         }),
       });
@@ -77,8 +176,8 @@ export default function CreateStoryFlow() {
       const contentType = response.headers.get("content-type") ?? "";
 
       if (contentType.includes("ndjson")) {
-        data = await consumeGenerateScriptStream(response, (step) => {
-          setLoadingStep(step);
+        data = await consumeGenerateScriptStream(response, () => {
+          // Script-only generation — single-step loading UI; ignore pipeline progress.
         });
       } else {
         try {
@@ -92,31 +191,7 @@ export default function CreateStoryFlow() {
         throw new Error(data.error ?? "Failed to create story");
       }
 
-      let nextScript = syncFootieScript(data.data);
-
-      const voiceoverBase64 =
-        data.audioFirst?.voiceover?.audioBase64 ?? data.voiceoverAudioBase64;
-      const voiceoverDurationMs =
-        data.audioFirst?.voiceover?.durationMs ?? data.data.voiceoverDurationMs;
-
-      if (voiceoverBase64) {
-        nextScript = attachVoiceoverToScript(nextScript, {
-          voiceoverUrl: getAudioEngine().materializeVoiceoverBase64(voiceoverBase64),
-          voiceoverDurationMs,
-          voiceSettings: data.audioFirst?.voiceover?.metadata
-            ? {
-                ...(data.audioFirst.voiceover.metadata.voice
-                  ? { voice: data.audioFirst.voiceover.metadata.voice }
-                  : {}),
-                ...(data.audioFirst.voiceover.metadata.speed != null
-                  ? { speed: data.audioFirst.voiceover.metadata.speed }
-                  : {}),
-              }
-            : undefined,
-        });
-      } else if (voiceoverDurationMs != null && voiceoverDurationMs > 0) {
-        nextScript = { ...nextScript, voiceoverDurationMs };
-      }
+      const nextScript = syncFootieScript(data.data);
 
       const draft = createDraft({
         script: nextScript,
@@ -126,19 +201,30 @@ export default function CreateStoryFlow() {
           duration,
           qualityMode,
           sceneCount,
+          scriptMode,
+          enableResearch,
+          ...(data.generationContext
+            ? { context: data.generationContext }
+            : context.trim()
+              ? { context: context.trim() }
+              : {}),
+          ...(data.researchApplied ? { researchApplied: true } : {}),
+          ...(data.researchWarning ? { researchWarning: data.researchWarning } : {}),
         },
         prompt: topic.trim(),
+        pipelineStage: "script_review",
       });
 
-      router.push(`/editor/${draft.id}`);
+      seedDraftSession(draft);
+      router.replace(`/create/review/${draft.id}`);
+      return;
     } catch (err) {
+      setLoading(false);
       if (err instanceof TypeError) {
         setError("Network error. Check your connection and try again.");
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -165,8 +251,23 @@ export default function CreateStoryFlow() {
         {!loading && (
           <StoryComposer
             topic={topic}
-            onTopicChange={setTopic}
+            onTopicChange={(value) => {
+              setTopic(value);
+              resetResearchPreview();
+            }}
             topicInputRef={topicInputRef}
+            scriptMode={scriptMode}
+            onScriptModeChange={handleScriptModeChange}
+            context={context}
+            onContextChange={(value) => {
+              setContext(value);
+              resetResearchPreview();
+            }}
+            enableResearch={enableResearch}
+            onEnableResearchChange={(enabled) => {
+              setEnableResearch(enabled);
+              resetResearchPreview();
+            }}
             tone={tone}
             onToneChange={setTone}
             duration={duration}
@@ -180,21 +281,24 @@ export default function CreateStoryFlow() {
             error={error}
             onClearError={() => setError(null)}
             onSubmit={generateScript}
+            researchPreview={researchPreview}
+            onPreviewResearch={() => {
+              void previewResearch();
+            }}
           />
         )}
 
         {!loading && (
           <Card>
-            <p className={studioStepLabel}>Workflow</p>
-            <h2 className={`${studioSectionTitle} mt-2`}>How it works</h2>
+            <p className={studioStepLabel}>Your path</p>
+            <h2 className={`${studioSectionTitle} mt-2`}>From idea to export</h2>
             <div className="mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-3">
               {WORKFLOW_STEPS.map((item) => (
                 <div
-                  key={item.step}
+                  key={item.title}
                   className={`${studioPanel} transition hover:bg-surface-elevated/40 hover:ring-border/30`}
                 >
-                  <span className="text-xs font-medium text-muted">{item.step}</span>
-                  <p className="mt-2 text-sm font-medium text-foreground/90">{item.title}</p>
+                  <p className="text-sm font-medium text-foreground/90">{item.title}</p>
                   <p className="mt-1 text-xs leading-relaxed text-muted">{item.desc}</p>
                 </div>
               ))}
@@ -204,10 +308,10 @@ export default function CreateStoryFlow() {
 
         {loading && (
           <StudioLoadingState
+            variant="script-only"
             topic={topic}
             tone={tone}
             duration={duration}
-            loadingStep={loadingStep}
           />
         )}
 

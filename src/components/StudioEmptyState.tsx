@@ -24,12 +24,11 @@ export default function StudioEmptyState({ onGenerate }: StudioEmptyStateProps) 
         </div>
 
         <h1 className={studioEmptyStateTitle}>
-          Start with an idea. We&apos;ll turn it into a visual story.
+          Ready to create?
         </h1>
 
         <p className={studioEmptyStateDesc}>
-          Describe a football moment, pick a tone, and FootieBitz builds scenes, narration, and a
-          timeline-ready storyboard.
+          Describe your idea below — your story, narration, and storyboard come next.
         </p>
 
         <button
@@ -38,7 +37,7 @@ export default function StudioEmptyState({ onGenerate }: StudioEmptyStateProps) 
           className={`${studioPrimaryButton} mt-6 w-full min-h-[2.75rem] sm:mt-8 sm:w-auto sm:min-w-[11rem]`}
         >
           <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-          Generate Story
+          Write Story
         </button>
       </div>
     </section>

@@ -1,6 +1,6 @@
 # Rendering
 
-The Rendering layer turns `FootieScript` into visible frames. FootieBitz has two renderers that share timing, subtitle, transition, and image motion logic but use different output technologies:
+The Rendering layer turns `FootieScript` into visible frames. ShortForge Studio has two renderers that share timing, subtitle, transition, and image motion logic but use different output technologies:
 
 | Renderer | Technology | Purpose |
 |----------|------------|---------|

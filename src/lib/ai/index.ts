@@ -1,5 +1,6 @@
 export { getOpenAIClient } from "./openai.client";
 export { buildFootieScriptPrompt, buildStoryScriptPrompt, buildScenePlanPrompt } from "./prompts";
+export type { StoryScriptWordBudget } from "./prompts";
 export {
   FOOTIE_SCRIPT_JSON_SCHEMA,
   STORY_SCRIPT_JSON_SCHEMA,

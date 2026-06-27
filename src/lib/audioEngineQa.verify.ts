@@ -111,11 +111,14 @@ function withBackgroundMusic(script: FootieScript): FootieScript {
 
 console.log("audio-engine-qa");
 
-test("1. generate story flow materializes voiceover without editor AI", () => {
+test("1. staged create flow generates script only; review flow handles voiceover", () => {
   const createFlow = readSrc("src/features/create/components/CreateStoryFlow.tsx");
+  const reviewFlow = readSrc("src/features/create/components/ScriptReviewFlow.tsx");
   assert.match(createFlow, /generate-script/);
-  assert.match(createFlow, /materializeVoiceoverBase64|getAudioEngine\(\)/);
+  assert.match(createFlow, /mode: "script-only"/);
   assert.doesNotMatch(createFlow, /StoryWorkspace/);
+  assert.doesNotMatch(createFlow, /materializeVoiceoverBase64|getAudioEngine\(\)/);
+  assert.match(reviewFlow, /VoiceSettingsCard|Create Narration/);
 });
 
 test("2. preview plays voiceover via buildAudioMixFromStory", () => {
@@ -201,7 +204,7 @@ test("10. draft save/load preserves latest voiceover metadata", () => {
 
 test("11. opening draft editor does not call AI", () => {
   const editorFlow = readSrc("src/features/drafts/components/DraftEditorFlow.tsx");
-  assert.match(editorFlow, /resolveDraftScriptForEditor/);
+  assert.match(editorFlow, /useEditorStoryDocument/);
   assert.doesNotMatch(editorFlow, /generate-script/);
   assert.doesNotMatch(editorFlow, /\/api\/generate-voiceover/);
   assert.doesNotMatch(editorFlow, /fetch\(/);

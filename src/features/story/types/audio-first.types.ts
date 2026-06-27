@@ -7,6 +7,8 @@ export interface StoryScript {
   narration: string;
   /** Target length from generation before voiceover measurement. */
   estimatedDurationMs?: number;
+  /** Non-fatal length budget warning when compression or validation could not fully fit the target. */
+  lengthWarning?: string;
 }
 
 export const VOICEOVER_PROVIDER_OPENAI = "openai" as const;

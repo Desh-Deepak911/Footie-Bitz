@@ -1,6 +1,6 @@
 # Data Model
 
-FootieBitz stores all studio state in a single in-memory **`FootieScript`** object on the client. There is no database or project persistence yet — refresh clears everything.
+ShortForge Studio stores all studio state in a single in-memory **`FootieScript`** object on the client. There is no database or project persistence yet — refresh clears everything.
 
 **Source of truth:** `src/features/story/types/story.types.ts`  
 **Normalization:** `syncFootieScript()` in `src/lib/voiceover.ts`  
@@ -256,7 +256,7 @@ Editing `narration` text clears `voiceoverUrl` (stale audio) but preserves `voic
 
 ## Subtitle
 
-Subtitles in FootieBitz are not a separate stored entity. They are represented across several scene fields plus **derived chunk data** computed at render time.
+Subtitles in ShortForge Studio are not a separate stored entity. They are represented across several scene fields plus **derived chunk data** computed at render time.
 
 ### Stored fields (on `FootieScene`)
 
@@ -477,7 +477,7 @@ interface TransitionTimelineItem {
 
 ### Dual representation
 
-FootieBitz stores scenes in two places:
+ShortForge Studio stores scenes in two places:
 
 1. **`FootieScript.scenes`** — authoritative ordered array used for timing math
 2. **`FootieScript.timelineItems`** — interleaved view for editor rendering

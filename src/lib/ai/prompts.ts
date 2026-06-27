@@ -1,4 +1,115 @@
-import type { Tone } from "@/types/footiebitz";
+import type { ScriptMode, Tone } from "@/types/footiebitz";
+import { buildResearchUnavailablePromptRules } from "@/features/research/utils/research-grounding.utils";
+import {
+  buildTop5ModeFocus,
+  buildTop5StructureRule,
+  hasRankedPlayerDataInContextText,
+  TOP_5_MISSING_RANKINGS_RULES,
+  TOP_5_RANKED_DATA_RULES,
+} from "@/lib/ai/top5-script-prompt.utils";
+
+/** Word limits passed into script-only narration prompts. */
+export interface StoryScriptWordBudget {
+  idealMinWords: number;
+  idealMaxWords: number;
+  hardCapWords: number;
+  maxDurationSeconds: number;
+}
+
+const RESEARCHED_FOOTBALL_CONTEXT_HEADER = "RESEARCHED FOOTBALL CONTEXT";
+
+const SCRIPT_MODE_VOICE: Partial<Record<ScriptMode, string>> = {
+  tactical_review:
+    "Analytical and pattern-led — formations, pressing triggers, structural control, transitions, recurring patterns, and the turning point that changed the game.",
+  match_preview:
+    "Forward-looking build-up — stakes, recent form, key battles to watch, and what could decide the match. Tease kick-off without inventing a result.",
+  match_recap:
+    "Tell the story of the game — key moments in order, momentum shifts, and why it changed. Land the result only if provided in context.",
+  player_analysis:
+    "Player-led — role in the system, strengths, weaknesses, and concrete impact. Keep the lens on the player, not a full team recap.",
+  top_5:
+    "Ranked and punchy — countdown energy from #5 to #1, each entry evidence-backed, sharp transitions, and a top pick that feels earned.",
+};
+
+const SCRIPT_MODE_GUIDANCE: Record<ScriptMode, string> = {
+  story:
+    "Cinematic football storytelling — hook, context, stakes, emotional arc, and a satisfying close. One continuous narrated short, not a list.",
+  tactical_review:
+    "Tactical breakdown for smart fans — formations, pressing triggers, midfield control, transitions, key patterns, and turning points. Explain what happened on the pitch structurally.",
+  match_preview:
+    "Pre-match build-up — stakes, recent form, head-to-head tension, key battles to watch, and a prediction-style ending that tees up kick-off without claiming a result.",
+  match_recap:
+    "Post-match review — turning points, momentum shifts, what decided the game, and a clear conclusion. Reference stats only when provided.",
+  player_analysis:
+    "Player-focused lens — role in the system, strengths, weaknesses, match impact, and a brief future angle. The player is the story, not a full team recap.",
+  top_5:
+    "Ranked countdown — five clear beats from #5 to #1 (or #1 reveal), each with a hook, punchy transition, and reason it earned its place.",
+  historical_explainer:
+    "Historical documentary — context, timeline of key moments, and legacy. Explain why this moment, rivalry, or record still matters.",
+  opinion_debate:
+    "Balanced debate — present the strongest case on each side, then land a clear, confident final take. Acknowledge counter-arguments without sounding neutral.",
+};
+
+const SCRIPT_MODE_FOCUS: Record<ScriptMode, string[]> = {
+  story: [
+    "Open with a cinematic hook tied to the brief.",
+    "Build context, stakes, and emotional weight through the middle.",
+    "Close with a memorable line that lands the story.",
+  ],
+  tactical_review: [
+    "Set up the tactical question or matchup.",
+    "Cover formations, pressing, midfield control, and transitions.",
+    "Highlight key patterns and the turning point that changed the shape of the game.",
+  ],
+  match_preview: [
+    "Establish stakes and what is on the line.",
+    "Reference form and recent momentum in general terms unless stats are provided.",
+    "Spotlight key battles or match-ups to watch.",
+    "End with a prediction-style tease — who has the edge and why.",
+  ],
+  match_recap: [
+    "Open on the result or defining moment (only if provided in the brief or context).",
+    "Walk through turning points and momentum shifts.",
+    "Use key stats only when supplied — otherwise describe impact in qualitative terms.",
+    "Close with what the result means going forward.",
+  ],
+  player_analysis: [
+    "Introduce the player and their role in the system.",
+    "Strengths and weaknesses with evidence from the brief or context.",
+    "Impact on the match or moment in focus.",
+    "Brief future angle — trajectory, fit, or what comes next.",
+  ],
+  top_5: [
+    "Open with a hook that frames the countdown.",
+    "Five ranked beats — each entry gets a hook, one clear reason, and a punchy transition to the next.",
+    "Build energy toward #1; make the top pick feel earned.",
+  ],
+  historical_explainer: [
+    "Hook the viewer with why this history still matters.",
+    "Walk a clear timeline of context and key moments.",
+    "Land on legacy — what it means today.",
+  ],
+  opinion_debate: [
+    "Frame the debate question clearly.",
+    "Give the strongest version of each side — fair, not straw-manned.",
+    "Land a strong final take with conviction.",
+  ],
+};
+
+const STATS_AND_CONTEXT_RULES = `Stats and context rules (strict):
+- If the user provides stats, formations, events, or extra context, use them accurately in the narration.
+- If stats are NOT provided, do NOT invent exact numbers — no fake xG, possession percentages, shot counts, pass completion rates, or precise scorelines.
+- Do not invent exact dates, minute marks, records, or player stat lines unless clearly stated in the brief or additional context.
+- When data is missing, write clear analysis without fake stats — use safe qualitative phrasing: "controlled the midfield", "created the better chances", "looked sharper in transition", "edge in the final third", "momentum swung", "pressure told in the closing stages".
+- Mention uncertainty naturally and only when needed — never guess specifics to sound authoritative.`;
+
+const RESEARCHED_CONTEXT_RULES = `Researched football context rules (strict):
+- The RESEARCHED FOOTBALL CONTEXT block is your primary factual grounding — treat every listed fact, stat, event, lineup, and standing as verified.
+- Use scores, percentages, player stat lines, minute marks, and standings from that block accurately when present.
+- Do NOT invent exact numbers, xG, possession, shot counts, records, or results that are not in the brief or researched context.
+- If a stat is missing or a warning says it is unavailable, write sharp mode-fit analysis without fake precision — patterns, roles, momentum, and impact in qualitative terms.
+- Mention uncertainty naturally and sparingly only when the researched context itself is incomplete — do not fill gaps with fabricated stats.
+- Heed warnings in the researched context (for example unavailable xG).`;
 
 const TONE_GUIDANCE: Record<Tone, string> = {
   dramatic:
@@ -101,34 +212,201 @@ const STORY_SCRIPT_EXAMPLE_JSON = `{
   "narration": "For decades, this rivalry was more than football — it was politics, pride, and proof. Every meeting carried the weight of cities that never needed an excuse to disagree. When form dipped and doubt crept in, neither side could afford to look weak. The stakes were never just three points; they were identity on a knife edge. And in moments like these, history does not stay in the past — it walks onto the pitch with them."
 }`;
 
+function hasResearchedFootballContext(context?: string): boolean {
+  return Boolean(context?.includes(RESEARCHED_FOOTBALL_CONTEXT_HEADER));
+}
+
+export interface BuildStoryScriptPromptOptions {
+  researchAttemptedWithoutData?: boolean;
+  /** When true/false, overrides RANKED PLAYER DATA detection for top_5 mode. */
+  top5RankedDataAvailable?: boolean;
+}
+
+function resolveBuildStoryScriptPromptOptions(
+  researchAttemptedWithoutDataOrOptions: boolean | BuildStoryScriptPromptOptions = false,
+): BuildStoryScriptPromptOptions {
+  if (typeof researchAttemptedWithoutDataOrOptions === "boolean") {
+    return { researchAttemptedWithoutData: researchAttemptedWithoutDataOrOptions };
+  }
+
+  return researchAttemptedWithoutDataOrOptions;
+}
+
+function formatIdealWordCount(wordBudget: StoryScriptWordBudget): string {
+  if (wordBudget.idealMinWords === wordBudget.idealMaxWords) {
+    return String(wordBudget.idealMinWords);
+  }
+
+  return `${wordBudget.idealMinWords}–${wordBudget.idealMaxWords}`;
+}
+
+function formatStoryScriptWordBudgetSection(
+  duration: number,
+  wordBudget: StoryScriptWordBudget,
+  options: { hasResearchedContext: boolean; hasRankedPlayerData: boolean; tone: Tone },
+): string {
+  const idealWords = formatIdealWordCount(wordBudget);
+  const lines = [
+    "Script length budget (hard rules — non-negotiable):",
+    `- Target duration: ${duration}s`,
+    `- Ideal word count: ${idealWords}`,
+    `- Hard maximum word count: ${wordBudget.hardCapWords}`,
+    "- Do not exceed the hard maximum.",
+    "- Shorter is better than complete.",
+  ];
+
+  if (options.hasRankedPlayerData) {
+    lines.push(
+      "- Top 5 ranked countdown: include every researched player name and goal total — coverage beats brevity.",
+    );
+  } else if (options.hasResearchedContext) {
+    lines.push(
+      "- Use research context selectively.",
+      "- Do not include every stat.",
+      "- Prioritize the strongest 3–5 facts only.",
+    );
+  }
+
+  if (options.tone === "dramatic") {
+    lines.push(
+      "- Dramatic tone must not increase length — intensity comes from word choice and pacing, not extra sentences.",
+    );
+  }
+
+  lines.push(
+    `- The \`narration\` field MUST stay within ${wordBudget.hardCapWords} words. Shorter is fine; longer is invalid.`,
+  );
+
+  if (duration === 30) {
+    lines.push(
+      "",
+      "30-second structure (compress for length — keep the selected mode's voice and intent):",
+      "- Punchy hook — no long setup.",
+      "- 3 compact beats in the middle.",
+      "- Strong ending.",
+    );
+  }
+
+  return lines.join("\n");
+}
+
 export function buildStoryScriptPrompt(
   topic: string,
   tone: Tone,
   duration: number,
+  scriptMode: ScriptMode = "story",
+  context?: string,
+  wordBudget?: StoryScriptWordBudget,
+  researchAttemptedWithoutDataOrOptions: boolean | BuildStoryScriptPromptOptions = false,
 ): string {
+  const promptOptions = resolveBuildStoryScriptPromptOptions(researchAttemptedWithoutDataOrOptions);
+  const researchAttemptedWithoutData = promptOptions.researchAttemptedWithoutData === true;
   const toneGuide = TONE_GUIDANCE[tone];
-  const durationMin = Math.max(15, duration - 5);
-  const durationMax = Math.min(60, duration + 5);
+  const modeGuide = SCRIPT_MODE_GUIDANCE[scriptMode];
+  const modeVoice = SCRIPT_MODE_VOICE[scriptMode];
+  const isTop5Mode = scriptMode === "top_5";
+  const trimmedContext = context?.trim();
+  const hasContext = Boolean(trimmedContext);
+  const hasResearchedContext = hasResearchedFootballContext(trimmedContext);
+  const rankedDataInContext = hasRankedPlayerDataInContextText(trimmedContext);
+  const hasRankedPlayerData =
+    isTop5Mode &&
+    (promptOptions.top5RankedDataAvailable === true ||
+      (promptOptions.top5RankedDataAvailable !== false && rankedDataInContext));
+  const top5MissingRankings = isTop5Mode && !hasRankedPlayerData;
+  const modeFocus = (isTop5Mode ? buildTop5ModeFocus(hasRankedPlayerData) : SCRIPT_MODE_FOCUS[scriptMode])
+    .map((line) => `- ${line}`)
+    .join("\n");
+  const lengthSection = wordBudget
+    ? formatStoryScriptWordBudgetSection(duration, wordBudget, {
+        hasResearchedContext,
+        hasRankedPlayerData,
+        tone,
+      })
+    : `Target length when spoken: roughly ${duration} seconds (${Math.max(15, duration - 5)}–${Math.min(60, duration + 5)}s).`;
+
+  const contextBlock = hasResearchedContext
+    ? `\n\nResearched football context (API-backed factual grounding — use accurately; do not invent beyond this):\n${trimmedContext}`
+    : hasContext
+      ? `\n\nAdditional context (provided by the user — use accurately; do not invent beyond this):\n${trimmedContext}`
+      : "\n\nAdditional context: none provided.";
+
+  const contextRules = hasRankedPlayerData
+    ? `${RESEARCHED_CONTEXT_RULES}\n\n${TOP_5_RANKED_DATA_RULES}`
+    : top5MissingRankings
+      ? `${STATS_AND_CONTEXT_RULES}\n\n${TOP_5_MISSING_RANKINGS_RULES}${
+          researchAttemptedWithoutData
+            ? `\n\n${buildResearchUnavailablePromptRules(topic)}`
+            : ""
+        }`
+      : hasResearchedContext
+        ? RESEARCHED_CONTEXT_RULES
+        : researchAttemptedWithoutData
+          ? `${STATS_AND_CONTEXT_RULES}\n\n${buildResearchUnavailablePromptRules(topic)}`
+          : STATS_AND_CONTEXT_RULES;
+
+  const structureRule = isTop5Mode
+    ? buildTop5StructureRule(hasRankedPlayerData)
+    : scriptMode === "story"
+      ? "- Write one cohesive cinematic narration — not a list of facts or bullet points."
+      : "- Write one continuous spoken narration — structured strongly for the selected mode but flowing as natural speech, not bullet points.";
+
+  const researchedSelectivityRule =
+    hasResearchedContext && wordBudget && !hasRankedPlayerData
+      ? "- When researched context is provided, cite only the strongest 3–5 facts that fit the budget — accuracy over coverage."
+      : null;
+
+  const rankedPlayerGroundingRule = hasRankedPlayerData
+    ? "- Ground the countdown in RANKED PLAYER DATA — mention every ranked item in order with exact names and goal totals."
+    : null;
+
+  const top5MissingRankingsRule = top5MissingRankings
+    ? "- Top 5 ranked data is missing — do not deliver a fake countdown; use a cautious data-unavailable script or ask for a narrower scope."
+    : null;
+
+  const factualGroundingRule = hasRankedPlayerData
+    ? rankedPlayerGroundingRule
+    : top5MissingRankings
+      ? top5MissingRankingsRule
+      : hasResearchedContext
+        ? "- Ground every factual claim in the brief and researched context above. Prefer verified stats and events from research when available."
+        : researchAttemptedWithoutData
+          ? "- Football research returned no verified data — stay qualitative and do not backfill facts from general knowledge."
+          : hasContext
+            ? "- Ground factual claims in the brief and additional context above."
+            : "- When specific facts are not in the brief, stay qualitative — do not guess numbers or results.";
+
+  const modeVoiceBlock = modeVoice
+    ? `\nMode voice (strongly shape the narration):\n- ${modeVoice}\n`
+    : "";
 
   return `Generate a voiceover-ready narration script for a YouTube Short.
 
-You are a football storyteller for FootieBitz. Write one continuous spoken script — cinematic, informative, and emotionally grounded — meant to be read aloud as the full voiceover.
+You are a football storyteller for FootieBitz. Write one continuous spoken script meant to be read aloud as the full voiceover.
 
-Target length when spoken: roughly ${duration} seconds (${durationMin}–${durationMax}s).
+Script mode: ${scriptMode.replace(/_/g, " ")} — ${modeGuide}
+${modeVoiceBlock}
+${lengthSection}
 
 Content brief:
-"${topic}"
+"${topic}"${contextBlock}
 
 Tone: ${tone} — ${toneGuide}
 
+Mode structure — cover these beats in order:
+${modeFocus}
+
+${contextRules}
+
 Writing rules:
 - Return JSON only. No markdown. No code fences. No commentary before or after the JSON.
-- Output exactly two fields: \`title\` and \`narration\`.
+- Output exactly two fields: \`title\` and \`narration\`. Nothing else.
 - Do not output scenes, captions, subtitles, timestamps, image prompts, hashtags, or extra metadata.
-- Write one cohesive narration — not a list of facts or bullet points.
+${structureRule}
 - Open with a strong hook. Use full sentences and vivid language suitable for TTS.
-- Do not invent exact scores, dates, minute marks, records, or statistics unless the brief states them clearly.
-- If a fact is uncertain, speak in general terms rather than fabricating specifics.
+- Make the narration unmistakably fit the selected script mode — structure, emphasis, and vocabulary should match the mode voice above.
+${factualGroundingRule ? `\n${factualGroundingRule}` : ""}
+${researchedSelectivityRule ? `\n${researchedSelectivityRule}` : ""}
 
 Output shape:
 ${STORY_SCRIPT_EXAMPLE_JSON}`;

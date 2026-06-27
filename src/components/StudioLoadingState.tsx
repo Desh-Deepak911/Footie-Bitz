@@ -19,6 +19,42 @@ interface StudioLoadingStateProps {
   tone?: string;
   duration?: number;
   loadingStep?: GenerationLoadingStep;
+  /** Script-only create flow — no editor skeleton or multi-step checklist. */
+  variant?: "full" | "script-only";
+}
+
+function ScriptOnlyLoadingState({
+  topic,
+  tone,
+  duration,
+}: Pick<StudioLoadingStateProps, "topic" | "tone" | "duration">) {
+  const detail =
+    topic?.trim() && tone && duration
+      ? `${duration}s · ${tone} · “${topic.trim().slice(0, 48)}${topic.trim().length > 48 ? "…" : ""}”`
+      : undefined;
+
+  return (
+    <section
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Writing your story"
+      className="flex min-w-0 w-full justify-center py-8 sm:py-12"
+    >
+      <div className="flex max-w-md flex-col items-center text-center">
+        <span
+          aria-hidden
+          className="mb-5 flex h-10 w-10 items-center justify-center rounded-full bg-surface-elevated/60 ring-1 ring-border/25"
+        >
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-accent/25 border-t-accent" />
+        </span>
+        <p className={studioLoadingMessage}>Writing your story...</p>
+        {detail ? <p className={`${studioLoadingSubtext} mt-2`}>{detail}</p> : null}
+        <p className={`${studioLoadingSubtext} mt-3 max-w-xs`}>
+          You&apos;ll review and edit the narration on the next screen.
+        </p>
+      </div>
+    </section>
+  );
 }
 
 function SkeletonBlock({ className = "" }: { className?: string }) {
@@ -103,7 +139,12 @@ export default function StudioLoadingState({
   tone,
   duration,
   loadingStep = 1,
+  variant = "full",
 }: StudioLoadingStateProps) {
+  if (variant === "script-only") {
+    return <ScriptOnlyLoadingState topic={topic} tone={tone} duration={duration} />;
+  }
+
   const detail =
     topic?.trim() && tone && duration
       ? `${duration}s · ${tone} · “${topic.trim().slice(0, 48)}${topic.trim().length > 48 ? "…" : ""}”`

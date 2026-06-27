@@ -2,8 +2,11 @@
 
 import { Download, PenLine, Plus, Save } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { PRODUCT_NAME } from "@/lib/product-brand";
+import { isPrimaryNavLinkActive, PRIMARY_NAV_LINKS } from "@/lib/product-navigation";
 import {
   studioFooter,
   studioHeader,
@@ -31,6 +34,8 @@ interface AppShellProps {
   onSaveDraft?: () => void;
   saveDraftDisabled?: boolean;
   saveDraftConfirmation?: string | null;
+  /** Non-blocking autosave failure — draft stays open in memory. */
+  persistWarning?: string | null;
 }
 
 export default function AppShell({
@@ -47,7 +52,10 @@ export default function AppShell({
   onSaveDraft,
   saveDraftDisabled = false,
   saveDraftConfirmation,
+  persistWarning,
 }: AppShellProps) {
+  const pathname = usePathname();
+
   return (
     <div className="relative z-10 flex min-h-screen min-w-0 flex-col overflow-x-hidden">
       <header className={studioHeader}>
@@ -61,11 +69,27 @@ export default function AppShell({
             </div>
             <div className="min-w-0">
               <p className="truncate text-[13px] font-semibold tracking-tight text-foreground sm:text-sm">
-                FootieBitz
+                {PRODUCT_NAME}
               </p>
-              <p className="hidden text-[11px] text-muted sm:block">Short-form studio</p>
+              <p className="hidden text-[11px] text-muted sm:block">Creator platform for football shorts</p>
             </div>
           </Link>
+
+          <nav className="hidden items-center gap-4 lg:flex" aria-label="Primary">
+            {PRIMARY_NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={
+                  isPrimaryNavLinkActive(pathname, link.href)
+                    ? "text-sm font-medium text-foreground/95"
+                    : "text-sm font-medium text-muted transition hover:text-foreground/85"
+                }
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
 
           {/* Project context — desktop / tablet */}
           {hasProject && projectTitle ? (
@@ -102,7 +126,7 @@ export default function AppShell({
           {/* Actions */}
           <div className="flex shrink-0 items-center gap-2">
             {showDraftsNav ? (
-              <Link href="/drafts" className={`${studioNavExportButton} hidden sm:inline-flex`}>
+              <Link href="/drafts" className={`${studioNavExportButton} hidden sm:inline-flex lg:hidden`}>
                 Drafts
               </Link>
             ) : null}
@@ -137,13 +161,13 @@ export default function AppShell({
                   className={`${studioNavExportButton} hidden sm:inline-flex`}
                 >
                   <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  Export
+                  Export Video
                 </button>
                 <button
                   type="button"
                   onClick={onExport}
                   disabled={exportDisabled || loading}
-                  aria-label="Export video"
+                  aria-label="Export Video"
                   className={`${studioNavExportButton} sm:hidden`}
                 >
                   <Download className="h-4 w-4" strokeWidth={1.75} />
@@ -158,13 +182,13 @@ export default function AppShell({
                   className={`${studioNavPrimaryButton} hidden sm:inline-flex`}
                 >
                   <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                  New Story
+                  Write Story
                 </button>
                 <button
                   type="button"
                   onClick={onCreateStory}
                   disabled={createDisabled || loading}
-                  aria-label="New story"
+                  aria-label="Write story"
                   className={`${studioNavPrimaryButton} sm:hidden`}
                 >
                   <Plus className="h-4 w-4" strokeWidth={2} />
@@ -173,6 +197,17 @@ export default function AppShell({
             )}
           </div>
         </div>
+        {persistWarning ? (
+          <div
+            className={`${hasProject ? studioShellContainerWide : studioShellContainer} border-t border-amber-500/20 bg-amber-500/5 py-2`}
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-center text-xs font-medium text-amber-200/95 sm:text-left">
+              {persistWarning}
+            </p>
+          </div>
+        ) : null}
         {saveDraftConfirmation ? (
           <div
             className={`${hasProject ? studioShellContainerWide : studioShellContainer} border-t border-border/15 py-2`}
@@ -194,7 +229,7 @@ export default function AppShell({
 
       <footer className={studioFooter}>
         <div className={`${hasProject ? studioShellContainerWide : studioShellContainer} flex flex-col items-center justify-between gap-2 sm:flex-row`}>
-          <p className="text-xs font-medium text-muted">FootieBitz</p>
+          <p className="text-xs font-medium text-muted">{PRODUCT_NAME}</p>
           <p className="text-[11px] text-muted">Football shorts · 9:16 · MP4</p>
         </div>
       </footer>

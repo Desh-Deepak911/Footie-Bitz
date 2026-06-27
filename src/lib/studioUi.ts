@@ -1,4 +1,4 @@
-/** Shared Tailwind class strings for the FootieBitz creative studio UI. */
+/** Shared Tailwind class strings for the ShortForge Studio UI. */
 
 const shadowInset = "shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]";
 

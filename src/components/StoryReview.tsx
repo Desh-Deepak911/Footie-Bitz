@@ -1,8 +1,15 @@
 "use client";
 
 import { Clock } from "lucide-react";
+import { useMemo } from "react";
 
 import { CopyButton } from "@/components/ui";
+import {
+  exceedsTargetScriptDuration,
+  getEstimatedScriptDurationSeconds,
+  SCRIPT_LENGTH_OVER_TARGET_WARNING,
+} from "@/features/story/utils/narration-duration-budget.utils";
+import type { FootieScript } from "@/features/story/types";
 import {
   studioBadge,
   studioInput,
@@ -12,36 +19,75 @@ import {
   studioStepLabel,
   studioSubtleText,
   studioTextarea,
+  studioWarningPanel,
 } from "@/lib/studioUi";
-import type { FootieScript } from "@/features/story/types";
 
 interface StoryReviewProps {
   story: FootieScript;
   onStoryChange: (story: FootieScript) => void;
   variant?: "default" | "storyboard";
+  /** Selected target duration from create brief — drives estimate comparison. */
+  targetDurationSeconds?: number;
+}
+
+function ScriptDurationSummary({
+  targetDurationSeconds,
+  narration,
+}: {
+  targetDurationSeconds: number;
+  narration: string;
+}) {
+  const estimatedSeconds = useMemo(
+    () => getEstimatedScriptDurationSeconds(narration),
+    [narration],
+  );
+  const showLengthWarning = useMemo(
+    () => exceedsTargetScriptDuration(narration, targetDurationSeconds),
+    [narration, targetDurationSeconds],
+  );
+
+  return (
+    <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+      <div className={`${studioBadge} flex flex-col items-start gap-1 text-left`}>
+        <span className="inline-flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          Target: {targetDurationSeconds}s
+        </span>
+        <span className="text-muted">Estimated script: {estimatedSeconds}s</span>
+      </div>
+      {showLengthWarning ? (
+        <p className={`${studioWarningPanel} text-xs leading-relaxed text-amber-100/90`} role="status">
+          {SCRIPT_LENGTH_OVER_TARGET_WARNING}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export default function StoryReview({
   story,
   onStoryChange,
   variant = "default",
+  targetDurationSeconds,
 }: StoryReviewProps) {
+  const resolvedTargetDuration = targetDurationSeconds ?? story.totalDuration;
+
   if (variant === "storyboard") {
     return (
       <details className="group" open>
         <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className={studioStepLabel}>Story draft</p>
+              <p className={studioStepLabel}>Story</p>
               <h2 className={studioSectionTitle}>Title & narration</h2>
               <p className={studioSectionDesc}>
-                Refine copy before generating spoken audio.
+                Refine copy before creating narration.
               </p>
             </div>
-            <span className={`${studioBadge} shrink-0`}>
-              <Clock className="h-3.5 w-3.5" />
-              {story.totalDuration}s
-            </span>
+            <ScriptDurationSummary
+              targetDurationSeconds={resolvedTargetDuration}
+              narration={story.narration}
+            />
           </div>
           <p className={`${studioSubtleText} mt-3 group-open:hidden`}>
             Tap to expand title and narration
@@ -85,18 +131,18 @@ export default function StoryReview({
 
   return (
     <div className="space-y-7">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className={studioStepLabel}>Step 2</p>
-          <h2 className={studioSectionTitle}>Story Draft</h2>
+          <p className={studioStepLabel}>Story</p>
+          <h2 className={studioSectionTitle}>Your story</h2>
           <p className={studioSectionDesc}>
             Edit the title and narration before creating narration audio.
           </p>
         </div>
-        <span className={studioBadge}>
-          <Clock className="h-3.5 w-3.5" />
-          {story.totalDuration}s total
-        </span>
+        <ScriptDurationSummary
+          targetDurationSeconds={resolvedTargetDuration}
+          narration={story.narration}
+        />
       </div>
 
       <div>
@@ -128,7 +174,7 @@ export default function StoryReview({
           className={studioTextarea}
         />
         <p className="mt-2 text-xs leading-relaxed text-muted">
-          FootieBitz will read the full narration while scenes change in sequence.
+          Preview plays your full narration while scenes change in sequence.
         </p>
       </div>
     </div>

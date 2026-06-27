@@ -6,7 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "@/components/layout";
 import StoryWorkspace from "@/components/StoryWorkspace";
-import { getDraft, resolveDraftScriptForEditor, serializeEditorStateForDraftAsync, updateDraft } from "@/features/drafts";
+import DraftLoadingState from "@/features/drafts/components/DraftLoadingState";
+import { useEditorStoryDocument } from "@/features/drafts/hooks/useEditorStoryDocument";
+import { useDraftPersistFeedback } from "@/features/drafts/hooks/useDraftPersistFeedback";
+import type { Draft } from "@/features/drafts";
 import type { ExportSettings, FootieScript } from "@/features/story/types";
 import {
   studioPanel,
@@ -29,36 +32,77 @@ type DraftEdits = {
   selectedSceneIndex: number;
 };
 
-function loadDraftFromStorage(draftId: string): {
-  notFound: boolean;
-  script: FootieScript | null;
-} {
-  const loaded = getDraft(draftId);
-
-  if (!loaded) {
-    return { notFound: true, script: null };
-  }
-
-  return { notFound: false, script: resolveDraftScriptForEditor(loaded) };
-}
-
 /**
- * Loads a saved draft from localStorage and hydrates the existing editor shell.
- * No generation API calls — story data comes entirely from the draft store.
+ * Editor reads StoryDocumentStore first; localStorage is fallback hydration only.
  */
 export default function DraftEditorFlow({ draftId }: DraftEditorFlowProps) {
   const router = useRouter();
-  const loadedDraft = useMemo(() => loadDraftFromStorage(draftId), [draftId]);
+  const {
+    isLoading,
+    isNotFound,
+    needsReviewRedirect,
+    script: documentScript,
+    updateScript,
+    flushPersist,
+  } = useEditorStoryDocument(draftId);
+
+  useEffect(() => {
+    if (isLoading || isNotFound) {
+      return;
+    }
+
+    if (needsReviewRedirect) {
+      router.replace(`/create/review/${draftId}`);
+    }
+  }, [draftId, isLoading, isNotFound, needsReviewRedirect, router]);
+
+  if (isLoading || needsReviewRedirect) {
+    return <DraftLoadingState />;
+  }
+
+  return (
+    <DraftEditorFlowBody
+      key={draftId}
+      draftId={draftId}
+      documentScript={documentScript}
+      router={router}
+      updateScript={updateScript}
+      flushPersist={flushPersist}
+      isNotFound={isNotFound}
+    />
+  );
+}
+
+function DraftEditorFlowBody({
+  draftId,
+  documentScript,
+  router,
+  updateScript,
+  flushPersist,
+  isNotFound,
+}: DraftEditorFlowProps & {
+  documentScript: FootieScript | null;
+  router: ReturnType<typeof useRouter>;
+  updateScript: (
+    updater: FootieScript | ((current: FootieScript) => FootieScript),
+  ) => void;
+  flushPersist: (
+    stage?: Draft["pipelineStage"],
+    scriptOverride?: FootieScript,
+  ) => Promise<Draft | null>;
+  isNotFound: boolean;
+}) {
   const [draftEdits, setDraftEdits] = useState<DraftEdits | null>(null);
   const [saveConfirmation, setSaveConfirmation] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const { persistWarning, autosaveSavedMessage } = useDraftPersistFeedback(draftId);
   const saveConfirmationTimeoutRef = useRef<number | null>(null);
   const exportSettingsRef = useRef<ExportSettings | null>(null);
+  const draftEditsRef = useRef<DraftEdits | null>(null);
 
-  const isCurrentDraftEdits = draftEdits?.draftId === draftId;
-  const script = isCurrentDraftEdits ? draftEdits.script : loadedDraft.script;
-  const selectedSceneIndex = isCurrentDraftEdits ? draftEdits.selectedSceneIndex : 0;
-  const notFound = loadedDraft.notFound;
+  useEffect(() => {
+    draftEditsRef.current = draftEdits;
+  }, [draftEdits]);
 
   useEffect(() => {
     return () => {
@@ -67,6 +111,10 @@ export default function DraftEditorFlow({ draftId }: DraftEditorFlowProps) {
       }
     };
   }, []);
+
+  const isCurrentDraftEdits = draftEdits?.draftId === draftId;
+  const script = isCurrentDraftEdits ? draftEdits.script : documentScript;
+  const selectedSceneIndex = isCurrentDraftEdits ? draftEdits.selectedSceneIndex : 0;
 
   const studioScript = useMemo((): FootieScript | null => {
     if (!script) {
@@ -85,21 +133,25 @@ export default function DraftEditorFlow({ draftId }: DraftEditorFlowProps) {
 
   const handleStoryChange = useCallback(
     (next: FootieScript) => {
-      setDraftEdits((prev) => {
-        const baseScript = prev?.draftId === draftId ? prev.script : loadedDraft.script;
-        if (!baseScript) {
-          return prev;
-        }
+      const prev = draftEditsRef.current;
+      const baseScript = prev?.draftId === draftId ? prev.script : documentScript;
+      if (!baseScript) {
+        return;
+      }
 
-        return {
-          draftId,
-          script: applyStoryUpdate(baseScript, next),
-          selectedSceneIndex: prev?.draftId === draftId ? prev.selectedSceneIndex : 0,
-        };
-      });
+      const merged = applyStoryUpdate(baseScript, next);
+      const nextEdits: DraftEdits = {
+        draftId,
+        script: merged,
+        selectedSceneIndex: prev?.draftId === draftId ? prev.selectedSceneIndex : 0,
+      };
+
+      draftEditsRef.current = nextEdits;
+      setDraftEdits(nextEdits);
+      updateScript(merged);
       setSaveConfirmation(null);
     },
-    [draftId, loadedDraft.script],
+    [documentScript, draftId, updateScript],
   );
 
   const handleExportSettingsChange = useCallback((settings: ExportSettings) => {
@@ -115,23 +167,28 @@ export default function DraftEditorFlow({ draftId }: DraftEditorFlowProps) {
     setIsSaving(true);
 
     try {
-      const serializedScript = await serializeEditorStateForDraftAsync(studioScript, {
-        exportSettings: exportSettingsRef.current ?? studioScript.exportSettings,
+      const scriptToSave = syncFootieScript({
+        ...studioScript,
+        exportSettings:
+          exportSettingsRef.current ?? studioScript.exportSettings,
       });
 
-      const updated = updateDraft(draftId, { script: serializedScript });
+      updateScript(scriptToSave);
+      const updated = await flushPersist("editor_ready", scriptToSave);
 
       if (!updated) {
         setSaveConfirmation("Could not save draft.");
         return;
       }
 
-      setDraftEdits({
+      const savedEdits: DraftEdits = {
         draftId,
-        script: resolveDraftScriptForEditor(updated),
-        selectedSceneIndex: isCurrentDraftEdits ? draftEdits.selectedSceneIndex : 0,
-      });
-      exportSettingsRef.current = serializedScript.exportSettings ?? exportSettingsRef.current;
+        script: updated.script,
+        selectedSceneIndex: isCurrentDraftEdits ? draftEdits!.selectedSceneIndex : 0,
+      };
+      draftEditsRef.current = savedEdits;
+      setDraftEdits(savedEdits);
+      exportSettingsRef.current = updated.script.exportSettings ?? exportSettingsRef.current;
       setSaveConfirmation("Draft saved.");
 
       if (saveConfirmationTimeoutRef.current != null) {
@@ -144,31 +201,32 @@ export default function DraftEditorFlow({ draftId }: DraftEditorFlowProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [draftEdits, draftId, isCurrentDraftEdits, isSaving, studioScript]);
+  }, [draftEdits, draftId, flushPersist, isCurrentDraftEdits, isSaving, studioScript, updateScript]);
 
   const handleSelectedSceneChange = useCallback(
     (index: number) => {
-      setDraftEdits((prev) => {
-        const baseScript = prev?.draftId === draftId ? prev.script : loadedDraft.script;
-        if (!baseScript) {
-          return prev;
-        }
+      const prev = draftEditsRef.current;
+      const baseScript = prev?.draftId === draftId ? prev.script : documentScript;
+      if (!baseScript) {
+        return;
+      }
 
-        return {
-          draftId,
-          script: baseScript,
-          selectedSceneIndex: index,
-        };
-      });
+      const nextEdits: DraftEdits = {
+        draftId,
+        script: baseScript,
+        selectedSceneIndex: index,
+      };
+      draftEditsRef.current = nextEdits;
+      setDraftEdits(nextEdits);
     },
-    [draftId, loadedDraft.script],
+    [documentScript, draftId],
   );
 
   const scrollToExport = useCallback(() => {
     document.getElementById("studio-export")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  if (notFound || !studioScript) {
+  if (isNotFound || !studioScript || studioScript.scenes.length === 0) {
     return (
       <AppShell
         hasProject={false}
@@ -180,10 +238,20 @@ export default function DraftEditorFlow({ draftId }: DraftEditorFlowProps) {
           <div className="text-center">
             <h1 className={studioSectionTitle}>Draft not found</h1>
             <p className={`${studioSectionDesc} mt-2`}>
-              This story may have been deleted or saved in another browser.
+              {isNotFound
+                ? "This project could not be found. It may have been deleted or saved in another browser."
+                : "Build your storyboard to continue editing."}
             </p>
           </div>
           <div className="flex flex-col gap-2.5 sm:flex-row sm:justify-center">
+            {!isNotFound ? (
+              <Link
+                href={`/create/review/${draftId}`}
+                className={`${studioPrimaryButton} w-full sm:w-auto`}
+              >
+                Back to review
+              </Link>
+            ) : null}
             <Link href="/drafts" className={`${studioPrimaryButton} w-full sm:w-auto`}>
               View drafts
             </Link>
@@ -206,7 +274,8 @@ export default function DraftEditorFlow({ draftId }: DraftEditorFlowProps) {
       exportDisabled={studioScript.scenes.length === 0}
       onSaveDraft={handleSaveDraft}
       saveDraftDisabled={isSaving}
-      saveDraftConfirmation={saveConfirmation}
+      saveDraftConfirmation={saveConfirmation ?? autosaveSavedMessage}
+      persistWarning={persistWarning}
     >
       <StoryWorkspace
         script={studioScript}

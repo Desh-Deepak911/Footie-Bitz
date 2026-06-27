@@ -167,11 +167,11 @@ export default function ExportPanel({
         detail: `${uploadedCount} of ${sceneCount} scenes`,
       },
       {
-        label: voiceoverSrc ? "Narration ready" : "Narration not created yet",
+        label: voiceoverSrc ? "Narration ready" : "Narration",
         done: Boolean(voiceoverSrc),
         detail: voiceoverSrc
-          ? "Ready for Play Preview and export"
-          : "Complete step 4 to add narration",
+          ? "Ready for preview and export"
+          : "Create narration to synchronize your scenes.",
       },
       {
         label: "Ready to export",
@@ -247,7 +247,7 @@ export default function ExportPanel({
               <Film className="h-4.5 w-4.5 text-accent" strokeWidth={1.75} />
             </div>
             <div>
-              <p className={studioStepLabel}>Step 6</p>
+              <p className={studioStepLabel}>Export</p>
               <h2 className={studioSectionTitle}>Export</h2>
               <p className={studioSectionDesc}>Render a vertical 9:16 video from your timeline.</p>
             </div>
@@ -259,7 +259,7 @@ export default function ExportPanel({
         </div>
       ) : (
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted">Pre-export checklist</p>
+          <p className="text-xs text-muted">Pre-publish checklist</p>
           <span className={`${studioBadge} shrink-0`}>
             <span className="font-semibold text-foreground/90">{readyCount}/{checklist.length}</span>
           </span>
@@ -361,13 +361,13 @@ export default function ExportPanel({
             <span className="mt-0.5 block text-xs text-muted">
               {hasNarration
                 ? `Muxes narration into the final ${exportSettings.format.toUpperCase()} export`
-                : "Create narration in step 4 first"}
+                : "Create narration to synchronize your scenes."}
             </span>
           </span>
         </label>
 
         <div className="mb-5 border-t border-border/20 pt-4">
-          <p className="mb-4 text-sm font-medium text-foreground/90">Export settings</p>
+          <p className="mb-4 text-sm font-medium text-foreground/90">Download settings</p>
 
           <label htmlFor="export-file-name" className={studioLabel}>
             File name
@@ -484,7 +484,7 @@ export default function ExportPanel({
           {isExporting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Exporting...
+              Publishing...
             </>
           ) : (
             <>

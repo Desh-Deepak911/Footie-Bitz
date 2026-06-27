@@ -278,7 +278,7 @@ Step 4 of 4: *"Building storyboard..."*
 
 ## Why narration is generated before scenes
 
-FootieBitz is **story-first**. The narration is the spine of the short; visuals and captions support what is being said, not the other way around.
+ShortForge Studio is **story-first**. The narration is the spine of the short; visuals and captions support what is being said, not the other way around.
 
 ### Design rationale
 

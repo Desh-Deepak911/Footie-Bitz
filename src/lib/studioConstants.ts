@@ -8,10 +8,11 @@ export const SAMPLE_TOPICS = [
 ] as const;
 
 export const WORKFLOW_STEPS = [
-  { step: "01", title: "Story Brief", desc: "Describe your topic, duration, and tone" },
-  { step: "02", title: "Story Draft", desc: "Refine the title and full narration" },
-  { step: "03", title: "Production Timeline", desc: "Set scene timing, subtitles, and images" },
-  { step: "04", title: "Narration", desc: "Generate spoken audio from your story" },
-  { step: "05", title: "Preview", desc: "Review your vertical short before export" },
-  { step: "06", title: "Export", desc: "Download a finished MP4 short" },
+  { title: "Create", desc: "Describe your topic, duration, and tone" },
+  { title: "Research", desc: "We'll gather supporting information automatically" },
+  { title: "Story", desc: "Edit the title and full narration" },
+  { title: "Narration", desc: "Create spoken audio from your story" },
+  { title: "Storyboard", desc: "Plan scenes timed to your narration" },
+  { title: "Editor", desc: "Images, preview, polish, and transitions" },
+  { title: "Export", desc: "Download a finished vertical short" },
 ] as const;

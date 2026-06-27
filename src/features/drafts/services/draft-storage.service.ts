@@ -1,10 +1,11 @@
 import type { FootieScript } from "@/features/story/types";
 
-import type { Draft, DraftStatus, DraftStoreV1, StoryCreationBrief, StoryDraft } from "../types";
+import type { Draft, DraftPipelineStage, DraftStatus, DraftStoreV1, StoryCreationBrief, StoryDraft } from "../types";
 import {
   coerceLegacyDraft,
   createDraftFromScript,
   createDraftId,
+  mergeDraftUpdatesSafely,
   normalizeDraft,
   toDraftSummary,
   touchDraft,
@@ -30,6 +31,7 @@ export interface CreateDraftData {
   prompt?: string;
   status?: DraftStatus;
   id?: string;
+  pipelineStage?: DraftPipelineStage;
 }
 
 /** Partial draft fields accepted by {@link updateDraft}. */
@@ -160,6 +162,7 @@ class LocalDraftStorageService implements DraftStorageBackend {
         ...draft,
         prompt: data.prompt ?? data.creationBrief?.topic ?? draft.prompt,
         status: data.status ?? "draft",
+        pipelineStage: data.pipelineStage ?? draft.pipelineStage,
       }),
       options,
     );
@@ -181,7 +184,7 @@ class LocalDraftStorageService implements DraftStorageBackend {
     const index = store.drafts.findIndex((item) => item.id === normalizedDraft.id);
 
     if (index >= 0) {
-      store.drafts[index] = normalizedDraft;
+      store.drafts[index] = mergeDraftUpdatesSafely(store.drafts[index]!, normalizedDraft);
     } else {
       store.drafts.unshift(normalizedDraft);
     }
@@ -219,13 +222,14 @@ class LocalDraftStorageService implements DraftStorageBackend {
           updatedAt: new Date().toISOString(),
         });
 
-    store.drafts[index] = touched;
+    const merged = mergeDraftUpdatesSafely(current, touched);
+    store.drafts[index] = merged;
 
     if (!writeStore(adapter, store)) {
       return null;
     }
 
-    return touched;
+    return merged;
   }
 
   deleteDraft(id: string, options?: DraftStorageOptions): boolean {
