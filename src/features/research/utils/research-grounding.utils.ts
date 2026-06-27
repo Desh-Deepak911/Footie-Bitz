@@ -3,7 +3,7 @@ import { hasUsefulResearchContent } from "@/features/research/utils/research-con
 import { inferFootballTopicKind } from "@/features/research/utils/topic-inference.utils";
 
 export const NO_RELIABLE_FOOTBALL_DATA_WARNING =
-  "No reliable football data found. Your story will avoid exact claims.";
+  "Research is limited for this topic, so the story will avoid exact claims.";
 
 const FIFA_WORLD_CUP_2026_PATTERN =
   /\bfifa world cup 2026\b|\bworld cup 2026\b|\bwc 2026\b/i;

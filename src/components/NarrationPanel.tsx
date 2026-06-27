@@ -38,7 +38,7 @@ export default function NarrationPanel({ script, compact = false }: NarrationPan
         </div>
       ) : (
         <p className={studioSubtleText}>
-          Create narration to synchronize your scenes.
+          No narration yet. Create it from your script to sync scenes and preview audio.
         </p>
       )}
     </div>

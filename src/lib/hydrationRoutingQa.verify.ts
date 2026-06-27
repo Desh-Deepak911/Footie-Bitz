@@ -67,7 +67,7 @@ await test("HR-2 review + editor use session draft store (no render-time getDraf
   assert.doesNotMatch(reviewFlow, /useMemo\(\(\) => getDraft/);
   assert.doesNotMatch(editorFlow, /useMemo\(\(\) => getDraft/);
   assert.doesNotMatch(reviewFlow, /useState<FootieScript[^]*getDraft/);
-  assert.match(loading, /Loading draft\.\.\./);
+  assert.match(loading, /Loading your story\.\.\./);
   assert.match(loading, /hasProject=\{false\}/);
 });
 
@@ -179,7 +179,7 @@ await test("HR-7 SSR HTML serves loading shell before client draft lookup", asyn
       ["editor", editorHtml],
       ["review", reviewHtml],
     ] as const) {
-      assert.match(html, /Loading draft\.\.\./, `${label} SSR should show loading shell`);
+      assert.match(html, /Loading your story\.\.\./, `${label} SSR should show loading shell`);
       assert.doesNotMatch(
         html,
         /Draft not found/,

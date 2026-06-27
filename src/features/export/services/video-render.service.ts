@@ -5,8 +5,6 @@ import type { FootieScript, SceneType, TimelineItem } from "@/features/story/typ
 import {
   assertExportPayload,
   buildFootieExportPayload,
-  countExportTransitions,
-  formatExportSceneTiming,
   getExportTotalDurationSec,
   getRenderableScenesFromPayload,
   isTransitionVideoContent,
@@ -335,7 +333,7 @@ function mapRenderingProgress(
       message:
         progress.status === "preparing"
           ? progress.message
-          : progress.message.replace(/^Recording video\.\.\.$/, "Rendering video"),
+          : progress.message.replace(/^Recording video\.\.\.$/, "Drawing your scenes..."),
     };
   }
 
@@ -343,7 +341,7 @@ function mapRenderingProgress(
     return {
       status: "rendering",
       progress: 70,
-      message: "Rendering video",
+      message: "Drawing your scenes...",
     };
   }
 
@@ -365,25 +363,21 @@ export async function exportSilentVideoBlob(
   // Tail-of-scene transition overlays use timeline metadata; transition items are
   // never rendered as standalone video segments.
   const scenes = getRenderableScenesFromPayload(payload);
-  const transitionCount = countExportTransitions(payload);
 
   if (scenes.length === 0) {
-    throw new Error("No scenes to export");
+    throw new Error("Add scenes to your storyboard before exporting.");
   }
 
   if (typeof MediaRecorder === "undefined") {
     throw new Error("MediaRecorder is not supported in this browser");
   }
 
-  const { width, height, fps, bitrate, label } = qualityPreset;
+  const { width, height, fps, bitrate } = qualityPreset;
 
   onProgress?.({
     status: "preparing",
     progress: 0,
-    message:
-      transitionCount > 0
-        ? `Preparing ${label} export (${width}×${height} @ ${fps}fps) · ${transitionCount} transitions queued`
-        : `Preparing ${label} export (${width}×${height} @ ${fps}fps)...`,
+    message: "Preparing your video...",
   });
 
   const canvas = document.createElement("canvas");
@@ -426,7 +420,7 @@ export async function exportSilentVideoBlob(
   const frameMs = 1000 / fps;
   let renderedFrames = 0;
 
-  onProgress?.({ status: "rendering", progress: 2, message: "Rendering video" });
+  onProgress?.({ status: "rendering", progress: 2, message: "Drawing your scenes..." });
   recorder.start(250);
 
   for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
@@ -465,12 +459,12 @@ export async function exportSilentVideoBlob(
     onProgress?.({
       status: "rendering",
       progress,
-      message: `Rendering scene ${sceneIndex + 1} (${formatExportSceneTiming(scene)}) at ${label}...`,
+      message: `Drawing scene ${sceneIndex + 1} of ${scenes.length}...`,
     });
     await sleep(frameMs);
   }
 
-  onProgress?.({ status: "finalizing", progress: 99, message: "Finalizing video..." });
+  onProgress?.({ status: "finalizing", progress: 99, message: "Almost done..." });
 
   await new Promise<void>((resolve, reject) => {
     recorder.onstop = () => resolve();
@@ -761,8 +755,8 @@ export async function exportFootieShort(
       status: "combining",
       progress: 78 + Math.round(muxPercent * 0.12),
       message: mixingMusic
-        ? `Mixing narration and background music${mp4Suffix} (${muxPercent}%)`
-        : `Combining audio${mp4Suffix} (${muxPercent}%)`,
+        ? `Adding narration and background music${mp4Suffix} (${muxPercent}%)`
+        : `Adding audio to your video${mp4Suffix} (${muxPercent}%)`,
     });
   };
 
@@ -770,7 +764,7 @@ export async function exportFootieShort(
     onProgress({
       status: "loading-voiceover",
       progress: 72,
-      message: includeNarration ? "Loading narration" : "Preparing audio mix",
+      message: includeNarration ? "Adding narration..." : "Preparing audio...",
     });
 
     const voiceoverInput = includeNarration ? audioMix.voiceover : undefined;
@@ -782,8 +776,8 @@ export async function exportFootieShort(
       status: "combining",
       progress: 78,
       message: backgroundMusicInput
-        ? "Mixing narration and background music (0%)"
-        : "Combining audio (0%)",
+        ? "Adding narration and background music (0%)"
+        : "Adding audio to your video (0%)",
     });
 
     const muxCombined = async () =>
@@ -803,7 +797,7 @@ export async function exportFootieShort(
           onProgress({
             status: "combining",
             progress: 78,
-            message: "Mixing narration and background music in browser",
+            message: "Adding narration and background music...",
           });
 
           finalBlob = await muxWebmExportWithBrowserMixedAudio({

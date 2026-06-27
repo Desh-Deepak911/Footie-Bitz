@@ -92,7 +92,7 @@ test("review route and editor redirect are wired", () => {
   assert.match(reviewFlow, /VoiceSettingsCard/);
   assert.match(reviewFlow, /Build Storyboard/);
   assert.match(reviewFlow, /Additional Notes/);
-  assert.match(reviewFlow, /Story type/);
+  assert.match(reviewFlow, /Content type/);
   assert.match(reviewFlow, /variant="review"/);
   assert.match(readSrc("src/features/drafts/hooks/useEditorStoryDocument.ts"), /shouldOpenScriptReview/);
   assert.match(editorFlow, /useEditorStoryDocument/);
@@ -308,7 +308,7 @@ test("QA-4 script can be edited and auto-saved on review page", () => {
   assert.match(storyReview, /Target:/);
   assert.match(storyReview, /Estimated script:/);
   assert.match(storyReview, /SCRIPT_LENGTH_OVER_TARGET_WARNING/);
-  assert.match(reviewFlow, /targetDurationSeconds=/);
+  assert.match(reviewFlow, /variant="embedded"/);
 });
 
 test("QA-5 voiceover generates from current edited script", () => {
@@ -439,7 +439,7 @@ test("QA-12 voiceover persistence hydrates review state for Build Storyboard", (
   assert.match(editorFlow, /useEditorStoryDocument/);
   assert.match(editorFlow, /DraftLoadingState/);
   assert.match(loadingShell, /hasProject=\{false\}/);
-  assert.match(loadingShell, /Loading draft\.\.\./);
+  assert.match(loadingShell, /Loading your story\.\.\./);
   assert.doesNotMatch(reviewFlow, /hasVoiceover = Boolean\(script && getCanonicalVoiceover\(script\)\?\.url\)/);
 
   const persistedScript = syncFootieScript({

@@ -249,7 +249,7 @@ export default function VideoPreview({
 
       {!hasNarration ? (
         <p className={`${studioPreviewControls} text-center text-[10px] leading-relaxed text-muted`}>
-          Create narration to synchronize your scenes.
+          No narration yet. Create it from your script to sync scenes and preview audio.
         </p>
       ) : null}
 

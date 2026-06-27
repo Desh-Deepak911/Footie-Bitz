@@ -68,14 +68,17 @@ console.log("scene-image-motion-qa");
 
 test("image motion controls appear for every scene with image (not selection-gated)", () => {
   const sceneCard = readSrc("src/features/editor/components/SceneCard.tsx");
-  const zoomControl = readSrc("src/features/editor/components/SceneImageZoomControl.tsx");
+  const inspector = readSrc("src/features/editor/components/SceneImageInspector.tsx");
 
   assert.match(sceneCard, /sceneImage \?/);
   assert.match(sceneCard, /sceneHasImage\(scene\)/);
-  assert.doesNotMatch(sceneCard, /isSelected\s*&&[\s\S]*SceneImageZoomControl/);
+  assert.doesNotMatch(sceneCard, /isSelected\s*&&[\s\S]*SceneImageInspector/);
   assert.match(sceneCard, /onMotionChange=\{handleImageMotionChange\}/);
-  assert.match(zoomControl, /SceneImageMotionControl/);
-  assert.match(zoomControl, /onMotionChange/);
+  assert.match(inspector, /SceneImageMotionControl/);
+  assert.match(inspector, /onMotionChange/);
+  assert.match(inspector, /Image Inspector/);
+  assert.match(inspector, /Fit full image/);
+  assert.match(inspector, /Reset frame/);
 
   const script = threeSceneScript();
   assert.equal(sceneHasImage(script.scenes[0]!), true);

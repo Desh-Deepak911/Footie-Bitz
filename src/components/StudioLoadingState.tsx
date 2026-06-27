@@ -50,7 +50,7 @@ function ScriptOnlyLoadingState({
         <p className={studioLoadingMessage}>Writing your story...</p>
         {detail ? <p className={`${studioLoadingSubtext} mt-2`}>{detail}</p> : null}
         <p className={`${studioLoadingSubtext} mt-3 max-w-xs`}>
-          You&apos;ll review and edit the narration on the next screen.
+          You&apos;ll review and edit the script on the next screen.
         </p>
       </div>
     </section>

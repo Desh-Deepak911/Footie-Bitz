@@ -108,7 +108,7 @@ export default function StoryWorkspace({
               </div>
             </section>
 
-            <section id="studio-timeline" className={studioWorkspaceSection}>
+            <section id="studio-timeline" className={`${studioWorkspaceSection} scroll-mt-24`}>
               <TimelineEditor
                 script={script}
                 onScriptChange={onScriptChange}
@@ -129,7 +129,7 @@ export default function StoryWorkspace({
               step="Preview"
               title="Short preview"
               description="Play back your vertical short with narration or browser voice."
-              className="w-full lg:max-w-none"
+              className="scroll-mt-24 w-full lg:max-w-none"
             >
               <VideoPreview
                 script={script}
@@ -142,11 +142,17 @@ export default function StoryWorkspace({
               <NarrationPanel script={script} compact />
             </WorkspacePanel>
 
-            <WorkspacePanel id="studio-export" step="Export" title="Export Video">
+            <WorkspacePanel
+              id="studio-export"
+              step="Export"
+              title="Export Video"
+              className="scroll-mt-24 w-full lg:max-w-none"
+            >
               <ExportPanel
                 script={script}
                 compact
                 onExportSettingsChange={onExportSettingsChange}
+                onScriptChange={onScriptChange}
               />
             </WorkspacePanel>
           </aside>

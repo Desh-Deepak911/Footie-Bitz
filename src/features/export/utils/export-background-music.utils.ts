@@ -11,24 +11,24 @@ import {
 export const EXPORT_BACKGROUND_MUSIC_MIXING_ENABLED = true;
 
 export const EXPORT_BACKGROUND_MUSIC_FALLBACK_WARNING =
-  "Background music plays in preview but was not merged into this WebM export. Choose MP4 or disable background music to avoid this.";
+  "Background music plays in preview but wasn't included in this WebM file. Try MP4 or turn off background music.";
 
 /** @deprecated Use EXPORT_AUDIO_VOICE_ONLY_FALLBACK_MESSAGE */
 export const EXPORT_BACKGROUND_MUSIC_PARTIAL_FALLBACK_WARNING =
-  "Background music could not be merged. Exported voiceover only.";
+  "Exported with narration only because background music could not be merged.";
 
 export const EXPORT_AUDIO_FULL_SUCCESS_MESSAGE =
-  "Merged voiceover and music successfully.";
+  "Your video is ready with narration and background music.";
 
 export const EXPORT_AUDIO_VOICE_ONLY_FALLBACK_MESSAGE =
-  "Background music could not be merged. Exported with voiceover only.";
+  "Exported with narration only because background music could not be merged.";
 
 /** User-facing warning when export falls back to voiceover-only after music merge failure. */
 export const EXPORT_AUDIO_VOICE_ONLY_FALLBACK_WARNING =
   EXPORT_AUDIO_VOICE_ONLY_FALLBACK_MESSAGE;
 
 export const EXPORT_AUDIO_SILENT_FALLBACK_MESSAGE =
-  "Audio merge failed. Exported silent video.";
+  "Exported without audio. Something went wrong while adding sound to your video.";
 
 export interface ExportBackgroundMusicMixSettings {
   /** Normalized export timeline length from prepareStoryForExport. */

@@ -133,21 +133,23 @@ export default function VoiceSettingsCard({
 
       {loading ? (
         <p className={`${studioSubtleText} text-center tabular-nums`} role="status" aria-live="polite">
-          {variant === "review" ? "Creating narration from your story..." : "Updating narration..."}
+          {variant === "review"
+            ? "Recording narration from your script..."
+            : "Updating narration..."}
         </p>
       ) : (
         <p className={studioSubtleText}>
           {variant === "review"
             ? hasVoiceover
-              ? "Updates the narration audio at the selected speed. Scene timings and subtitles stay as they are."
-              : "Create narration to synchronize your scenes."
-            : "Updates the narration audio at the selected speed. Scene timings and subtitles stay as they are."}
+              ? "Updates spoken audio at the selected speed. Scene timings stay the same."
+              : "No narration yet. Add script text above, then create narration here."
+            : "Updates spoken audio at the selected speed. Scene timings stay the same."}
         </p>
       )}
 
       {error ? (
         <div className={studioError} role="alert">
-          <p className="text-xs font-medium leading-relaxed">Narration update failed</p>
+          <p className="text-xs font-medium leading-relaxed">Couldn&apos;t update narration</p>
           <p className="mt-1 text-xs leading-relaxed">{error}</p>
         </div>
       ) : null}

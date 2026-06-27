@@ -113,7 +113,7 @@ export type GenerateScriptMode = "full" | "script-only" | "scenes-only";
 export const GENERATION_LOADING_STEPS = [
   "Writing your story...",
   "Creating narration...",
-  "Planning storyboard...",
+  "Preparing your scenes...",
   "Building storyboard...",
 ] as const;
 

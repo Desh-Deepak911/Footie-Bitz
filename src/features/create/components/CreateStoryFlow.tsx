@@ -123,7 +123,7 @@ export default function CreateStoryFlow() {
           ? {}
           : {
               errorMessage:
-                researchContext.warnings[0] ?? "Research request could not be completed.",
+                researchContext.warnings[0] ?? "Research couldn't be completed for this topic.",
             }),
       });
     } catch (err) {
@@ -131,10 +131,10 @@ export default function CreateStoryFlow() {
         status: "error",
         errorMessage:
           err instanceof TypeError
-            ? "Network error. Check your connection and try again."
+            ? "Check your connection and try again."
             : err instanceof Error
               ? err.message
-              : "Research Preview failed.",
+              : "Research isn't available right now. You can still write your story.",
       });
     }
   }, [context, enableResearch, scriptMode, topic]);
@@ -245,10 +245,8 @@ export default function CreateStoryFlow() {
       createDisabled={loading}
       exportDisabled
     >
-      {!loading && <StudioEmptyState onGenerate={handleGenerateStory} />}
-
-      <div className="flex min-w-0 flex-col gap-4 sm:gap-7">
-        {!loading && (
+      {!loading && (
+        <>
           <StoryComposer
             topic={topic}
             onTopicChange={(value) => {
@@ -286,10 +284,12 @@ export default function CreateStoryFlow() {
               void previewResearch();
             }}
           />
-        )}
 
-        {!loading && (
-          <Card>
+          <div className="hidden sm:block">
+            <StudioEmptyState onGenerate={handleGenerateStory} />
+          </div>
+
+          <Card className="hidden lg:block">
             <p className={studioStepLabel}>Your path</p>
             <h2 className={`${studioSectionTitle} mt-2`}>From idea to export</h2>
             <div className="mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-3">
@@ -304,19 +304,19 @@ export default function CreateStoryFlow() {
               ))}
             </div>
           </Card>
-        )}
+        </>
+      )}
 
-        {loading && (
-          <StudioLoadingState
-            variant="script-only"
-            topic={topic}
-            tone={tone}
-            duration={duration}
-          />
-        )}
+      {loading && (
+        <StudioLoadingState
+          variant="script-only"
+          topic={topic}
+          tone={tone}
+          duration={duration}
+        />
+      )}
 
-        {!loading && <BreakLongVideoSection />}
-      </div>
+      {!loading && <BreakLongVideoSection />}
     </AppShell>
   );
 }

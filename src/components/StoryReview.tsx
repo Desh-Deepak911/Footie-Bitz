@@ -25,7 +25,7 @@ import {
 interface StoryReviewProps {
   story: FootieScript;
   onStoryChange: (story: FootieScript) => void;
-  variant?: "default" | "storyboard";
+  variant?: "default" | "storyboard" | "embedded";
   /** Selected target duration from create brief — drives estimate comparison. */
   targetDurationSeconds?: number;
 }
@@ -71,6 +71,50 @@ export default function StoryReview({
   targetDurationSeconds,
 }: StoryReviewProps) {
   const resolvedTargetDuration = targetDurationSeconds ?? story.totalDuration;
+
+  if (variant === "embedded") {
+    return (
+      <div className="space-y-5">
+        <ScriptDurationSummary
+          targetDurationSeconds={resolvedTargetDuration}
+          narration={story.narration}
+        />
+
+        <div>
+          <label htmlFor="story-title" className={studioLabel}>
+            Title
+          </label>
+          <input
+            id="story-title"
+            type="text"
+            value={story.title}
+            onChange={(e) => onStoryChange({ ...story, title: e.target.value })}
+            className={studioInput}
+          />
+        </div>
+
+        <div>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="story-narration" className={studioLabel}>
+              Narration
+            </label>
+            <CopyButton text={story.narration} label="Copy narration" />
+          </div>
+          <textarea
+            id="story-narration"
+            value={story.narration}
+            onChange={(e) => onStoryChange({ ...story, narration: e.target.value })}
+            rows={10}
+            placeholder="Full spoken narration for your short"
+            className={studioTextarea}
+          />
+          <p className={`${studioSubtleText} mt-2`}>
+            Edit your script before creating narration — changes save automatically.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (variant === "storyboard") {
     return (

@@ -19,16 +19,16 @@ export interface ResolvedExportPath {
 }
 
 export const EXPORT_PATH_WEBM_UNAVAILABLE_MESSAGE =
-  "WebM export is unavailable. Choose MP4 or try another browser.";
+  "WebM export isn't available in this browser. Choose MP4 or try Chrome or Edge.";
 
 export const EXPORT_PATH_WEBM_BACKGROUND_MUSIC_UNSUPPORTED_MESSAGE =
-  "Background music cannot be merged into WebM exports yet. Disable background music or choose MP4 for a full audio mix.";
+  "Background music can't be added to WebM exports yet. Turn it off or choose MP4 for the full mix.";
 
 export const EXPORT_PATH_MP4_SLOW_NOTICE =
-  "MP4 conversion runs in the browser and may take several minutes.";
+  "MP4 takes longer to finish but works on more apps and sites.";
 
 export const EXPORT_PATH_WEBM_FAST_NOTICE =
-  "WebM uses the fast browser-native export path.";
+  "WebM is the faster option in your browser.";
 
 /** True when WebM exports can include merged background music via FFmpeg mux. */
 export const WEBM_BACKGROUND_MUSIC_EXPORT_SUPPORTED =

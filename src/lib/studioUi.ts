@@ -108,6 +108,20 @@ export const studioImageFitSegment =
 export const studioImageFitSegmentActive =
   "flex min-h-[2rem] flex-1 items-center justify-center rounded-md bg-surface-elevated/85 px-2 py-1.5 text-center text-[11px] font-medium leading-tight text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-border/25 sm:min-h-[1.85rem] sm:text-xs";
 
+export const studioStickyMobileFooter =
+  "sticky bottom-0 z-20 -mx-3.5 border-t border-border/40 bg-background/95 px-3.5 py-3 backdrop-blur-xl sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none";
+
+/** Sticky footer that sits above the editor mobile action bar. */
+export const studioStickyMobileFooterAboveBar =
+  "sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 -mx-1 border-t border-border/40 bg-background/95 px-1 py-3 backdrop-blur-xl lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none";
+
+/** Segmented control that stacks on narrow viewports (image inspector, export format). */
+export const studioSegmentedControlStacked =
+  "flex min-w-0 flex-col gap-1 rounded-xl bg-surface-elevated/35 p-1 ring-1 ring-border/20 sm:flex-row sm:gap-0";
+
+export const studioImageFitSegmentedControlStacked =
+  "flex min-w-0 flex-col gap-1 rounded-[0.65rem] bg-surface-elevated/35 p-1 ring-1 ring-border/20 sm:flex-row sm:flex-1 sm:gap-0 sm:p-0.5";
+
 export const studioSubtleText =
   "text-xs leading-relaxed text-muted";
 

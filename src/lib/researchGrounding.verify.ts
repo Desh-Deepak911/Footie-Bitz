@@ -97,7 +97,7 @@ test("research unavailable prompt for generic topic avoids 2026 block", () => {
 test("NO_RELIABLE_FOOTBALL_DATA_WARNING matches product copy", () => {
   assert.equal(
     NO_RELIABLE_FOOTBALL_DATA_WARNING,
-    "No reliable football data found. Your story will avoid exact claims.",
+    "Research is limited for this topic, so the story will avoid exact claims.",
   );
 });
 

@@ -80,7 +80,7 @@ test("1. scene image settings dock includes zoom, fit, and image motion controls
   assert.match(sceneCard, /onImageSettingsChange\(scene\.id/);
   assert.match(sceneCard, /onImageReset\(scene\.id\)/);
   assert.doesNotMatch(sceneCard, /isSelected\s*&&/);
-  assert.match(sceneCard, /sceneImage \? \([\s\S]*SceneImageZoomControl/);
+  assert.match(sceneCard, /sceneImage \? \([\s\S]*SceneImageInspector/);
   assert.match(sceneCard, /onMotionChange=\{handleImageMotionChange\}/);
 });
 
@@ -201,9 +201,11 @@ test("9. image motion updates only target scene and preserves fit/zoom/subtitles
     join(root, "src/features/editor/components/SceneImageMotionControl.tsx"),
     "utf8",
   );
-  assert.match(motionControl, /Image Motion/);
   assert.match(motionControl, /SCENE_IMAGE_MOTION_TYPE_OPTIONS/);
   assert.match(motionControl, /SCENE_IMAGE_MOTION_INTENSITY_OPTIONS/);
+  assert.match(motionControl, /Ken Burns/);
+  assert.match(motionControl, /Slow zoom in/);
+  assert.match(motionControl, /Slow zoom out/);
   assert.deepEqual(
     SCENE_IMAGE_MOTION_TYPE_OPTIONS.map((option) => option.label),
     ["None", "Zoom In", "Zoom Out"],

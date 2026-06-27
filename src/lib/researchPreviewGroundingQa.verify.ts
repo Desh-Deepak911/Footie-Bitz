@@ -124,12 +124,14 @@ async function runQa() {
     const panel = readSrc("src/features/create/components/ResearchPreviewPanel.tsx");
     assert.match(panel, /Research Preview/);
     assert.match(panel, /Research Summary/);
+    assert.match(panel, /Research status/);
+    assert.match(panel, /Confidence/);
   });
 
   await test("2 research preview shows data separately from manual context", () => {
     const panel = readSrc("src/features/create/components/ResearchPreviewPanel.tsx");
     const composer = readSrc("src/components/StoryComposer.tsx");
-    assert.match(panel, /Full research details/);
+    assert.match(panel, /View details/);
     assert.match(panel, /Ranked players|rankedPlayers/i);
     assert.match(composer, /ResearchPreviewPanel/);
     assert.doesNotMatch(composer, /setContext\(preview/);

@@ -83,7 +83,7 @@ test("loading steps match generation pipeline labels", () => {
   assert.deepEqual([...GENERATION_LOADING_STEPS], [
     "Writing your story...",
     "Creating narration...",
-    "Planning storyboard...",
+    "Preparing your scenes...",
     "Building storyboard...",
   ]);
 });

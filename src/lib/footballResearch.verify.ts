@@ -89,7 +89,7 @@ test("create flow exposes Football Research Mode", () => {
   assert.match(createFlow, /generationContext/);
   assert.match(createFlow, /isResearchDefaultEnabledForScriptMode/);
   assert.match(composer, /Smart Research/);
-  assert.match(composer, /gather supporting information automatically/);
+  assert.match(composer, /Use trusted sources when available\./);
 });
 
 test("research-football route is wired", () => {

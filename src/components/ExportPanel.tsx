@@ -9,14 +9,16 @@ import {
   Film,
   Loader2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { buildAudioMixFromStory } from "@/features/audio";
+import {
+  applyStoryBackgroundMusic,
+} from "@/features/story/utils";
 import {
   buildExportDownloadFileName,
   exportFootieShort,
   getDefaultExportAudioMode,
-  isExportFormat,
   isExportQualityTier,
   isExportResolution,
   isHighQualityExportSettings,
@@ -41,10 +43,10 @@ import {
   studioBadge,
   studioChecklistItem,
   studioError,
+  studioFieldLabel,
   studioGlass,
   studioIconBox,
   studioInput,
-  studioLabel,
   studioOptionRow,
   studioPanel,
   studioPrimaryButton,
@@ -52,9 +54,16 @@ import {
   studioSectionTitle,
   studioSelect,
   studioSelectChevron,
+  studioSegment,
+  studioSegmentActive,
+  studioSegmentedControl,
+  studioSegmentedControlStacked,
   studioStepLabel,
+  studioStickyMobileFooterAboveBar,
+  studioSubtleText,
   studioWarningPanel,
 } from "@/lib/studioUi";
+import { CREATOR_BRAND } from "@/lib/product-brand";
 import { syncFootieScript } from "@/lib/voiceover";
 import { sceneHasImage } from "@/features/story/utils";
 import type { ExportSettings, FootieScript } from "@/features/story/types";
@@ -65,6 +74,8 @@ interface ExportPanelProps {
   compact?: boolean;
   /** Called when export settings change so drafts can persist them on save. */
   onExportSettingsChange?: (settings: ExportSettings) => void;
+  /** Optional — toggling background music updates the story via existing settings. */
+  onScriptChange?: (script: FootieScript) => void;
 }
 
 interface ChecklistItem {
@@ -75,11 +86,39 @@ interface ChecklistItem {
 
 type ExportState = ExportProgress["status"] | "idle";
 
+const FORMAT_HELPERS: Record<ExportSettings["format"], string> = {
+  webm: "Faster export",
+  mp4: "Wider compatibility",
+};
+
+function ExportSettingsSection({
+  title,
+  description,
+  children,
+  className = "",
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`space-y-3 border-t border-border/20 pt-5 first:border-t-0 first:pt-0 ${className}`}>
+      <div>
+        <p className={`${studioFieldLabel} mb-0`}>{title}</p>
+        {description ? <p className={`${studioSubtleText} mt-1`}>{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function ExportPanel({
   script,
   disabled = false,
   compact = false,
   onExportSettingsChange,
+  onScriptChange,
 }: ExportPanelProps) {
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [progress, setProgress] = useState(0);
@@ -170,8 +209,8 @@ export default function ExportPanel({
         label: voiceoverSrc ? "Narration ready" : "Narration",
         done: Boolean(voiceoverSrc),
         detail: voiceoverSrc
-          ? "Ready for preview and export"
-          : "Create narration to synchronize your scenes.",
+          ? "Ready for preview and download"
+          : "No narration yet — create it from your script.",
       },
       {
         label: "Ready to export",
@@ -185,6 +224,9 @@ export default function ExportPanel({
   const readyCount = checklist.filter((item) => item.done).length;
   const hasNarration = Boolean(voiceoverSrc);
   const includeNarration = hasNarration && includeNarrationPreference;
+  const hasBackgroundMusicConfigured = Boolean(audioMix.background?.src);
+  const includeBackgroundMusic =
+    hasBackgroundMusicConfigured && Boolean(audioMix.background?.enabled);
   const exportAudioMode = useMemo((): ExportAudioMode => {
     if (!includeNarration) return "silent";
     return getDefaultExportAudioMode(true);
@@ -197,6 +239,16 @@ export default function ExportPanel({
     .split("x")
     .map(Number);
   const isBusy = isExporting || disabled;
+  const activeFormat = exportSettings.format;
+  const webmAvailable = isWebmExportAvailable();
+
+  const handleBackgroundMusicToggle = (enabled: boolean) => {
+    if (!onScriptChange || !hasBackgroundMusicConfigured) {
+      return;
+    }
+
+    onScriptChange(applyStoryBackgroundMusic(script, { enabled }));
+  };
 
   const handleExport = async () => {
     setErrorMessage(null);
@@ -234,12 +286,12 @@ export default function ExportPanel({
       setExportState("error");
       setProgress(0);
       setExportMessage(null);
-      setErrorMessage(error instanceof Error ? error.message : "Export failed");
+      setErrorMessage(error instanceof Error ? error.message : "We couldn't finish the export. Try again.");
     }
   };
 
   return (
-    <div className={compact ? "space-y-5" : "space-y-7"}>
+    <div className={`${compact ? "space-y-5" : "space-y-7"} min-w-0`}>
       {!compact ? (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
@@ -266,7 +318,39 @@ export default function ExportPanel({
         </div>
       )}
 
-      <ul className="space-y-2">
+      {compact ? (
+        <details className="rounded-xl bg-surface-elevated/25 ring-1 ring-border/20 lg:hidden">
+          <summary className="cursor-pointer list-none px-3.5 py-3 text-xs text-muted [&::-webkit-details-marker]:hidden">
+            Pre-publish checklist ·{" "}
+            <span className="font-medium text-foreground/85">
+              {readyCount}/{checklist.length} ready
+            </span>
+          </summary>
+          <ul className="space-y-2 border-t border-border/20 px-2 pb-2 pt-1">
+            {checklist.map((item) => (
+              <li key={`mobile-${item.label}`} className={studioChecklistItem(item.done)}>
+                {item.done ? (
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+                ) : (
+                  <Circle className="mt-0.5 h-5 w-5 shrink-0 text-muted" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-sm font-medium ${item.done ? "text-foreground/90" : "text-muted"}`}
+                  >
+                    {item.label}
+                  </p>
+                  {item.detail ? (
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted">{item.detail}</p>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
+      <ul className={`space-y-2 ${compact ? "hidden lg:block" : ""}`}>
         {checklist.map((item) => (
           <li key={item.label} className={studioChecklistItem(item.done)}>
             {item.done ? (
@@ -303,7 +387,7 @@ export default function ExportPanel({
         <div className={`${studioWarningPanel} flex items-start gap-3`}>
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
           <div>
-            <p className="text-sm font-medium text-amber-100/90">Narration out of sync</p>
+            <p className="text-sm font-medium text-amber-100/90">Script changed after narration</p>
             <p className="mt-1 text-xs leading-relaxed text-amber-200/60">
               {EXPORT_NARRATION_VOICEOVER_MISMATCH_WARNING}
             </p>
@@ -317,11 +401,11 @@ export default function ExportPanel({
             <div className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin text-accent" />
               <span className="text-sm font-medium text-foreground/90">
-                {exportState === "preparing" && "Preparing export..."}
-                {exportState === "rendering" && `Rendering video (${progress}%)`}
-                {exportState === "loading-voiceover" && "Loading narration"}
-                {exportState === "combining" && (exportMessage ?? "Combining audio")}
-                {exportState === "finalizing" && "Finalizing file..."}
+                {exportState === "preparing" && "Preparing your video..."}
+                {exportState === "rendering" && `Exporting video (${progress}%)`}
+                {exportState === "loading-voiceover" && "Adding narration..."}
+                {exportState === "combining" && (exportMessage ?? "Adding audio to your video")}
+                {exportState === "finalizing" && "Almost done..."}
               </span>
             </div>
             <span className="text-sm font-semibold text-muted">{progress}%</span>
@@ -337,40 +421,190 @@ export default function ExportPanel({
           )}
           <p className="mt-2 text-[11px] text-muted">
             {exportWithNarration
-              ? "Rendering follows your scene timeline, then narration is merged in-browser. Keep this tab open."
-              : `Rendering follows your scene timeline (~${totalDuration}s). Keep this tab open.`}
+              ? "Drawing your scenes, then adding narration. Keep this tab open."
+              : `Drawing your scenes (~${totalDuration}s). Keep this tab open.`}
           </p>
         </div>
       )}
 
-      <div className={`${studioPanel}`}>
-        <label
-          className={`${studioOptionRow(includeNarration && hasNarration)} mb-4 ${
-            !hasNarration || isBusy ? "cursor-not-allowed opacity-50" : ""
-          }`}
+      <div className={`${studioPanel} min-w-0`}>
+        <ExportSettingsSection
+          title="Format"
+          description="Choose how the video file is encoded."
         >
-          <input
-            type="checkbox"
-            checked={includeNarration}
-            onChange={(e) => setIncludeNarrationPreference(e.target.checked)}
-            disabled={isBusy || !hasNarration}
-            className="mt-1 accent-accent"
-          />
-          <span>
-            <span className="block text-sm font-medium text-foreground/90">Include Narration</span>
-            <span className="mt-0.5 block text-xs text-muted">
-              {hasNarration
-                ? `Muxes narration into the final ${exportSettings.format.toUpperCase()} export`
-                : "Create narration to synchronize your scenes."}
+          <div
+            className={compact ? studioSegmentedControlStacked : studioSegmentedControl}
+            role="radiogroup"
+            aria-label="Export format"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={activeFormat === "webm"}
+              disabled={isBusy || !webmAvailable}
+              title={webmAvailable ? "Faster export" : "WebM unavailable in this browser"}
+              onClick={() => updateExportSettings({ format: "webm" })}
+              className={activeFormat === "webm" ? studioSegmentActive : studioSegment}
+            >
+              WebM
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={activeFormat === "mp4"}
+              disabled={isBusy}
+              title="Wider compatibility"
+              onClick={() => updateExportSettings({ format: "mp4" })}
+              className={activeFormat === "mp4" ? studioSegmentActive : studioSegment}
+            >
+              MP4
+            </button>
+          </div>
+          <p className={studioSubtleText}>{FORMAT_HELPERS[activeFormat]}</p>
+          <p className={studioSubtleText}>{resolveExportPathFormatNotice(resolvedExportPath.path)}</p>
+          {resolvedExportPath.blocked ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {resolvedExportPath.blockReason}
+            </p>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="export-resolution" className={studioFieldLabel}>
+                Resolution
+              </label>
+              <div className="relative mt-1.5">
+                <select
+                  id="export-resolution"
+                  value={exportSettings.resolution}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (isExportResolution(value)) {
+                      updateExportSettings({ resolution: value });
+                    }
+                  }}
+                  disabled={isBusy}
+                  className={studioSelect}
+                >
+                  <option value="1080x1920">1080×1920</option>
+                  <option value="720x1280">720×1280</option>
+                </select>
+                <ChevronDown className={studioSelectChevron} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="export-quality-tier" className={studioFieldLabel}>
+                Quality
+              </label>
+              <div className="relative mt-1.5">
+                <select
+                  id="export-quality-tier"
+                  value={exportSettings.quality}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (isExportQualityTier(value)) {
+                      updateExportSettings({ quality: value });
+                    }
+                  }}
+                  disabled={isBusy}
+                  className={studioSelect}
+                >
+                  <option value="standard">Standard</option>
+                  <option value="high">High</option>
+                </select>
+                <ChevronDown className={studioSelectChevron} />
+              </div>
+            </div>
+          </div>
+        </ExportSettingsSection>
+
+        <ExportSettingsSection title="Audio" description="Choose what plays in the exported file.">
+          <label
+            className={`${studioOptionRow(includeNarration && hasNarration)} ${
+              !hasNarration || isBusy ? "cursor-not-allowed opacity-50" : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={includeNarration}
+              onChange={(e) => setIncludeNarrationPreference(e.target.checked)}
+              disabled={isBusy || !hasNarration}
+              className="mt-1 accent-accent"
+            />
+            <span>
+              <span className="block text-sm font-medium text-foreground/90">Include narration</span>
+              <span className="mt-0.5 block text-xs text-muted">
+                {hasNarration
+                  ? `Includes spoken audio in your ${exportSettings.format.toUpperCase()} file`
+                  : "No narration yet — create it from your script."}
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
 
-        <div className="mb-5 border-t border-border/20 pt-4">
-          <p className="mb-4 text-sm font-medium text-foreground/90">Download settings</p>
+          <label
+            className={`${studioOptionRow(includeBackgroundMusic)} ${
+              !hasBackgroundMusicConfigured || isBusy || !onScriptChange
+                ? "cursor-not-allowed opacity-50"
+                : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={includeBackgroundMusic}
+              onChange={(e) => handleBackgroundMusicToggle(e.target.checked)}
+              disabled={isBusy || !hasBackgroundMusicConfigured || !onScriptChange}
+              className="mt-1 accent-accent"
+            />
+            <span>
+              <span className="block text-sm font-medium text-foreground/90">
+                Include background music
+              </span>
+              <span className="mt-0.5 block text-xs text-muted">
+                {hasBackgroundMusicConfigured
+                  ? "Mixes your story background music into the export."
+                  : "Add background music in the storyboard section to enable."}
+              </span>
+            </span>
+          </label>
 
-          <label htmlFor="export-file-name" className={studioLabel}>
-            File name
+          {webmBackgroundMusicNotice ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400">{webmBackgroundMusicNotice}</p>
+          ) : null}
+
+          {showAudioMergeNote ? (
+            <p className={studioSubtleText}>
+              Narration merge can take longer for high-quality 1080p exports.
+            </p>
+          ) : null}
+        </ExportSettingsSection>
+
+        <ExportSettingsSection title="Branding">
+          <label className={`${studioOptionRow(true)} cursor-default`}>
+            <input
+              type="checkbox"
+              checked
+              disabled
+              readOnly
+              aria-readonly="true"
+              className="mt-1 accent-accent"
+            />
+            <span>
+              <span className="block text-sm font-medium text-foreground/90">
+                {CREATOR_BRAND} watermark
+              </span>
+              <span className="mt-0.5 block text-xs text-muted">
+                Adds your channel mark to the video.
+              </span>
+            </span>
+          </label>
+        </ExportSettingsSection>
+
+        <ExportSettingsSection
+          title="Filename"
+          description="Name the file before you download — the extension matches your format."
+        >
+          <label htmlFor="export-file-name" className="sr-only">
+            Video filename
           </label>
           <input
             id="export-file-name"
@@ -378,126 +612,44 @@ export default function ExportPanel({
             value={exportSettings.fileName}
             onChange={(e) => updateExportSettings({ fileName: e.target.value })}
             disabled={isBusy}
-            className={`${studioInput} mb-4`}
-            placeholder="story-short"
+            className={studioInput}
+            placeholder="my-football-short"
+            autoComplete="off"
+            spellCheck={false}
           />
-
-          <label htmlFor="export-format" className={studioLabel}>
-            Format
-          </label>
-          <div className="relative mb-1">
-            <select
-              id="export-format"
-              value={exportSettings.format}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (isExportFormat(value)) {
-                  updateExportSettings({ format: value });
-                }
-              }}
-              disabled={isBusy}
-              className={studioSelect}
-            >
-              {isWebmExportAvailable() ? (
-                <option value="webm">WebM — Fast</option>
-              ) : (
-                <option value="webm" disabled>
-                  WebM — Fast (unavailable)
-                </option>
-              )}
-              <option value="mp4">MP4 — YouTube compatible, slower</option>
-            </select>
-            <ChevronDown className={studioSelectChevron} />
-          </div>
-          <p className="mb-1 text-xs text-muted">
-            {resolveExportPathFormatNotice(resolvedExportPath.path)}
+          <p className={studioSubtleText}>
+            Downloads as <span className="text-foreground/80">{downloadFileName}</span>
           </p>
-          {resolvedExportPath.blocked ? (
-            <p className="mb-4 text-xs text-amber-600 dark:text-amber-400">
-              {resolvedExportPath.blockReason}
-            </p>
-          ) : webmBackgroundMusicNotice ? (
-            <p className="mb-4 text-xs text-amber-600 dark:text-amber-400">
-              {webmBackgroundMusicNotice}
-            </p>
-          ) : (
-            <div className="mb-4" />
-          )}
+        </ExportSettingsSection>
 
-          <label htmlFor="export-resolution" className={studioLabel}>
-            Resolution
-          </label>
-          <div className="relative mb-4">
-            <select
-              id="export-resolution"
-              value={exportSettings.resolution}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (isExportResolution(value)) {
-                  updateExportSettings({ resolution: value });
-                }
-              }}
-              disabled={isBusy}
-              className={studioSelect}
-            >
-              <option value="1080x1920">1080×1920</option>
-              <option value="720x1280">720×1280</option>
-            </select>
-            <ChevronDown className={studioSelectChevron} />
-          </div>
-
-          <label htmlFor="export-quality-tier" className={studioLabel}>
-            Quality
-          </label>
-          <div className="relative">
-            <select
-              id="export-quality-tier"
-              value={exportSettings.quality}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (isExportQualityTier(value)) {
-                  updateExportSettings({ quality: value });
-                }
-              }}
-              disabled={isBusy}
-              className={studioSelect}
-            >
-              <option value="standard">Standard</option>
-              <option value="high">High</option>
-            </select>
-            <ChevronDown className={studioSelectChevron} />
-          </div>
-        </div>
-
-        {showAudioMergeNote && (
-          <p className="mb-4 text-xs leading-relaxed text-muted">
-            Narration merge can take longer for high-quality 1080p exports.
-          </p>
-        )}
-
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={isBusy || sceneCount < 1 || resolvedExportPath.blocked}
-          className={`${studioPrimaryButton} w-full`}
+        <ExportSettingsSection
+          title="Download"
+          className={compact ? studioStickyMobileFooterAboveBar : undefined}
         >
-          {isExporting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Publishing...
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4" strokeWidth={1.75} />
-              Export Video
-            </>
-          )}
-        </button>
-        <p className="mt-3 text-center text-[11px] text-muted">
-          Download{" "}
-          <span className="text-muted">{downloadFileName}</span> · {exportWidth}×{exportHeight} · 9:16
-          {exportWithNarration && " · with narration"}
-        </p>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isBusy || sceneCount < 1 || resolvedExportPath.blocked}
+            className={`${studioPrimaryButton} w-full`}
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" strokeWidth={1.75} />
+                Export Video
+              </>
+            )}
+          </button>
+          <p className="text-center text-[11px] text-muted">
+            {exportWidth}×{exportHeight} · 9:16 vertical
+            {exportWithNarration && " · with narration"}
+            {includeBackgroundMusic && " · with background music"}
+          </p>
+        </ExportSettingsSection>
       </div>
 
       {exportState === "done" && exportMessage && exportResultKind === "audio-voice-only" && (

@@ -14,7 +14,7 @@ import {
 import CaptionModeControl from "@/features/editor/components/CaptionModeControl";
 import SceneCaptionOverlay from "@/features/editor/components/SceneCaptionOverlay";
 import MediaPicker from "@/features/editor/components/MediaPicker";
-import SceneImageZoomControl from "@/features/editor/components/SceneImageZoomControl";
+import SceneImageInspector from "@/features/editor/components/SceneImageInspector";
 import SubtitleEffectControl from "@/features/editor/components/SubtitleEffectControl";
 import { normalizeCaptionMode } from "@/features/story/utils";
 import {
@@ -189,7 +189,7 @@ export default function SceneCard({
         <section aria-label="Scene media">
           <p className={studioFieldLabel}>Media</p>
           <div className={`${studioStoryboardMediaFrame} overflow-hidden`}>
-            <div className="relative mx-auto aspect-[9/16] max-h-56 w-full max-w-[11rem] overflow-hidden sm:max-h-64 sm:max-w-[12rem]">
+            <div className="relative mx-auto aspect-[9/16] max-h-60 w-full max-w-[min(100%,14rem)] overflow-hidden sm:max-h-64 sm:max-w-[12rem]">
               {sceneHasImage(scene) ? (
                 <MediaPicker
                   scene={scene}
@@ -208,7 +208,7 @@ export default function SceneCard({
               <SceneCaptionOverlay scene={scene} />
             </div>
             {sceneImage ? (
-              <SceneImageZoomControl
+              <SceneImageInspector
                 variant="attached"
                 controlId={`scene-image-zoom-${scene.id}`}
                 motionControlId={`scene-image-motion-${scene.id}`}
@@ -219,6 +219,7 @@ export default function SceneCard({
                 onFitModeChange={handleFitModeChange}
                 onMotionChange={handleImageMotionChange}
                 onReset={handleImageReset}
+                positionDragSupported={sceneHasImage(scene)}
               />
             ) : null}
           </div>
@@ -247,8 +248,8 @@ export default function SceneCard({
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-surface-elevated/50 ring-1 ring-border/25">
                 <ImagePlus className="h-4 w-4 text-muted" />
               </div>
-              <p className="text-sm font-medium text-foreground/85">Attach image</p>
-              <p className="mt-1 text-xs text-muted">PNG, JPG, or WEBP · 9:16 recommended</p>
+              <p className="text-sm font-medium text-foreground/85">Add scene image</p>
+              <p className="mt-1 text-xs text-muted">Portrait images work best (9:16). PNG, JPG, or WEBP.</p>
               <input
                 type="file"
                 accept="image/*"

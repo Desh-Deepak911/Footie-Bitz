@@ -9,7 +9,24 @@ export type ResearchPreviewEntity =
   | "match"
   | "competition"
   | "ranking"
+  | "year_season"
   | "unknown";
+
+export type ResearchPreviewDisplayStatus =
+  | "Idle"
+  | "Searching"
+  | "Ready"
+  | "Limited"
+  | "Unavailable";
+
+export type ResearchPreviewConfidence = "High" | "Medium" | "Low";
+
+export type ResearchPreviewSourceDisplay =
+  | "Smart Research"
+  | "API-Football"
+  | "Static fallback"
+  | "Manual notes"
+  | "Prompt only";
 
 export interface ResearchPreviewState {
   status: ResearchPreviewStatus;

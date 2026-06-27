@@ -4,6 +4,7 @@ export { default as SceneCaptionOverlay } from "./SceneCaptionOverlay";
 export { default as SceneCard } from "./SceneCard";
 export type { SceneCardProps } from "./SceneCard";
 export { default as SceneFrameImage } from "./SceneFrameImage";
+export { default as SceneImageInspector } from "./SceneImageInspector";
 export { default as SceneImageZoomControl } from "./SceneImageZoomControl";
 export { default as SubtitleEffectControl } from "./SubtitleEffectControl";
 export { default as TimelineEditor } from "./TimelineEditor";

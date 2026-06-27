@@ -80,7 +80,7 @@ export default function DraftsDashboard() {
   };
 
   return (
-    <section aria-label="Draft dashboard" className="mx-auto max-w-3xl">
+    <section aria-label="Draft dashboard" className="mx-auto min-w-0 max-w-3xl">
       <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className={studioStepLabel}>Drafts</p>
@@ -96,9 +96,10 @@ export default function DraftsDashboard() {
       </div>
 
       {drafts.length === 0 ? (
-        <div className={`${studioPanel} space-y-4 px-5 py-10 text-center sm:px-8 sm:py-12`}>
-          <p className="text-sm font-medium text-foreground/90">
-            Your projects will appear here once you start creating.
+        <div className={`${studioPanel} space-y-3 px-5 py-10 text-center sm:px-8 sm:py-12`}>
+          <p className="text-sm font-medium text-foreground/90">No stories yet</p>
+          <p className={`${studioSubtleText} mx-auto max-w-sm`}>
+            Stories you create save here on this device — no sign-in needed.
           </p>
           <Link href="/create" className={`${studioPrimaryButton} inline-flex`}>
             Write Story
@@ -108,7 +109,7 @@ export default function DraftsDashboard() {
         <ul className="space-y-3">
           {drafts.map((draft) => (
             <li key={draft.id}>
-              <article className={`${studioPanel} px-4 py-4 sm:px-5 sm:py-5`}>
+              <article className={`${studioPanel} min-w-0 px-4 py-4 sm:px-5 sm:py-5`}>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -144,7 +145,7 @@ export default function DraftsDashboard() {
                     </dl>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-stretch">
+                  <div className="flex min-w-0 shrink-0 flex-col gap-2 sm:flex-row sm:items-stretch">
                     <button
                       type="button"
                       onClick={() => {

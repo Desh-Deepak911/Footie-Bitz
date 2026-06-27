@@ -17,7 +17,7 @@ export default function DraftLoadingState() {
     >
       <div className={`${studioPanel} mx-auto max-w-lg px-5 py-10 text-center sm:px-8 sm:py-12`}>
         <p className={studioSubtleText} role="status" aria-live="polite">
-          Loading draft...
+          Loading your story...
         </p>
       </div>
     </AppShell>
