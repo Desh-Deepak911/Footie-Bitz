@@ -77,6 +77,8 @@ export interface SceneCardProps {
   sceneTypeOptions: { value: SceneType; label: string }[];
   /** Syncs the main preview to this scene (UX only). */
   onActivate?: () => void;
+  /** When true, defers property controls to StudioSceneInspector for the selected scene. */
+  deferControlsToInspector?: boolean;
 }
 
 export default function SceneCard({
@@ -96,6 +98,7 @@ export default function SceneCard({
   onDelete,
   sceneTypeOptions,
   onActivate,
+  deferControlsToInspector = false,
 }: SceneCardProps) {
   const title = getSceneTitle(scene, index);
   const captionMode = normalizeCaptionMode(scene.captionMode);
@@ -160,27 +163,33 @@ export default function SceneCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-2 text-muted sm:ml-auto">
-          <Timer className="h-3.5 w-3.5" aria-hidden />
-          <label htmlFor={`duration-${scene.id}`} className="sr-only">
-            Duration in seconds
-          </label>
-          <input
-            id={`duration-${scene.id}`}
-            type="number"
-            min={1}
-            max={20}
-            value={scene.duration}
-                  onChange={(e) => {
-                    activateScene();
-                    const raw = Number(e.target.value);
-              const clamped = Math.min(20, Math.max(1, Math.round(raw)));
-              onUpdate({
-                duration: Number.isFinite(raw) && raw > 0 ? clamped : scene.duration,
-              });
-            }}
-            className={`${studioInputCompact} w-14 min-h-[2rem] sm:min-h-0`}
-          />
-          <span className="text-[11px] text-muted">sec</span>
+          {deferControlsToInspector ? (
+            <span className={`${studioStoryboardMeta} tabular-nums`}>{scene.duration}s</span>
+          ) : (
+            <>
+              <Timer className="h-3.5 w-3.5" aria-hidden />
+              <label htmlFor={`duration-${scene.id}`} className="sr-only">
+                Duration in seconds
+              </label>
+              <input
+                id={`duration-${scene.id}`}
+                type="number"
+                min={1}
+                max={20}
+                value={scene.duration}
+                onChange={(e) => {
+                  activateScene();
+                  const raw = Number(e.target.value);
+                  const clamped = Math.min(20, Math.max(1, Math.round(raw)));
+                  onUpdate({
+                    duration: Number.isFinite(raw) && raw > 0 ? clamped : scene.duration,
+                  });
+                }}
+                className={`${studioInputCompact} w-14 min-h-[2rem] sm:min-h-0`}
+              />
+              <span className="text-[11px] text-muted">sec</span>
+            </>
+          )}
         </div>
       </header>
 
@@ -207,9 +216,11 @@ export default function SceneCard({
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
               <SceneCaptionOverlay scene={scene} />
             </div>
-            {sceneImage ? (
+            {/* TODO(Studio UX): drag-to-position stays on sidebar preview until canvas-embedded picker ships. */}
+            {sceneImage && !deferControlsToInspector ? (
               <SceneImageInspector
                 variant="attached"
+                sceneId={scene.id}
                 controlId={`scene-image-zoom-${scene.id}`}
                 motionControlId={`scene-image-motion-${scene.id}`}
                 scale={sceneImage.scale}
@@ -219,11 +230,10 @@ export default function SceneCard({
                 onFitModeChange={handleFitModeChange}
                 onMotionChange={handleImageMotionChange}
                 onReset={handleImageReset}
-                positionDragSupported={sceneHasImage(scene)}
               />
             ) : null}
           </div>
-          {sceneHasImage(scene) ? (
+          {!deferControlsToInspector && sceneHasImage(scene) ? (
             <div className="mt-3 flex flex-wrap gap-2">
               <label className={studioUploadButton}>
                 <ImagePlus className="h-3.5 w-3.5" />
@@ -243,7 +253,7 @@ export default function SceneCard({
                 Remove
               </button>
             </div>
-          ) : (
+          ) : !deferControlsToInspector ? (
             <label className={`${studioUploadZone} mt-3`}>
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-surface-elevated/50 ring-1 ring-border/25">
                 <ImagePlus className="h-4 w-4 text-muted" />
@@ -260,9 +270,11 @@ export default function SceneCard({
                 }}
               />
             </label>
-          )}
+          ) : null}
         </section>
 
+        {!deferControlsToInspector ? (
+          <>
         {/* Narration timing — read-only context for voiceover window */}
         <section aria-label="Narration timing">
           <p className={studioFieldLabel}>Narration</p>
@@ -349,6 +361,8 @@ export default function SceneCard({
             <ChevronRight className={`${studioSelectChevronCompact} rotate-90`} />
           </div>
         </section>
+          </>
+        ) : null}
       </div>
 
       {/* Footer controls — secondary */}

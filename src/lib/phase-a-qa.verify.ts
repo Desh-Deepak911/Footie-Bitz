@@ -60,8 +60,13 @@ const voiceoverApplyHook = readFileSync(join(root, "src/hooks/useStoryVoiceoverA
 
 test("story workspace places voice settings near story controls", () => {
   const workspace = readFileSync(join(root, "src/components/StoryWorkspace.tsx"), "utf8");
-  assert.match(workspace, /VoiceSettingsCard/);
-  assert.match(workspace, /StoryReview/);
+  const projectInspector = readFileSync(
+    join(root, "src/features/editor/components/EditorProjectInspector.tsx"),
+    "utf8",
+  );
+  assert.match(workspace, /EditorProjectInspector/);
+  assert.match(projectInspector, /VoiceSettingsCard/);
+  assert.match(projectInspector, /StoryReview/);
 });
 
 test("generated caption mode uses inline preview path unchanged", () => {

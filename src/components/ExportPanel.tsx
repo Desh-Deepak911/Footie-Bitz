@@ -9,7 +9,7 @@ import {
   Film,
   Loader2,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 
 import { buildAudioMixFromStory } from "@/features/audio";
 import {
@@ -76,6 +76,8 @@ interface ExportPanelProps {
   onExportSettingsChange?: (settings: ExportSettings) => void;
   /** Optional — toggling background music updates the story via existing settings. */
   onScriptChange?: (script: FootieScript) => void;
+  /** Optional — notifies parent when export is in progress (presentation gating). */
+  onExportActiveChange?: (active: boolean) => void;
 }
 
 interface ChecklistItem {
@@ -119,6 +121,7 @@ export default function ExportPanel({
   compact = false,
   onExportSettingsChange,
   onScriptChange,
+  onExportActiveChange,
 }: ExportPanelProps) {
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [progress, setProgress] = useState(0);
@@ -174,6 +177,12 @@ export default function ExportPanel({
     exportState === "loading-voiceover" ||
     exportState === "combining" ||
     exportState === "finalizing";
+
+  useEffect(() => {
+    onExportActiveChange?.(isExporting);
+    return () => onExportActiveChange?.(false);
+  }, [isExporting, onExportActiveChange]);
+
   const audioMix = useMemo(() => buildAudioMixFromStory(script), [script]);
   const voiceoverSrc = audioMix.voiceover?.src;
   const narrationVoiceoverMismatch = useMemo(

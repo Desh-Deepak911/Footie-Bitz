@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import SceneFrameImage from "@/features/editor/components/SceneFrameImage";
 import { useDragScrollLock } from "@/hooks/useDragScrollLock";
@@ -16,6 +16,10 @@ interface MediaPickerProps {
   alt: string;
   onInteractionStart?: () => void;
   onTransformChange: (patch: SceneImageTransformPatch) => void;
+  /** Presentation-only — notifies when drag state changes. */
+  onDraggingChange?: (dragging: boolean) => void;
+  /** Presentation-only — live drag offset for canvas guide preview. */
+  onDragOffsetChange?: (offset: { x: number; y: number } | null) => void;
   className?: string;
 }
 
@@ -32,6 +36,8 @@ export default function MediaPicker({
   alt,
   onInteractionStart,
   onTransformChange,
+  onDraggingChange,
+  onDragOffsetChange,
   className = "absolute inset-0 overflow-hidden",
 }: MediaPickerProps) {
   const image = getSceneImage(scene);
@@ -42,6 +48,14 @@ export default function MediaPicker({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   useDragScrollLock(isDragging);
+
+  useEffect(() => {
+    onDraggingChange?.(isDragging);
+  }, [isDragging, onDraggingChange]);
+
+  useEffect(() => {
+    onDragOffsetChange?.(isDragging ? dragOffset : null);
+  }, [dragOffset, isDragging, onDragOffsetChange]);
 
   const interactionEnabled = Boolean(image);
 

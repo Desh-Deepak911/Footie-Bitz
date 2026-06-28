@@ -17,20 +17,16 @@ import { fetchIntelligenceResearch } from "@/features/create/utils/research-prev
 import { intelligenceQueryToAnalysis } from "@/features/intelligence/shared/intelligence-analysis.utils";
 
 import BreakLongVideoSection from "@/components/BreakLongVideoSection";
-import { AppShell } from "@/components/layout";
-import { Card } from "@/components/ui";
-import StoryComposer from "@/components/StoryComposer";
-import StudioEmptyState from "@/components/StudioEmptyState";
+import { StudioShell, StudioSection } from "@/components/studio-shell";
 import StudioLoadingState from "@/components/StudioLoadingState";
+import BriefCanvas from "@/features/create/components/BriefCanvas";
+import CreateBriefInspector from "@/features/create/components/CreateBriefInspector";
+import CreateStudioHeader from "@/features/create/components/CreateStudioHeader";
 import { createDraft } from "@/features/drafts";
 import { seedDraftSession } from "@/features/drafts/session";
 import { consumeGenerateScriptStream } from "@/lib/generateScriptStream";
 import { SAMPLE_TOPICS, WORKFLOW_STEPS } from "@/lib/studioConstants";
-import {
-  studioPanel,
-  studioSectionTitle,
-  studioStepLabel,
-} from "@/lib/studioUi";
+import { studioPanel, studioSubtleText } from "@/lib/studioUi";
 import { syncFootieScript } from "@/lib/voiceover";
 import type {
   GenerateScriptResponse,
@@ -277,26 +273,53 @@ export default function CreateStoryFlow() {
     }
   };
 
-  const handleGenerateStory = () => {
-    if (topic.trim()) {
-      void generateScript();
-      return;
-    }
-    scrollToBrief();
-  };
+  const trimmedTopic = topic.trim();
+  const hasTopic = trimmedTopic.length > 0;
+
+  if (loading) {
+    return (
+      <div className="mx-auto w-full min-w-0 max-w-4xl px-3.5 py-10 sm:px-6 lg:px-8">
+        <StudioLoadingState
+          variant="script-only"
+          topic={topic}
+          tone={tone}
+          duration={duration}
+        />
+      </div>
+    );
+  }
 
   return (
-    <AppShell
-      hasProject={false}
-      loading={loading}
-      onCreateStory={scrollToBrief}
-      onExport={scrollToBrief}
-      createDisabled={loading}
-      exportDisabled
-    >
-      {!loading && (
-        <>
-          <StoryComposer
+    <StudioShell
+      aria-label="Create story brief"
+      compactMode={false}
+      focusMode={false}
+      canvasCenterContent={false}
+      header={
+        <CreateStudioHeader
+          loading={loading}
+          hasTopic={hasTopic}
+          onWriteStory={scrollToBrief}
+        />
+      }
+      sidebar={
+        <StudioSection title="Your path" description="From idea to export.">
+          <ol className="space-y-2">
+            {WORKFLOW_STEPS.map((item, index) => (
+              <li
+                key={item.title}
+                className={`${studioPanel} ${index === 0 ? "ring-accent/25" : ""}`}
+              >
+                <p className="text-sm font-medium text-foreground/90">{item.title}</p>
+                <p className={`${studioSubtleText} mt-1`}>{item.desc}</p>
+              </li>
+            ))}
+          </ol>
+        </StudioSection>
+      }
+      canvas={
+        <div className="flex w-full min-w-0 flex-col gap-6">
+          <BriefCanvas
             topic={topic}
             onTopicChange={(value) => {
               setTopic(value);
@@ -306,70 +329,50 @@ export default function CreateStoryFlow() {
             scriptMode={scriptMode}
             onScriptModeChange={handleScriptModeChange}
             context={context}
-            onContextChange={(value) => {
-              setContext(value);
-              resetResearchPreview();
-            }}
-            enableResearch={enableResearch}
-            onEnableResearchChange={(enabled) => {
-              setEnableResearch(enabled);
-              resetResearchPreview();
-            }}
             tone={tone}
             onToneChange={setTone}
             duration={duration}
             onDurationChange={setDuration}
-            qualityMode={qualityMode}
-            onQualityModeChange={setQualityMode}
-            sceneCount={sceneCount}
-            onSceneCountChange={setSceneCount}
             sampleTopics={SAMPLE_TOPICS}
             loading={loading}
             error={error}
             onClearError={() => setError(null)}
-            onSubmit={generateScript}
-            researchPreview={researchPreview}
-            entityPreview={researchPreview.entityPreview}
-            onPreviewResearch={() => {
-              void previewResearch();
-            }}
-            onRefreshResearchPreview={() => {
-              void refreshResearchPreview();
+            onSubmit={() => {
+              void generateScript();
             }}
           />
-
-          <div className="hidden sm:block">
-            <StudioEmptyState onGenerate={handleGenerateStory} />
-          </div>
-
-          <Card className="hidden lg:block">
-            <p className={studioStepLabel}>Your path</p>
-            <h2 className={`${studioSectionTitle} mt-2`}>From idea to export</h2>
-            <div className="mt-5 grid gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-3">
-              {WORKFLOW_STEPS.map((item) => (
-                <div
-                  key={item.title}
-                  className={`${studioPanel} transition hover:bg-surface-elevated/40 hover:ring-border/30`}
-                >
-                  <p className="text-sm font-medium text-foreground/90">{item.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </>
-      )}
-
-      {loading && (
-        <StudioLoadingState
-          variant="script-only"
+          <BreakLongVideoSection />
+        </div>
+      }
+      inspector={
+        <CreateBriefInspector
+          context={context}
+          onContextChange={(value) => {
+            setContext(value);
+            resetResearchPreview();
+          }}
+          enableResearch={enableResearch}
+          onEnableResearchChange={(enabled) => {
+            setEnableResearch(enabled);
+            resetResearchPreview();
+          }}
+          qualityMode={qualityMode}
+          onQualityModeChange={setQualityMode}
+          sceneCount={sceneCount}
+          onSceneCountChange={setSceneCount}
+          loading={loading}
           topic={topic}
-          tone={tone}
-          duration={duration}
+          scriptMode={scriptMode}
+          researchPreview={researchPreview}
+          entityPreview={researchPreview.entityPreview}
+          onPreviewResearch={() => {
+            void previewResearch();
+          }}
+          onRefreshResearchPreview={() => {
+            void refreshResearchPreview();
+          }}
         />
-      )}
-
-      {!loading && <BreakLongVideoSection />}
-    </AppShell>
+      }
+    />
   );
 }

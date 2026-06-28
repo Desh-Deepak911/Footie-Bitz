@@ -150,8 +150,8 @@ test("editor workspace and timeline components remain wired", () => {
   const workspace = readSrc("src/components/StoryWorkspace.tsx");
 
   assert.match(page, /StoryWorkspace/);
-  assert.match(workspace, /TimelineEditor/);
-  assert.match(workspace, /StoryReview/);
+  assert.match(workspace, /EditorProjectSidebar/);
+  assert.match(workspace, /EditorProjectInspector/);
   assert.match(workspace, /VideoPreview/);
   assert.match(workspace, /onScriptChange/);
 });

@@ -222,10 +222,6 @@ function DraftEditorFlowBody({
     [documentScript, draftId],
   );
 
-  const scrollToExport = useCallback(() => {
-    document.getElementById("studio-export")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
   if (isNotFound || !studioScript || studioScript.scenes.length === 0) {
     return (
       <AppShell
@@ -265,26 +261,19 @@ function DraftEditorFlowBody({
   }
 
   return (
-    <AppShell
-      hasProject
+    <StoryWorkspace
+      script={studioScript}
+      onScriptChange={handleStoryChange}
+      selectedSceneIndex={previewSceneIndex}
+      onSelectedSceneChange={handleSelectedSceneChange}
+      onExportSettingsChange={handleExportSettingsChange}
       projectTitle={studioScript.title}
       projectMeta={`${totalDuration}s · ${studioScript.scenes.length} scenes`}
-      onCreateStory={() => router.push("/create")}
-      onExport={scrollToExport}
-      exportDisabled={studioScript.scenes.length === 0}
       onSaveDraft={handleSaveDraft}
       saveDraftDisabled={isSaving}
       saveDraftConfirmation={saveConfirmation ?? autosaveSavedMessage}
       persistWarning={persistWarning}
-    >
-      <StoryWorkspace
-        script={studioScript}
-        onScriptChange={handleStoryChange}
-        selectedSceneIndex={previewSceneIndex}
-        onSelectedSceneChange={handleSelectedSceneChange}
-        onScrollToExport={scrollToExport}
-        onExportSettingsChange={handleExportSettingsChange}
-      />
-    </AppShell>
+      exportDisabled={studioScript.scenes.length === 0}
+    />
   );
 }

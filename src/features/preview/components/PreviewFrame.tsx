@@ -28,24 +28,27 @@ export function SceneBackdrop({
   sceneIndex,
   style,
   timelineImageMotion = null,
+  hideImage = false,
 }: {
   scene: FootieScene;
   sceneIndex: number;
   style?: CSSProperties;
   timelineImageMotion?: TimelineImageMotionInput | null;
+  /** When true, skip rendering the scene image (e.g. edit layer renders it instead). */
+  hideImage?: boolean;
 }) {
   const sceneTypeMeta = scene.sceneType ? SCENE_TYPE_META[scene.sceneType] : null;
   const hasImage = sceneHasImage(scene);
 
   return (
     <div className="absolute inset-0 overflow-hidden" style={style}>
-      {hasImage ? (
+      {hasImage && !hideImage ? (
         <SceneFrameImage
           scene={scene}
           alt={`Scene ${sceneIndex + 1}`}
           timelineImageMotion={timelineImageMotion}
         />
-      ) : (
+      ) : !hasImage ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-surface via-background to-background px-6 text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.06] ring-1 ring-white/10">
             <Film className="h-5 w-5 text-white/40" />
@@ -60,7 +63,7 @@ export function SceneBackdrop({
             </p>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -89,6 +92,13 @@ interface PreviewFrameProps {
   transitionFromTimelineImageMotion?: TimelineImageMotionInput | null;
   transitionToTimelineImageMotion?: TimelineImageMotionInput | null;
   overlay?: ReactNode;
+  /** Optional direct-manipulation layer mounted over the 9:16 frame (editor canvas edit). */
+  editLayer?: ReactNode;
+  /** When true, scene image is rendered by the edit layer instead of the backdrop. */
+  hideSceneImage?: boolean;
+  /** Presentation-only — dims captions and enables chrome click-to-exit. */
+  frameEditActive?: boolean;
+  onExitFrameEdit?: () => void;
   footer?: ReactNode;
 }
 
@@ -100,6 +110,10 @@ export default function PreviewFrame({
   transitionFromTimelineImageMotion = null,
   transitionToTimelineImageMotion = null,
   overlay,
+  editLayer = null,
+  hideSceneImage = false,
+  frameEditActive = false,
+  onExitFrameEdit,
   footer,
 }: PreviewFrameProps) {
   const transitionStyles = transitionOverlay
@@ -133,12 +147,27 @@ export default function PreviewFrame({
           scene={previewFrame.scene}
           sceneIndex={previewFrame.sceneIndex}
           timelineImageMotion={sceneTimelineImageMotion}
+          hideImage={hideSceneImage}
         />
       )}
 
+      {editLayer}
+
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/40" />
 
-      <div className="absolute inset-x-0 top-0 z-10 px-4 pb-2 pt-11">
+      <div
+        className={`absolute inset-x-0 top-0 z-10 px-4 pb-2 pt-11 transition-opacity duration-150 ${
+          frameEditActive ? "cursor-default opacity-80" : ""
+        }`}
+        onPointerDown={
+          frameEditActive
+            ? (event) => {
+                event.stopPropagation();
+                onExitFrameEdit?.();
+              }
+            : undefined
+        }
+      >
         <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/45">
           FootieBitz
         </p>
@@ -150,7 +179,21 @@ export default function PreviewFrame({
       {overlay}
 
       {footer ? (
-        <div className="absolute inset-x-0 bottom-0 z-10 space-y-2 p-4 pb-4">{footer}</div>
+        <div
+          className={`absolute inset-x-0 bottom-0 z-10 space-y-2 p-4 pb-4 transition-opacity duration-150 ${
+            frameEditActive ? "cursor-default opacity-80" : ""
+          }`}
+          onPointerDown={
+            frameEditActive
+              ? (event) => {
+                  event.stopPropagation();
+                  onExitFrameEdit?.();
+                }
+              : undefined
+          }
+        >
+          {footer}
+        </div>
       ) : null}
     </PreviewDeviceFrame>
   );

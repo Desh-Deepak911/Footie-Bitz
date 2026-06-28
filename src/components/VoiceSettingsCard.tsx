@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useEffect } from "react";
 
 import { getCanonicalVoiceover } from "@/features/audio";
 import { getStoryVoiceSettings } from "@/features/story/utils";
@@ -33,6 +34,15 @@ interface VoiceSettingsCardProps {
   disabled?: boolean;
   /** Review flow uses Create/Update Narration; editor keeps Apply Changes. */
   variant?: "editor" | "review";
+  /** When false, apply CTA is omitted (e.g. review shell header owns primary action). */
+  showApplyButton?: boolean;
+  /** Exposes apply handler state for an external primary CTA. */
+  onApplyControlReady?: (control: {
+    apply: () => void;
+    canApply: boolean;
+    loading: boolean;
+    label: string;
+  }) => void;
 }
 
 export default function VoiceSettingsCard({
@@ -40,6 +50,8 @@ export default function VoiceSettingsCard({
   onScriptChange,
   disabled = false,
   variant = "editor",
+  showApplyButton = true,
+  onApplyControlReady,
 }: VoiceSettingsCardProps) {
   const { applyVoiceoverChanges, loading, error } = useStoryVoiceoverApply(
     script,
@@ -57,6 +69,28 @@ export default function VoiceSettingsCard({
         ? "Update Narration"
         : "Create Narration"
       : "Apply Changes";
+
+  useEffect(() => {
+    if (!onApplyControlReady) {
+      return;
+    }
+
+    onApplyControlReady({
+      apply: () => {
+        void applyVoiceoverChanges();
+      },
+      canApply: hasNarration && !controlsDisabled,
+      loading,
+      label: applyButtonLabel,
+    });
+  }, [
+    applyButtonLabel,
+    applyVoiceoverChanges,
+    controlsDisabled,
+    hasNarration,
+    loading,
+    onApplyControlReady,
+  ]);
 
   return (
     <div className={`${studioPanel} space-y-4`}>
@@ -118,18 +152,20 @@ export default function VoiceSettingsCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void applyVoiceoverChanges()}
-        disabled={loading || controlsDisabled || !hasNarration}
-        className={`${studioPrimaryButton} w-full`}
-      >
-        {loading
-          ? variant === "review"
-            ? "Creating narration..."
-            : "Updating narration..."
-          : applyButtonLabel}
-      </button>
+      {showApplyButton ? (
+        <button
+          type="button"
+          onClick={() => void applyVoiceoverChanges()}
+          disabled={loading || controlsDisabled || !hasNarration}
+          className={`${studioPrimaryButton} w-full`}
+        >
+          {loading
+            ? variant === "review"
+              ? "Creating narration..."
+              : "Updating narration..."
+            : applyButtonLabel}
+        </button>
+      ) : null}
 
       {loading ? (
         <p className={`${studioSubtleText} text-center tabular-nums`} role="status" aria-live="polite">
@@ -140,9 +176,13 @@ export default function VoiceSettingsCard({
       ) : (
         <p className={studioSubtleText}>
           {variant === "review"
-            ? hasVoiceover
-              ? "Updates spoken audio at the selected speed. Scene timings stay the same."
-              : "No narration yet. Add script text above, then create narration here."
+            ? showApplyButton
+              ? hasVoiceover
+                ? "Updates spoken audio at the selected speed. Scene timings stay the same."
+                : "No narration yet. Add script text above, then create narration here."
+              : hasVoiceover
+                ? "Use the header action to update narration after changing voice or speed."
+                : "Use the header action to create narration from your script."
             : "Updates spoken audio at the selected speed. Scene timings stay the same."}
         </p>
       )}

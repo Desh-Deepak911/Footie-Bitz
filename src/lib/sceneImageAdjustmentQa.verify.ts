@@ -113,7 +113,8 @@ test("4. image control interactions wire preview activation by scene index", () 
   assert.match(sceneCard, /handleImageTransformChange[\s\S]*activateScene\(\)/);
   assert.match(sceneCard, /handleFitModeChange[\s\S]*activateScene\(\)/);
   assert.match(sceneCard, /handleImageReset[\s\S]*activateScene\(\)/);
-  assert.match(timelineEditor, /onActivate=\{\(\) => onSelectedSceneChange\?\.\(index\)\}/);
+  assert.match(timelineEditor, /handleSceneActivate[\s\S]*selection\.selectScene\(scene\.id\)/);
+  assert.match(timelineEditor, /onActivate=\{\(\) => handleSceneActivate\(scene\)\}/);
   assert.match(mediaPicker, /onInteractionStart\?\.\(\)/);
 });
 

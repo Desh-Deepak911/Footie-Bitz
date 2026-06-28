@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef } from "react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -11,12 +12,16 @@ import {
   Volume2,
 } from "lucide-react";
 
+import EditorCanvasEditLayer from "@/features/editor/components/EditorCanvasEditLayer";
+import { useEditorSelection } from "@/features/editor/selection";
 import CaptionOverlay from "@/features/preview/components/CaptionOverlay";
 import PreviewFrame, { DynamicIsland, PreviewDeviceFrame } from "@/features/preview/components/PreviewFrame";
 import SubtitleOverlay from "@/features/preview/components/SubtitleOverlay";
 import { usePreviewPlayback } from "@/features/preview/hooks/usePreviewPlayback";
 import { getPreviewSceneTiming, resolvePreviewTimelineImageMotion, resolvePreviewTransitionOverlay } from "@/features/preview/utils";
-import { normalizeCaptionMode } from "@/features/story/utils";
+import { normalizeCaptionMode, sceneHasImage, type SceneImageTransformPatch } from "@/features/story/utils";
+import type { TimelinePlaybackSnapshot } from "@/features/timeline-editor/timeline-playback-port.types";
+import { EMPTY_TIMELINE_PLAYBACK_SNAPSHOT } from "@/features/timeline-editor/timeline-playback-port.types";
 import {
   studioPreviewControls,
   studioPreviewPill,
@@ -29,19 +34,39 @@ import type { FootieScript } from "@/features/story/types";
 
 interface VideoPreviewProps {
   script: FootieScript | null;
-  selectedSceneIndex: number;
-  onSelectedSceneChange: (index: number) => void;
+  /** Mount canvas drag/pan when idle (editor route). Requires EditorSelectionProvider. */
+  enableCanvasEdit?: boolean;
+  /** Blocks canvas edit while export is running. */
+  canvasEditBlocked?: boolean;
+  onSceneImageTransformChange?: (sceneId: string, patch: SceneImageTransformPatch) => void;
+  onSceneImageReset?: (sceneId: string) => void;
+  /** Publishes preview clock snapshots for timeline playhead — does not affect playback. */
+  onClockUpdate?: (snapshot: TimelinePlaybackSnapshot) => void;
 }
 
 export default function VideoPreview({
   script,
-  selectedSceneIndex,
-  onSelectedSceneChange,
+  enableCanvasEdit = false,
+  canvasEditBlocked = false,
+  onSceneImageTransformChange,
+  onSceneImageReset,
+  onClockUpdate,
 }: VideoPreviewProps) {
+  const selection = useEditorSelection();
+  const canvasEditActive = enableCanvasEdit;
+
+  const navigateSceneIndex = useCallback(
+    (index: number) => {
+      selection.syncSceneIndex(index);
+    },
+    [selection],
+  );
+
+  const previewRootRef = useRef<HTMLDivElement>(null);
   const playback = usePreviewPlayback({
     script,
-    selectedSceneIndex,
-    onSelectedSceneChange,
+    selectedSceneIndex: selection.selectedSceneIndex,
+    onSelectedSceneChange: navigateSceneIndex,
   });
 
   const {
@@ -80,7 +105,147 @@ export default function VideoPreview({
     goNext,
   } = playback;
 
-  if (!script || sceneCount === 0 || !scene || !previewFrame) {
+  const displayScene = previewFrame?.scene ?? null;
+  const previewSceneTiming =
+    script && sceneCount > 0 && scene && previewFrame
+      ? getPreviewSceneTiming({
+          scenes,
+          sceneIndex: activeSceneIndex,
+          elapsedSec,
+          playbackMode,
+          isPlaying,
+          browserSceneStartedAtMs,
+          previewClockMs,
+          masterTimeline,
+          currentTimeMs,
+        })
+      : null;
+  const transitionOverlay =
+    previewSceneTiming && masterTimeline && previewSceneTiming.timelineTimeMs != null
+      ? resolvePreviewTransitionOverlay(
+          masterTimeline,
+          scenes,
+          previewSceneTiming.timelineTimeMs,
+        )
+      : null;
+
+  const playbackActive = isPlaying || isSpeaking;
+  const canvasEditAvailable = Boolean(
+    canvasEditActive &&
+      displayScene &&
+      sceneHasImage(displayScene) &&
+      !playbackActive &&
+      !canvasEditBlocked &&
+      !transitionOverlay &&
+      onSceneImageTransformChange,
+  );
+
+  const isFrameEditing = canvasEditActive && selection.isImageEditing;
+
+  const exitFrameEdit = useCallback(() => {
+    selection.exitImageEdit();
+  }, [selection]);
+
+  useEffect(() => {
+    if (!canvasEditActive) {
+      return;
+    }
+
+    selection.setImageEditAvailable(canvasEditAvailable);
+    return () => selection.setImageEditAvailable(false);
+  }, [canvasEditActive, canvasEditAvailable, selection]);
+
+  useEffect(() => {
+    if (!canvasEditActive) {
+      return;
+    }
+
+    selection.setPlaybackLocked(playbackActive);
+  }, [canvasEditActive, playbackActive, selection]);
+
+  useEffect(() => {
+    if (!onClockUpdate) {
+      return;
+    }
+
+    if (!script || sceneCount === 0 || !masterTimeline || masterTimeline.renderDurationMs <= 0) {
+      onClockUpdate(EMPTY_TIMELINE_PLAYBACK_SNAPSHOT);
+      return;
+    }
+
+    const publishClock = () => {
+      const timing = getPreviewSceneTiming({
+        scenes,
+        sceneIndex: activeSceneIndex,
+        elapsedSec,
+        playbackMode,
+        isPlaying,
+        browserSceneStartedAtMs,
+        previewClockMs,
+        masterTimeline,
+        currentTimeMs,
+      });
+
+      const timelineTimeMs = timing.timelineTimeMs ?? currentTimeMs;
+      const activeScene = scenes[activeSceneIndex];
+
+      onClockUpdate({
+        currentTimeMs: isPlaying || isSpeaking ? timelineTimeMs : currentTimeMs,
+        renderDurationMs: masterTimeline.renderDurationMs,
+        isPlaying: isPlaying || isSpeaking,
+        activeSceneId: activeScene?.id ?? null,
+      });
+    };
+
+    publishClock();
+
+    if (!isPlaying && !isSpeaking) {
+      return;
+    }
+
+    let frameId = 0;
+    const tick = () => {
+      publishClock();
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [
+    activeSceneIndex,
+    browserSceneStartedAtMs,
+    currentTimeMs,
+    elapsedSec,
+    isPlaying,
+    isSpeaking,
+    masterTimeline,
+    onClockUpdate,
+    playbackMode,
+    previewClockMs,
+    sceneCount,
+    scenes,
+    script,
+  ]);
+
+  useEffect(() => {
+    if (!isFrameEditing) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const root = previewRootRef.current;
+      if (!root || root.contains(event.target as Node)) {
+        return;
+      }
+
+      exitFrameEdit();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [exitFrameEdit, isFrameEditing]);
+
+  if (!script || sceneCount === 0 || !scene || !previewFrame || !displayScene || !previewSceneTiming) {
     return (
       <div className="flex w-full min-w-0 flex-col items-center gap-3 sm:gap-4">
         <PreviewDeviceFrame>
@@ -99,27 +264,11 @@ export default function VideoPreview({
     );
   }
 
-  const displayScene = previewFrame.scene;
   const isNarrationSubtitles =
     normalizeCaptionMode(displayScene.captionMode) === "subtitles";
 
-  const previewSceneTiming = getPreviewSceneTiming({
-    scenes,
-    sceneIndex: activeSceneIndex,
-    elapsedSec,
-    playbackMode,
-    isPlaying,
-    browserSceneStartedAtMs,
-    previewClockMs,
-    masterTimeline,
-    currentTimeMs,
-  });
   const { sceneElapsedMs, sceneDurationMs, sceneTimelineImageMotion, timelineTimeMs } =
     previewSceneTiming;
-  const transitionOverlay =
-    masterTimeline && timelineTimeMs != null
-      ? resolvePreviewTransitionOverlay(masterTimeline, scenes, timelineTimeMs)
-      : null;
   const transitionFromTimelineImageMotion =
     transitionOverlay && masterTimeline && timelineTimeMs != null
       ? resolvePreviewTimelineImageMotion(
@@ -144,8 +293,23 @@ export default function VideoPreview({
   const showSubtitles = isNarrationSubtitles && !hideCaptionsDuringTransition;
   const showGeneratedCaption = !isNarrationSubtitles && !hideCaptionsDuringTransition;
 
+  const editLayer =
+    canvasEditAvailable && onSceneImageTransformChange && displayScene ? (
+      <EditorCanvasEditLayer
+        scene={displayScene}
+        sceneIndex={previewFrame.sceneIndex}
+        onTransformChange={(patch) => onSceneImageTransformChange(displayScene.id, patch)}
+        onResetFrame={
+          onSceneImageReset ? () => onSceneImageReset(displayScene.id) : undefined
+        }
+      />
+    ) : null;
+
   return (
-    <div className="flex w-full min-w-0 flex-col items-center gap-3 sm:gap-4">
+    <div
+      ref={previewRootRef}
+      className="flex w-full min-w-0 flex-col items-center gap-3 sm:gap-4"
+    >
       <PreviewFrame
         title={script.title}
         previewFrame={previewFrame}
@@ -153,6 +317,10 @@ export default function VideoPreview({
         sceneTimelineImageMotion={sceneTimelineImageMotion}
         transitionFromTimelineImageMotion={transitionFromTimelineImageMotion}
         transitionToTimelineImageMotion={transitionToTimelineImageMotion}
+        editLayer={editLayer}
+        hideSceneImage={isFrameEditing}
+        frameEditActive={isFrameEditing}
+        onExitFrameEdit={exitFrameEdit}
         overlay={
           showSubtitles ? (
             <SubtitleOverlay
@@ -163,6 +331,9 @@ export default function VideoPreview({
               chunkProgress={previewSceneTiming.chunkProgress}
               captionAnimationState={previewSceneTiming.captionAnimationState}
               subtitleAvailableDurationMs={previewSceneTiming.subtitleAvailableDurationMs}
+              className={
+                isFrameEditing ? "pointer-events-none opacity-55 transition-opacity duration-150" : ""
+              }
             />
           ) : null
         }
@@ -210,7 +381,14 @@ export default function VideoPreview({
             key={s.id}
             type="button"
             onClick={() => {
-              if (!isPlaying) onSelectedSceneChange(index);
+              if (isPlaying) {
+                return;
+              }
+
+              const targetScene = scenes[index];
+              if (targetScene) {
+                selection.selectScene(targetScene.id);
+              }
             }}
             disabled={isPlaying}
             aria-label={`Scene ${index + 1}`}

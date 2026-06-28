@@ -15,6 +15,7 @@ import { useEffect, useRef } from "react";
 import { PRODUCT_NAME } from "@/lib/product-brand";
 import SceneCard from "@/features/editor/components/SceneCard";
 import TransitionCard from "@/features/editor/components/TransitionCard";
+import { useEditorSelection } from "@/features/editor/selection";
 
 import {
   createEmptyScene,
@@ -69,9 +70,6 @@ const SCENE_TYPE_OPTIONS: { value: SceneType; label: string }[] = [
 interface TimelineEditorProps {
   script: FootieScript;
   onScriptChange: (script: FootieScript) => void;
-  /** Index of the scene currently selected in the preview (used for Add Transition). */
-  selectedSceneIndex?: number;
-  onSelectedSceneChange?: (index: number) => void;
   variant?: "default" | "storyboard";
 }
 
@@ -82,10 +80,10 @@ function isBlobUrl(url: string) {
 export default function TimelineEditor({
   script,
   onScriptChange,
-  selectedSceneIndex,
-  onSelectedSceneChange,
   variant = "default",
 }: TimelineEditorProps) {
+  const selection = useEditorSelection();
+  const activeSceneIndex = selection.selectedSceneIndex;
   const managedBlobUrls = useRef<Set<string>>(new Set());
 
   const scenes = script.scenes;
@@ -141,10 +139,10 @@ export default function TimelineEditor({
 
   const addTransitionBuffer = () => {
     const transition = { ...createEmptyScene("transition"), duration: 2, subtitle: "Transition" };
-    // Insert after selectedSceneIndex if valid, otherwise append.
+    // Insert after activeSceneIndex if valid, otherwise append.
     const insertAfter =
-      selectedSceneIndex !== undefined && selectedSceneIndex >= 0 && selectedSceneIndex < scenes.length
-        ? selectedSceneIndex
+      activeSceneIndex !== undefined && activeSceneIndex >= 0 && activeSceneIndex < scenes.length
+        ? activeSceneIndex
         : scenes.length - 1;
     const next = [...scenes];
     next.splice(insertAfter + 1, 0, transition);
@@ -243,6 +241,10 @@ export default function TimelineEditor({
     };
   }, []);
 
+  const handleSceneActivate = (scene: FootieScene) => {
+    selection.selectScene(scene.id);
+  };
+
   const isStoryboard = variant === "storyboard";
 
   return (
@@ -333,8 +335,8 @@ export default function TimelineEditor({
             type="button"
             onClick={addTransitionBuffer}
             title={
-              selectedSceneIndex !== undefined
-                ? `Insert a 2s transition after scene ${selectedSceneIndex + 1}`
+              activeSceneIndex !== undefined
+                ? `Insert a 2s transition after scene ${activeSceneIndex + 1}`
                 : "Insert a 2s transition at the end"
             }
             className={studioCompactButton}
@@ -415,7 +417,8 @@ export default function TimelineEditor({
                 onMoveDown={() => moveDown(index)}
                 onDelete={() => deleteScene(index)}
                 sceneTypeOptions={SCENE_TYPE_OPTIONS}
-                onActivate={() => onSelectedSceneChange?.(index)}
+                onActivate={() => handleSceneActivate(scene)}
+                deferControlsToInspector={selection.selectedSceneId === scene.id}
               />
             </div>
           );

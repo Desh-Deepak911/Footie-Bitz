@@ -340,3 +340,196 @@ export const studioLoadingMessage =
 
 export const studioLoadingSubtext =
   "mt-1.5 text-center text-xs text-muted";
+
+/* ── Studio UX 2.0 shell layout (presentation only) ───────────────────────── */
+
+/** Full studio viewport shell — fixed-height editor chrome. */
+export const studioShellRoot =
+  "studio-shell flex min-h-0 min-w-0 flex-col overflow-hidden bg-background";
+
+/** Centered shell content max width (editor workspace). */
+export const studioShellMaxWidth = "mx-auto w-full min-w-0 max-w-[100rem]";
+
+/** Gap between shell regions (sidebar, canvas, inspector). */
+export const studioShellPanelGap = "gap-3 lg:gap-4";
+
+/** Horizontal padding inside shell regions. */
+export const studioShellRegionPadding = "px-3 py-3 sm:px-4 sm:py-4 lg:px-4";
+
+/** Left scene-list rail — default (≥1280px intent). */
+export const studioShellSidebarWidth =
+  "hidden shrink-0 overflow-y-auto overscroll-contain lg:flex lg:w-[15rem] xl:w-[15rem]";
+
+/** Left scene-list rail — compact (laptop). */
+export const studioShellSidebarWidthCompact =
+  "hidden shrink-0 overflow-y-auto overscroll-contain lg:flex lg:w-[12.5rem]";
+
+/** Right inspector — default width. */
+export const studioShellInspectorWidth =
+  "flex min-h-0 w-full shrink-0 flex-col overflow-y-auto overscroll-contain lg:w-[20rem] xl:w-[20rem]";
+
+/** Right inspector — compact width. */
+export const studioShellInspectorWidthCompact =
+  "flex min-h-0 w-full shrink-0 flex-col overflow-y-auto overscroll-contain lg:w-[16.25rem]";
+
+/** Primary canvas column — centers preview content. */
+export const studioShellCanvasRegion =
+  "flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto overscroll-contain";
+
+/** Preview frame sizing inside canvas (9:16 device). */
+export const studioShellCanvasMaxWidth =
+  "w-full max-w-[min(100%,26.25rem)] sm:max-w-[min(100%,28rem)]";
+
+/** Editor canvas — larger preview focus area without changing VideoPreview internals. */
+export const studioShellEditorCanvasMaxWidth =
+  "w-full max-w-[min(100%,22rem)] sm:max-w-[min(100%,26rem)] lg:max-w-[min(100%,32rem)] xl:max-w-[min(100%,36rem)]";
+
+/** Scales relocated preview within the editor canvas for CapCut-style focus. */
+export const studioShellEditorPreviewWrap =
+  "flex w-full flex-col items-center justify-center origin-center scale-[1.05] sm:scale-[1.12] lg:scale-[1.2] xl:scale-[1.28]";
+
+/** Bottom timeline rail — default height. */
+export const studioShellTimelineHeight =
+  "flex h-[7.5rem] shrink-0 flex-col overflow-hidden border-t border-border/40 bg-surface/20 lg:h-[7.5rem]";
+
+/** Bottom timeline rail — compact height. */
+export const studioShellTimelineHeightCompact =
+  "flex h-[6.25rem] shrink-0 flex-col overflow-hidden border-t border-border/40 bg-surface/20";
+
+/** Row containing canvas + inspector. */
+export const studioShellBodyRow =
+  "flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row";
+
+/** Column containing body row + timeline. */
+export const studioShellMainColumn = "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden";
+
+/** Header slot container inside shell. */
+export const studioShellHeaderRegion =
+  `shrink-0 border-b border-border/60 bg-background/60 backdrop-blur-2xl backdrop-saturate-150 ${shadowInset}`;
+
+/** Footer slot — hidden in focus mode via shell modifier. */
+export const studioShellFooterRegion =
+  "shrink-0 border-t border-border/60 bg-background/50 py-3 backdrop-blur-sm sm:py-4";
+
+/** Inner panel surface for shell slots. */
+export const studioShellPanelSurface =
+  `min-h-0 min-w-0 rounded-xl bg-surface/30 p-3 ring-1 ring-border/15 sm:p-4 ${shadowInset}`;
+
+/** Section title inside shell panels. */
+export const studioShellSectionTitle =
+  "text-sm font-semibold tracking-tight text-foreground/95 sm:text-[15px]";
+
+/** Section description inside shell panels. */
+export const studioShellSectionDesc =
+  "mt-0.5 text-xs leading-relaxed text-muted";
+
+/* ── Export drawer (Studio UX 2.0) ─────────────────────────────────────────── */
+
+/** Backdrop behind export drawer — above canvas, below drawer panel. */
+export const studioExportDrawerBackdrop =
+  "fixed inset-0 z-50 bg-black/55 backdrop-blur-sm transition-opacity duration-200 ease-out";
+
+/** Right-side / bottom-sheet export panel container. */
+export const studioExportDrawerPanel =
+  "fixed z-[60] flex max-h-[min(92dvh,100%)] flex-col bg-background shadow-2xl ring-1 ring-border/40 transition-transform duration-300 ease-out inset-x-0 bottom-0 rounded-t-2xl border-t border-border/40 lg:inset-y-0 lg:right-0 lg:left-auto lg:max-h-none lg:w-[min(100%,20rem)] lg:rounded-none lg:rounded-l-2xl lg:border-l lg:border-t-0 xl:w-[20rem]";
+
+/** Export drawer header row. */
+export const studioExportDrawerHeader =
+  "flex shrink-0 items-start justify-between gap-3 border-b border-border/30 px-4 py-3.5 sm:px-5 sm:py-4";
+
+/** Scrollable export drawer body. */
+export const studioExportDrawerBody =
+  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:py-5";
+
+/* ── Timeline rail (Studio UX 2.0) ─────────────────────────────────────────── */
+
+/** Horizontal scene chip scroller inside StudioTimelineShell. */
+export const studioTimelineRailScroll =
+  "flex min-h-0 flex-1 items-stretch gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/40";
+
+/** Compact scene navigation chip — inactive. */
+export const studioTimelineRailChip =
+  `group flex w-[4.75rem] shrink-0 flex-col items-stretch gap-1.5 rounded-xl bg-surface/35 p-1.5 text-left ring-1 ring-border/20 transition duration-150 hover:bg-surface-elevated/45 hover:ring-border/35 hover:shadow-sm active:scale-[0.98] sm:w-[5.25rem] ${focusRing}`;
+
+/** Compact scene navigation chip — selected. */
+export const studioTimelineRailChipActive =
+  "rounded-xl bg-accent-soft p-1.5 ring-1 ring-accent/35 shadow-[0_0_0_1px_rgba(91,140,255,0.12)]";
+
+/** Thumbnail frame inside a timeline rail chip. */
+export const studioTimelineRailThumb =
+  "relative h-11 w-full overflow-hidden rounded-lg bg-surface-elevated/40 ring-1 ring-border/15 sm:h-12";
+
+/** Scene meta label under thumbnail. */
+export const studioTimelineRailLabel =
+  "truncate text-center text-[10px] font-semibold leading-tight text-foreground/90";
+
+/** Duration caption under scene label. */
+export const studioTimelineRailDuration =
+  "truncate text-center text-[9px] font-medium tabular-nums text-muted";
+
+/* ── Inspector sections (Studio UX 2.0) ────────────────────────────────────── */
+
+/** Collapsible inspector section container. */
+export const studioInspectorSection =
+  "group/details min-w-0 rounded-xl bg-surface/25 ring-1 ring-border/15";
+
+/** Inspector section summary row. */
+export const studioInspectorSectionSummary =
+  "flex cursor-pointer list-none items-start justify-between gap-2 px-3 py-2.5 sm:px-3.5 [&::-webkit-details-marker]:hidden";
+
+/** Inspector section title. */
+export const studioInspectorSectionTitle =
+  "text-xs font-semibold tracking-tight text-foreground/90 sm:text-[13px]";
+
+/** Inspector section body padding. */
+export const studioInspectorSectionBody =
+  "space-y-3 border-t border-border/15 px-3 py-3 sm:px-3.5 sm:py-3.5";
+
+/** Scene summary strip at top of inspector. */
+export const studioInspectorSummaryStrip =
+  "rounded-xl bg-surface/30 px-3 py-3 ring-1 ring-border/15 sm:px-3.5";
+
+/* ── Editor project sidebar (navigation only) ──────────────────────────────── */
+
+/** Vertical scene navigation list in editor sidebar. */
+export const studioSidebarSceneList = "flex min-w-0 flex-col gap-1";
+
+/** Sidebar scene row — inactive. */
+export const studioSidebarSceneItem =
+  `flex w-full min-w-0 items-center gap-2.5 rounded-xl px-2 py-2 text-left ring-1 ring-transparent transition duration-150 hover:bg-surface-elevated/40 hover:ring-border/20 active:scale-[0.99] ${focusRing}`;
+
+/** Sidebar scene row — selected. */
+export const studioSidebarSceneItemActive =
+  "bg-accent-soft ring-1 ring-accent/30 hover:bg-accent-soft hover:ring-accent/35";
+
+/** Sidebar scene thumbnail. */
+export const studioSidebarSceneThumb =
+  "flex h-10 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-elevated/45 ring-1 ring-border/15";
+
+/** Sidebar scene title. */
+export const studioSidebarSceneTitle =
+  "block truncate text-xs font-semibold text-foreground/90";
+
+/** Sidebar scene meta line. */
+export const studioSidebarSceneMeta =
+  "block truncate text-[10px] tabular-nums text-muted";
+
+/* ── Context ribbon (Studio UX 2.1) ────────────────────────────────────────── */
+
+/** Context ribbon container above the editor canvas. */
+export const studioContextRibbon =
+  "mb-3 flex w-full min-w-0 flex-wrap items-center gap-3 rounded-xl bg-surface/35 px-3 py-2 ring-1 ring-border/20 sm:px-3.5";
+
+/** Ribbon section grouping. */
+export const studioRibbonSection = "flex min-w-0 flex-wrap items-center gap-2 sm:gap-3";
+
+/** Ribbon section title chip. */
+export const studioRibbonSectionTitle =
+  "inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-surface-elevated/40 px-2 py-1 text-[11px] font-semibold text-foreground/85 ring-1 ring-border/15";
+
+/** Ribbon action control — inactive. */
+export const studioRibbonAction = studioCompactButton;
+
+/** Ribbon action control — active / selected. */
+export const studioRibbonActionActive =
+  "inline-flex items-center justify-center gap-1.5 rounded-xl bg-accent-soft px-3 py-2 min-h-[2.25rem] text-xs font-medium text-foreground ring-1 ring-accent/30 hover:bg-accent-soft/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-0 sm:py-1.5 outline-none transition-[color,background-color,box-shadow,transform] duration-200 focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background";

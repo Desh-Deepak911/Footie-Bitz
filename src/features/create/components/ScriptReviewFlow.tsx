@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import StoryReview from "@/components/StoryReview";
-import StudioLoadingState from "@/components/StudioLoadingState";
-import VoiceSettingsCard from "@/components/VoiceSettingsCard";
+import ScriptCanvas from "@/features/create/components/ScriptCanvas";
+import ReviewInspector from "@/features/create/components/ReviewInspector";
+import ReviewStudioHeader, {
+  type ReviewPrimaryAction,
+} from "@/features/create/components/ReviewStudioHeader";
+import { StudioShell, StudioSection } from "@/components/studio-shell";
 import { AppShell } from "@/components/layout";
-import { Card } from "@/components/ui";
 import { getCanonicalVoiceover } from "@/features/audio";
 import DraftLoadingState from "@/features/drafts/components/DraftLoadingState";
 import { isEditorReadyDraft } from "@/features/drafts";
@@ -23,19 +25,12 @@ import {
 } from "@/features/create/utils/review-brief-display.utils";
 import { consumeGenerateScriptStream } from "@/lib/generateScriptStream";
 import {
-  studioBadge,
-  studioFieldLabel,
-  studioInput,
-  studioPanel,
   studioPrimaryButton,
   studioSecondaryButton,
   studioSectionDesc,
   studioSectionTitle,
-  studioStepLabel,
+  studioPanel,
   studioSubtleText,
-  studioMobileActionBar,
-  studioMobileActionButton,
-  studioMobileActionButtonPrimary,
 } from "@/lib/studioUi";
 import { applyStoryUpdate, syncFootieScript } from "@/lib/voiceover";
 import type { GenerateScriptResponse, GenerationLoadingStep } from "@/types/footiebitz";
@@ -53,8 +48,42 @@ interface ScriptReviewFlowProps {
 
 type ReviewStep = 2 | 3 | 4 | 5;
 
-function reviewSectionRing(active: boolean): string {
-  return active ? "ring-1 ring-accent/30" : "";
+const REVIEW_WORKFLOW_STEPS = [
+  { key: "brief", title: "Brief", description: "Topic and settings" },
+  { key: "script", title: "Script", description: "Title and narration" },
+  { key: "narration", title: "Narration", description: "Spoken audio" },
+  { key: "storyboard", title: "Storyboard", description: "Timed scenes" },
+  { key: "editor", title: "Editor", description: "Visuals and export" },
+] as const;
+
+function resolveReviewWorkflowStepState(
+  stepKey: (typeof REVIEW_WORKFLOW_STEPS)[number]["key"],
+  activeStep: ReviewStep,
+  hasVoiceover: boolean,
+  hasStoryboard: boolean,
+): "complete" | "current" | "upcoming" {
+  if (stepKey === "brief") {
+    return "complete";
+  }
+  if (stepKey === "script") {
+    return activeStep === 2 ? "current" : "complete";
+  }
+  if (stepKey === "narration") {
+    if (hasVoiceover) {
+      return "complete";
+    }
+    return activeStep === 3 ? "current" : "upcoming";
+  }
+  if (stepKey === "storyboard") {
+    if (hasStoryboard) {
+      return "complete";
+    }
+    return activeStep === 4 || activeStep === 5 ? "current" : "upcoming";
+  }
+  if (hasStoryboard) {
+    return activeStep === 5 ? "current" : "upcoming";
+  }
+  return "upcoming";
 }
 
 function logCreateScenes(message: string, details?: Record<string, unknown>) {
@@ -154,6 +183,29 @@ function ScriptReviewFlowContent({ draftId }: ScriptReviewFlowProps) {
   const [createScenesError, setCreateScenesError] = useState<string | null>(null);
   const [scenesCreatedSuccessfully, setScenesCreatedSuccessfully] = useState(false);
   const [storyboardStep, setStoryboardStep] = useState<GenerationLoadingStep>(3);
+  const [voiceApplyControl, setVoiceApplyControl] = useState<{
+    apply: () => void;
+    canApply: boolean;
+    loading: boolean;
+    label: string;
+  } | null>(null);
+
+  const handleVoiceApplyControlReady = useCallback(
+    (control: { apply: () => void; canApply: boolean; loading: boolean; label: string }) => {
+      setVoiceApplyControl((previous) => {
+        if (
+          previous &&
+          previous.canApply === control.canApply &&
+          previous.loading === control.loading &&
+          previous.label === control.label
+        ) {
+          return previous.apply === control.apply ? previous : control;
+        }
+        return control;
+      });
+    },
+    [],
+  );
 
   const creationBrief = loadedDraft?.creationBrief;
   const sceneCount =
@@ -378,6 +430,64 @@ function ScriptReviewFlowContent({ draftId }: ScriptReviewFlowProps) {
     }
   }, [applyEditorReadyScript, creationBrief, draftId, flushPersist, router, sceneCount, script]);
 
+  const handlePrimaryAction = useCallback(() => {
+    if (hasStoryboard || scenesCreatedSuccessfully) {
+      handleOpenEditor();
+      return;
+    }
+
+    if (hasVoiceover && voiceoverDurationMs && voiceoverDurationMs > 0) {
+      void handleCreateScenes();
+      return;
+    }
+
+    voiceApplyControl?.apply();
+  }, [
+    handleCreateScenes,
+    handleOpenEditor,
+    hasStoryboard,
+    hasVoiceover,
+    scenesCreatedSuccessfully,
+    voiceApplyControl,
+    voiceoverDurationMs,
+  ]);
+
+  let primaryAction: ReviewPrimaryAction;
+
+  if (isCreatingScenes) {
+    primaryAction = {
+      label: "Building storyboard",
+      onClick: handlePrimaryAction,
+      disabled: true,
+      loading: true,
+    };
+  } else if (hasStoryboard || scenesCreatedSuccessfully) {
+    primaryAction = {
+      label: "Open Editor",
+      onClick: handlePrimaryAction,
+      disabled: false,
+    };
+  } else if (hasVoiceover && voiceoverDurationMs && voiceoverDurationMs > 0) {
+    primaryAction = {
+      label: "Build Storyboard",
+      onClick: handlePrimaryAction,
+      disabled: !hasNarration,
+      disabledReason: !hasNarration
+        ? "Add script text in the canvas before building your storyboard."
+        : undefined,
+    };
+  } else {
+    primaryAction = {
+      label: voiceApplyControl?.label ?? "Create Narration",
+      onClick: handlePrimaryAction,
+      disabled: !voiceApplyControl?.canApply || Boolean(voiceApplyControl?.loading),
+      loading: voiceApplyControl?.loading,
+      disabledReason: !hasNarration
+        ? "Add script text in the canvas before creating narration."
+        : undefined,
+    };
+  }
+
   useEffect(() => {
     return () => {
       if (saveMessageTimeoutRef.current != null) {
@@ -417,293 +527,77 @@ function ScriptReviewFlowContent({ draftId }: ScriptReviewFlowProps) {
   }
 
   return (
-    <AppShell
-      hasProject
-      projectTitle={script.title}
-      projectMeta="Story"
-      onCreateStory={() => router.push("/create")}
-      onExport={() => undefined}
-      exportDisabled
-      persistWarning={persistWarning}
-    >
-      <div className="mx-auto flex min-w-0 w-full max-w-3xl flex-col gap-6 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-4">
-        <div>
-          <p className={studioStepLabel}>Review</p>
-          <h1 className={studioSectionTitle}>Review your story</h1>
-          <p className={studioSectionDesc}>
-            Confirm your brief, refine the script, create narration, then build your storyboard.
-          </p>
-        </div>
+    <StudioShell
+      aria-label="Script review"
+      canvasCenterContent={false}
+      header={
+        <ReviewStudioHeader
+          projectTitle={script.title}
+          primaryAction={primaryAction}
+          persistWarning={persistWarning}
+        />
+      }
+      sidebar={
+        <StudioSection title="Workflow" description="Brief through editor.">
+          <ol className="space-y-2">
+            {REVIEW_WORKFLOW_STEPS.map((step) => {
+              const state = resolveReviewWorkflowStepState(
+                step.key,
+                activeStep,
+                hasVoiceover,
+                hasStoryboard || scenesCreatedSuccessfully,
+              );
 
-        <Card>
-          <p className={studioStepLabel}>1 · Your Brief</p>
-          <h2 className={`${studioSectionTitle} mt-1`}>Your Brief</h2>
-          <p className={`${studioSectionDesc} mb-5`}>
-            Settings from Create — carried forward through narration and storyboard.
-          </p>
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div className={`${studioPanel} space-y-1.5`}>
-              <dt className={studioFieldLabel}>Content type</dt>
-              <dd>
-                <span className={studioBadge}>{scriptModeLabel}</span>
-              </dd>
-            </div>
-            <div className={`${studioPanel} space-y-1.5`}>
-              <dt className={studioFieldLabel}>Target duration</dt>
-              <dd className="text-sm text-foreground/90">{targetDurationSeconds}s</dd>
-            </div>
-            {researchConfidenceLabel ? (
-              <div className={`${studioPanel} space-y-1.5 sm:col-span-2`}>
-                <dt className={studioFieldLabel}>Research confidence</dt>
-                <dd>
-                  <span className={studioBadge}>{researchConfidenceLabel}</span>
-                  {creationBrief?.researchWarning ? (
-                    <p className={`${studioSubtleText} mt-2`}>{creationBrief.researchWarning}</p>
-                  ) : (
-                    <p className={`${studioSubtleText} mt-2`}>
-                      Based on Smart Research at create time.
-                    </p>
-                  )}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-
-          <details className="group mt-5 border-t border-border/30 pt-5">
-            <summary className="cursor-pointer list-none text-sm font-medium text-foreground/90 [&::-webkit-details-marker]:hidden">
-              View brief details
-              <span className={`${studioSubtleText} ml-2 font-normal group-open:hidden`}>
-                — topic, notes, tone
-              </span>
-            </summary>
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className={`${studioPanel} space-y-1.5 sm:col-span-2`}>
-                <dt className={studioFieldLabel}>Topic</dt>
-                <dd className="text-sm leading-relaxed text-foreground/85">
-                  {creationBrief?.topic ?? script.title}
-                </dd>
-              </div>
-              <div className={`${studioPanel} space-y-1.5 sm:col-span-2`}>
-                <dt className={studioFieldLabel}>Additional Notes</dt>
-                <dd className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
-                  {creationBrief?.context?.trim() ? creationBrief.context : "None provided"}
-                </dd>
-              </div>
-              <div className={`${studioPanel} space-y-1.5`}>
-                <dt className={studioFieldLabel}>Tone</dt>
-                <dd className="text-sm text-foreground/90">{briefToneLabel}</dd>
-              </div>
-              <div className={`${studioPanel} space-y-1.5`}>
-                <dt className={studioFieldLabel}>Writing quality</dt>
-                <dd className="text-sm text-foreground/90">{briefQualityLabel}</dd>
-              </div>
-              <div className={`${studioPanel} space-y-1.5`}>
-                <dt className={studioFieldLabel}>Default scene count</dt>
-                <dd className="text-sm text-foreground/90">
-                  {creationBrief?.sceneCount ?? DEFAULT_SCENE_COUNT}
-                </dd>
-              </div>
-              <div className={`${studioPanel} space-y-1.5`}>
-                <dt className={studioFieldLabel}>Content type</dt>
-                <dd className="text-sm text-foreground/90">
-                  {SCRIPT_MODE_OPTIONS.find((option) => option.value === scriptMode)?.description}
-                </dd>
-              </div>
-            </dl>
-          </details>
-        </Card>
-
-        <Card className={reviewSectionRing(activeStep === 2)}>
-          <p className={studioStepLabel}>2 · Story</p>
-          <h2 className={`${studioSectionTitle} mt-1`}>Story</h2>
-          <p className={`${studioSectionDesc} mb-5`}>
-            Edit the title and narration. Estimated duration is compared to your target — shorten if
-            it runs long.
-          </p>
-          <StoryReview
-            story={script}
-            onStoryChange={handleStoryChange}
-            variant="embedded"
-            targetDurationSeconds={targetDurationSeconds}
-          />
-          <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border/30 pt-6">
-            {saveMessage || autosaveSavedMessage ? (
-              <p className={studioSubtleText} role="status" aria-live="polite">
-                {saveMessage ?? autosaveSavedMessage}
-              </p>
-            ) : (
-              <p className={studioSubtleText}>Edits save automatically.</p>
-            )}
-          </div>
-        </Card>
-
-        <Card className={`${reviewSectionRing(activeStep === 3)} scroll-mt-24`} id="review-narration">
-          <p className={studioStepLabel}>3 · Narration</p>
-          <h2 className={`${studioSectionTitle} mt-1`}>Narration</h2>
-          <p className={`${studioSectionDesc} mb-5`}>
-            Choose a voice and speed, then create spoken audio from your current script.
-          </p>
-          <VoiceSettingsCard
-            script={script}
-            onScriptChange={handleStoryChange}
-            disabled={isCreatingScenes}
-            variant="review"
-          />
-        </Card>
-
-        <Card
-          className={`scroll-mt-24 space-y-5 ${reviewSectionRing(activeStep === 4 || activeStep === 5)}`}
-          id="review-storyboard"
-        >
-          <div>
-            <p className={studioStepLabel}>4 · Storyboard</p>
-            <h2 className={`${studioSectionTitle} mt-1`}>Storyboard</h2>
-            <p className={studioSectionDesc}>
-              Build timed scenes from your story and narration. Nothing is created until you click
-              below.
-            </p>
-          </div>
-
-          <div className="max-w-xs">
-            <label htmlFor="review-scene-count" className={studioFieldLabel}>
-              Number of scenes
-            </label>
-            <input
-              id="review-scene-count"
-              type="number"
-              min={MIN_SCENE_COUNT}
-              max={MAX_SCENE_COUNT}
-              step={1}
-              value={sceneCount}
-              onChange={(e) => handleSceneCountChange(Number(e.target.value))}
-              disabled={isCreatingScenes || hasStoryboard || scenesCreatedSuccessfully}
-              className={`${studioInput} mt-1.5 max-w-[8rem]`}
-            />
-          </div>
-
-          {hasVoiceover && voiceoverDurationMs ? (
-            <p className={studioSubtleText}>
-              Narration duration: {Math.round(voiceoverDurationMs / 1000)}s — scenes will be timed
-              to match.
-            </p>
-          ) : null}
-
-          {isCreatingScenes ? (
-            <StudioLoadingState
-              topic={creationBrief?.topic ?? script.title}
-              tone={creationBrief?.tone ?? "dramatic"}
-              duration={creationBrief?.duration ?? script.totalDuration}
-              loadingStep={storyboardStep}
-            />
-          ) : scenesCreatedSuccessfully || hasStoryboard ? (
-            <div className="space-y-3">
-              <p className={studioSubtleText} role="status" aria-live="polite">
-                Storyboard ready — open the editor to add visuals and export.
-              </p>
-              <button
-                type="button"
-                onClick={handleOpenEditor}
-                className={`${studioPrimaryButton} w-full sm:w-auto`}
-              >
-                Open Editor
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void handleCreateScenes()}
-              disabled={
-                !hasNarration ||
-                !hasVoiceover ||
-                !voiceoverDurationMs ||
-                voiceoverDurationMs <= 0 ||
-                hasStoryboard
-              }
-              className={`${studioPrimaryButton} w-full sm:w-auto`}
-            >
-              Build Storyboard
-            </button>
-          )}
-
-          {!hasNarration && !isCreatingScenes ? (
-            <p className={studioSubtleText}>Add script text in Story before building scenes.</p>
-          ) : null}
-
-          {!hasVoiceover && hasNarration && !isCreatingScenes ? (
-            <p className={studioSubtleText}>
-              Create narration in step 3 — scenes are timed to your spoken audio.
-            </p>
-          ) : null}
-
-          {createScenesError ? (
-            <p className="text-sm text-red-300/90" role="alert">
-              {createScenesError}
-            </p>
-          ) : null}
-        </Card>
-
-        {hasStoryboard || scenesCreatedSuccessfully ? (
-          <Card className="space-y-4">
-            <div>
-              <p className={studioStepLabel}>Editor</p>
-              <h2 className={`${studioSectionTitle} mt-1`}>Editor</h2>
-              <p className={studioSectionDesc}>
-                Open the editor to upload images, preview transitions, and export.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleOpenEditor}
-              className={`${studioPrimaryButton} inline-flex w-full sm:w-auto`}
-            >
-              Open Editor
-            </button>
-          </Card>
-        ) : null}
-      </div>
-
-      <div className={`${studioMobileActionBar} lg:hidden`} role="toolbar" aria-label="Review shortcuts">
-        <div className="mx-auto flex min-w-0 max-w-lg gap-1.5 px-3.5 sm:gap-2 sm:px-4">
-          <button
-            type="button"
-            onClick={() =>
-              document.getElementById("review-narration")?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
-            className={studioMobileActionButton}
-          >
-            Narration
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              document.getElementById("review-storyboard")?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
-            className={studioMobileActionButton}
-          >
-            Storyboard
-          </button>
-          {hasStoryboard || scenesCreatedSuccessfully ? (
-            <button
-              type="button"
-              onClick={handleOpenEditor}
-              className={studioMobileActionButtonPrimary}
-            >
-              Editor
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() =>
-                document.getElementById("review-storyboard")?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-              className={studioMobileActionButtonPrimary}
-            >
-              Next step
-            </button>
-          )}
-        </div>
-      </div>
-    </AppShell>
+              return (
+                <li
+                  key={step.key}
+                  className={`${studioPanel} ${
+                    state === "current" ? "ring-1 ring-accent/30" : ""
+                  } ${state === "complete" ? "opacity-80" : ""}`}
+                >
+                  <p className="text-sm font-medium text-foreground/90">{step.title}</p>
+                  <p className={`${studioSubtleText} mt-1`}>{step.description}</p>
+                </li>
+              );
+            })}
+          </ol>
+        </StudioSection>
+      }
+      canvas={
+        <ScriptCanvas
+          script={script}
+          onStoryChange={handleStoryChange}
+          targetDurationSeconds={targetDurationSeconds}
+          saveMessage={saveMessage}
+          autosaveSavedMessage={autosaveSavedMessage}
+        />
+      }
+      inspector={
+        <ReviewInspector
+          script={script}
+          onScriptChange={handleStoryChange}
+          creationBrief={creationBrief}
+          scriptMode={scriptMode}
+          scriptModeLabel={scriptModeLabel}
+          targetDurationSeconds={targetDurationSeconds}
+          researchConfidenceLabel={researchConfidenceLabel}
+          briefToneLabel={briefToneLabel}
+          briefQualityLabel={briefQualityLabel}
+          sceneCount={sceneCount}
+          onSceneCountChange={handleSceneCountChange}
+          hasVoiceover={hasVoiceover}
+          voiceoverDurationMs={voiceoverDurationMs}
+          hasStoryboard={hasStoryboard}
+          hasNarration={hasNarration}
+          isCreatingScenes={isCreatingScenes}
+          scenesCreatedSuccessfully={scenesCreatedSuccessfully}
+          storyboardStep={storyboardStep}
+          createScenesError={createScenesError}
+          voiceControlsDisabled={isCreatingScenes}
+          onVoiceApplyControlReady={handleVoiceApplyControlReady}
+        />
+      }
+    />
   );
 }
 

@@ -4,6 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import SceneImageMotionControl from "@/features/editor/components/SceneImageMotionControl";
+import { useEditorSelectionOptional } from "@/features/editor/selection";
 import {
   MAX_SCENE_IMAGE_SCALE,
   MIN_SCENE_IMAGE_SCALE,
@@ -71,8 +72,12 @@ export interface SceneImageInspectorProps {
   controlId: string;
   motionControlId?: string;
   variant?: "standalone" | "attached";
-  /** When true, shows drag-to-reposition helper copy (preview supports pan). */
-  positionDragSupported?: boolean;
+  /** When false, omits the top "Image Inspector" heading block. */
+  showHeader?: boolean;
+  /** When true, motion controls are omitted (compose separately in inspector). */
+  hideMotion?: boolean;
+  /** When set, position hint copy is scoped to this scene vs the active selection. */
+  sceneId?: string;
 }
 
 export default function SceneImageInspector({
@@ -86,8 +91,15 @@ export default function SceneImageInspector({
   controlId,
   motionControlId,
   variant = "standalone",
-  positionDragSupported = true,
+  showHeader = true,
+  hideMotion = false,
+  sceneId,
 }: SceneImageInspectorProps) {
+  const selection = useEditorSelectionOptional();
+  const isScopedScene = sceneId ? selection?.selectedSceneId === sceneId : true;
+  const canvasFrameEditActive = Boolean(selection?.isImageEditing && isScopedScene);
+  const canvasEditAvailable = Boolean(selection?.inspectorImageEditAvailable && isScopedScene);
+
   const clampedScale = clampSceneImageScale(scale);
   const activeFitMode = normalizeSceneImageFitMode(fitMode);
   const containerClassName =
@@ -101,12 +113,14 @@ export default function SceneImageInspector({
 
   return (
     <div className={`${containerClassName} min-w-0`}>
-      <div>
-        <p className={`${studioFieldLabel} mb-0`}>Image Inspector</p>
-        <p className={`${studioSubtleText} mt-1`}>
-          Frame, zoom, and motion for this scene&apos;s image.
-        </p>
-      </div>
+      {showHeader ? (
+        <div>
+          <p className={`${studioFieldLabel} mb-0`}>Image Inspector</p>
+          <p className={`${studioSubtleText} mt-1`}>
+            Frame, zoom, and motion for this scene&apos;s image.
+          </p>
+        </div>
+      ) : null}
 
       <InspectorSubsection
         title="Frame"
@@ -199,13 +213,17 @@ export default function SceneImageInspector({
         </div>
       </InspectorSubsection>
 
-      {positionDragSupported ? (
-        <InspectorSubsection title="Position">
-          <p className={studioSubtleText}>Drag the image in preview to adjust focus.</p>
-        </InspectorSubsection>
-      ) : null}
+      <InspectorSubsection title="Position">
+        <p className={studioSubtleText}>
+          {canvasFrameEditActive
+            ? "Drag the image on the preview to adjust focus."
+            : canvasEditAvailable
+              ? "Click the image on the preview to adjust focus."
+              : "Select a scene with an image to adjust focus."}
+        </p>
+      </InspectorSubsection>
 
-      {onMotionChange ? (
+      {onMotionChange && !hideMotion ? (
         <SceneImageMotionControl
           variant="inspector"
           controlId={motionControlId ?? `${controlId}-motion`}

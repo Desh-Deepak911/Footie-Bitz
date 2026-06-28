@@ -77,9 +77,9 @@ html {
 }
 
 #studio-brief,
-#studio-export,
 #studio-preview,
-#studio-timeline {
+#studio-sidebar-scenes,
+#studio-timeline-rail {
   scroll-margin-top: 4.5rem;
 }
 
