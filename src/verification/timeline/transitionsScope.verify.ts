@@ -194,8 +194,10 @@ test("preview never shows transition connector copy", () => {
 
 test("export excludes transition connector copy from video content", () => {
   const exportPayload = readSrc("src/features/export/services/export-payload.service.ts");
+  const captionUtils = readSrc("src/features/story/utils/caption.utils.ts");
   assert.match(exportPayload, /isTransitionVideoContent/);
-  assert.match(exportPayload, /TRANSITION_CARD_TITLE/);
+  assert.match(captionUtils, /isTransitionVideoContent/);
+  assert.match(captionUtils, /Transition to next scene/);
 });
 
 test("voiceover and subtitle modules are outside transition render scope", () => {

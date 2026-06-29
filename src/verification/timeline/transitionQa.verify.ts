@@ -214,14 +214,28 @@ test("zoom-in/out apply scale in preview and export", () => {
   assert.equal(zoomOut.from.scale, 0.96);
 });
 
-test("blur effect is defined in preview and export (with fade fallback in export renderer)", () => {
+test("blur effect is visually distinct from fade in preview and export", () => {
   const blur = getExportTransitionLayerDrawStates("blur", 0.5);
-  assert.equal(blur.from.blurPx, 4);
-  assert.equal(blur.to.blurPx, 4);
+  const fade = getExportTransitionLayerDrawStates("fade", 0.5);
+
+  assert.equal(blur.from.opacity, 1);
+  assert.equal(blur.to.opacity, 1);
+  assert.equal(blur.from.blurPx, 6);
+  assert.equal(blur.to.blurPx, 6);
+  assert.notEqual(fade.from.opacity, blur.from.opacity);
 
   const exportCanvas = readSrc("src/features/export/utils/export-transition-canvas.utils.ts");
   assert.match(exportCanvas, /drawExportTransitionBackgrounds/);
-  assert.match(exportCanvas, /"fade"/);
+  assert.match(exportCanvas, /falling back to fade/);
+});
+
+test("preview CaptionOverlay filters transition connector copy", () => {
+  const captionOverlay = readSrc("src/features/preview/components/CaptionOverlay.tsx");
+  const captionUtils = readSrc("src/features/story/utils/caption.utils.ts");
+
+  assert.match(captionOverlay, /getPreviewDisplayCaption/);
+  assert.match(captionUtils, /isTransitionVideoContent/);
+  assert.match(captionUtils, /getPreviewDisplayCaption/);
 });
 
 test("subtitles are hidden during preview transitions", () => {

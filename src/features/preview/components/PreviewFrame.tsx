@@ -37,7 +37,10 @@ export function SceneBackdrop({
   /** When true, skip rendering the scene image (e.g. edit layer renders it instead). */
   hideImage?: boolean;
 }) {
-  const sceneTypeMeta = scene.sceneType ? SCENE_TYPE_META[scene.sceneType] : null;
+  const sceneTypeMeta =
+    scene.sceneType && scene.sceneType !== "transition"
+      ? SCENE_TYPE_META[scene.sceneType]
+      : null;
   const hasImage = sceneHasImage(scene);
 
   return (

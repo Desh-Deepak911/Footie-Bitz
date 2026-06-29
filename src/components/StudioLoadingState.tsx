@@ -13,6 +13,7 @@ import {
   GENERATION_LOADING_STEPS,
   type GenerationLoadingStep,
 } from "@/types/footiebitz";
+import { formatDisplayDurationSec } from "@/lib/utils/formatDisplayDuration.utils";
 
 interface StudioLoadingStateProps {
   topic?: string;
@@ -30,7 +31,7 @@ function ScriptOnlyLoadingState({
 }: Pick<StudioLoadingStateProps, "topic" | "tone" | "duration">) {
   const detail =
     topic?.trim() && tone && duration
-      ? `${duration}s · ${tone} · “${topic.trim().slice(0, 48)}${topic.trim().length > 48 ? "…" : ""}”`
+      ? `${formatDisplayDurationSec(duration)} · ${tone} · “${topic.trim().slice(0, 48)}${topic.trim().length > 48 ? "…" : ""}”`
       : undefined;
 
   return (
@@ -147,7 +148,7 @@ export default function StudioLoadingState({
 
   const detail =
     topic?.trim() && tone && duration
-      ? `${duration}s · ${tone} · “${topic.trim().slice(0, 48)}${topic.trim().length > 48 ? "…" : ""}”`
+      ? `${formatDisplayDurationSec(duration)} · ${tone} · “${topic.trim().slice(0, 48)}${topic.trim().length > 48 ? "…" : ""}”`
       : undefined;
 
   const activeLabel = GENERATION_LOADING_STEPS[loadingStep - 1];

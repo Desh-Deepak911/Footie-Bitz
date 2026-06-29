@@ -10,6 +10,7 @@ import {
   SCRIPT_LENGTH_OVER_TARGET_WARNING,
 } from "@/features/story/utils/narration-duration-budget.utils";
 import type { FootieScript } from "@/features/story/types";
+import { formatDisplayDurationSec } from "@/lib/utils/formatDisplayDuration.utils";
 import {
   studioBadge,
   studioInput,
@@ -51,9 +52,11 @@ function ScriptDurationSummary({
       <div className={`${studioBadge} flex flex-col items-start gap-1 text-left`}>
         <span className="inline-flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          Target: {targetDurationSeconds}s
+          Target: {formatDisplayDurationSec(targetDurationSeconds)}
         </span>
-        <span className="text-muted">Estimated script: {estimatedSeconds}s</span>
+        <span className="text-muted">
+          Estimated script: {formatDisplayDurationSec(estimatedSeconds)}
+        </span>
       </div>
       {showLengthWarning ? (
         <p className={`${studioWarningPanel} text-xs leading-relaxed text-amber-100/90`} role="status">

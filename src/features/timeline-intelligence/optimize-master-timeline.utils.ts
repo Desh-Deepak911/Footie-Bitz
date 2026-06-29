@@ -317,7 +317,7 @@ function recomputeTimelineSpans(
   const subtitleDurationMs = getTrackUnionDurationMs(timeline.tracks, "subtitle");
   const animationDurationMs = getTrackUnionDurationMs(timeline.tracks, "caption-animation");
   const transitionDurationMs = getTrackUnionDurationMs(timeline.tracks, "transition");
-  const contentEndMs = getTimelineContentEndMs(timeline);
+  const eventContentEndMs = getTimelineContentEndMs(timeline);
 
   const subtitleTrack = getTimelineTrackByType(timeline.tracks, "subtitle");
   const finalSubtitleEndMs = (subtitleTrack?.events ?? []).reduce(
@@ -330,18 +330,13 @@ function recomputeTimelineSpans(
       ? finalSubtitleEndMs + TIMELINE_SUBTITLE_FINAL_READABLE_HOLD_MS
       : 0;
 
-  const renderEndBeforeBufferMs = Math.max(
-    preservedAudioDurationMs,
-    preservedNarrationDurationMs,
-    sceneDurationMs,
-    subtitleDurationMs,
-    animationDurationMs,
-    transitionDurationMs,
-    contentEndMs,
+  const contentEndMs = Math.max(
+    eventContentEndMs,
     subtitleCompletionEndMs,
+    preservedNarrationDurationMs,
   );
-
-  const renderDurationMs = renderEndBeforeBufferMs + endBufferMs;
+  const renderEndBeforeBufferMs = contentEndMs;
+  const renderDurationMs = contentEndMs + endBufferMs;
   const finalSubtitleEndGapMs = renderEndBeforeBufferMs - finalSubtitleEndMs;
 
   const animationTrack = getTimelineTrackByType(timeline.tracks, "caption-animation");
@@ -355,6 +350,7 @@ function recomputeTimelineSpans(
 
   return {
     ...timeline,
+    contentEndMs,
     renderDurationMs,
     audioDurationMs: preservedAudioDurationMs,
     narrationDurationMs: preservedNarrationDurationMs,

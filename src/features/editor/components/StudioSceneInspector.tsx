@@ -24,6 +24,10 @@ import {
   type SceneImageTransformPatch,
 } from "@/features/story/utils";
 import {
+  formatDisplayDurationSec,
+  formatDisplayTimeRangeSec,
+} from "@/lib/utils/formatDisplayDuration.utils";
+import {
   studioBadge,
   studioDestructiveButton,
   studioFieldLabel,
@@ -75,7 +79,7 @@ export interface StudioSceneInspectorProps {
 }
 
 function formatTimeRange(start: number, end: number): string {
-  return `${start}s – ${end}s`;
+  return formatDisplayTimeRangeSec(start, end);
 }
 
 function getTransitionAfterScene(
@@ -193,7 +197,7 @@ export default function StudioSceneInspector({
               Scene {safeIndex + 1}
             </p>
             <p className={`${studioStoryboardMeta} mt-0.5`}>
-              {formatTimeRange(scene.start, scene.end)} · {scene.duration}s
+              {formatTimeRange(scene.start, scene.end)} · {formatDisplayDurationSec(scene.duration)}
             </p>
             <span className={`${studioBadge} mt-2 inline-flex`}>{resolveSceneStatus(scene)}</span>
           </div>

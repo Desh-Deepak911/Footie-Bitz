@@ -102,9 +102,9 @@ interface FootieScript {
 | `totalDuration` | ❌ Computed | Sum of scene durations; displayed read-only |
 | `scenes` | ✅ Yes | Timeline editor (add/delete/reorder/duplicate) |
 | `timelineItems` | ✅ Partial | Transitions editable; scene items sync from `scenes` |
-| `voiceoverUrl` | ⚙️ Indirect | Set by generation or **Apply Changes**; cleared when narration text changes |
+| `voiceoverUrl` | ⚙️ Indirect | Set by generation or explicit regenerate; cleared when narration text changes |
 | `voiceoverDurationMs` | ⚙️ Indirect | Updated when voiceover is generated/applied |
-| `voiceSettings` | ✅ Yes | `VoiceSettingsCard` (voice + speed selectors) |
+| `voiceSettings` | ✅ Yes | `ProjectAudioVoiceoverSection` (editor) · `VoiceSettingsCard` (review) |
 
 ### Server-only generation types
 
@@ -235,15 +235,15 @@ interface StoryVoiceSettings {
 
 | Field | User editable? | How |
 |-------|----------------|-----|
-| `voice` | ✅ Yes | Select in `VoiceSettingsCard` |
-| `speed` | ✅ Yes | Speed chips in `VoiceSettingsCard` |
+| `voice` | ✅ Yes | Select in `ProjectAudioVoiceoverSection` or `VoiceSettingsCard` |
+| `speed` | ✅ Yes | Speed chips in `ProjectAudioVoiceoverSection` or `VoiceSettingsCard` |
 
-**Important:** Changing voice or speed updates **preferences only** via `applyStoryVoiceSettings()`. The audio file does not change until the user clicks **Apply Changes**, which calls `/api/generate-voiceover` and runs `applyVoiceoverChanges()`.
+**Important:** Changing voice or speed updates **preferences only** via `applyStoryVoiceSettings()`. The audio file does not change until the user clicks **Generate / Regenerate voiceover** (editor) or **Apply Changes** (review), which calls `/api/generate-voiceover` and runs `applyVoiceoverChanges()`.
 
 ### Relationship to voiceover audio
 
 ```
-StoryVoiceSettings (prefs)  ──Apply Changes──▶  voiceoverUrl + voiceoverDurationMs
+StoryVoiceSettings (prefs)  ──Regenerate──▶  voiceoverUrl + voiceoverDurationMs
                                                       │
                                                       ▼
                                               refitScenesToVoiceoverDuration()
@@ -547,7 +547,7 @@ FootieScript (Story)
 ├── voiceSettings            [editable prefs]
 │   ├── voice
 │   └── speed
-├── voiceoverUrl             [indirect — generation / Apply Changes]
+├── voiceoverUrl             [indirect — generation / regenerate]
 ├── voiceoverDurationMs      [indirect]
 ├── scenes[]                 [editable structure + content]
 │   └── FootieScene

@@ -6,8 +6,10 @@ export {
   type SerializeEditorStateOptions,
 } from "./draft-serialization.utils";
 export {
+  embedVoiceoverBlobInScript,
   hydrateDraftScriptAudio,
   persistDraftAudioInScript,
+  prepareStoryVoiceoverForExport,
   type DraftPersistedScript,
 } from "./draft-audio-persistence.utils";
 export { resolveDraftScriptForEditor } from "./draft-load.utils";

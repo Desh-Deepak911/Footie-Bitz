@@ -10,9 +10,12 @@ import {
   getAudioEngine,
   getAudioEngineDebugState,
   getCanonicalVoiceover,
+  getVoiceoverAvailability,
+  materializePlayableVoiceoverFromBase64,
   resetAudioEngineForTests,
   resolveAudioEngineSnapshot,
   resolveExportAudioSource,
+  resolvePlayableVoiceoverFromStory,
 } from "@/features/audio";
 import { syncFootieScript } from "@/lib/utils/voiceover";
 
@@ -201,6 +204,38 @@ test("getAudioEngineDebugState summarizes mix without logging audio payloads", (
     }),
     "voiceover",
   );
+});
+
+test("resolvePlayableVoiceoverFromStory materializes raw and data URL base64 payloads", () => {
+  const mp3Like = Buffer.from([0xff, 0xfb, 0x90, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c]);
+  const rawBase64 = mp3Like.toString("base64");
+  const dataUrl = `data:audio/mpeg;base64,${rawBase64}`;
+
+  const fromRaw = materializePlayableVoiceoverFromBase64(rawBase64, { preferObjectUrl: true });
+  assert.ok(fromRaw?.src.startsWith("blob:"));
+  assert.equal(fromRaw?.mimeType, "audio/mpeg");
+  assert.equal(fromRaw?.kind, "object-url");
+
+  const fromDataUrl = materializePlayableVoiceoverFromBase64(dataUrl);
+  assert.equal(fromDataUrl?.src, dataUrl);
+  assert.equal(fromDataUrl?.kind, "data-url");
+
+  const script = syncFootieScript({
+    title: "Playable voiceover",
+    narration: "Test",
+    totalDuration: 5,
+    voiceoverAudioBase64: dataUrl,
+    voiceoverDurationMs: 5000,
+    scenes: [{ id: "1", start: 0, end: 5, duration: 5, subtitle: "A" }],
+  });
+
+  const playable = resolvePlayableVoiceoverFromStory(script, { preferObjectUrl: true });
+  assert.equal(playable.hasPlayableSrc, true);
+  assert.ok(playable.src?.startsWith("data:audio/mpeg;base64,"));
+
+  const availability = getVoiceoverAvailability(script);
+  assert.equal(availability.hasCanonicalVoiceover, true);
+  assert.equal(availability.hasPlayableVoiceover, true);
 });
 
 console.log("\nAll audio engine checks passed.");

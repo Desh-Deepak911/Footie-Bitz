@@ -80,9 +80,11 @@ function DevMetricGrid({
 }
 
 function DevWarningSection({
+  sectionId,
   title,
   warnings,
 }: {
+  sectionId: string;
   title: string;
   warnings: string[];
 }) {
@@ -92,8 +94,8 @@ function DevWarningSection({
         <p className="text-[11px] text-violet-300/60">None</p>
       ) : (
         <ul className="space-y-1 text-[11px] leading-relaxed text-amber-200/90">
-          {warnings.map((warning) => (
-            <li key={warning} className="break-words">
+          {warnings.map((warning, index) => (
+            <li key={`${sectionId}-${index}`} className="break-words">
               {warning}
             </li>
           ))}
@@ -126,12 +128,36 @@ export default function TimelineDeveloperView({ script }: TimelineDeveloperViewP
         <DevMetricGrid label="Preview build" summary={snapshot.preview} />
         <DevMetricGrid label="Export build" summary={snapshot.export} />
 
-        <DevWarningSection title="Preview/export comparison" warnings={snapshot.comparisonWarnings} />
-        <DevWarningSection title="Timing mismatch" warnings={snapshot.timingMismatchWarnings} />
-        <DevWarningSection title="Subtitle completion" warnings={snapshot.subtitleCompletionWarnings} />
-        <DevWarningSection title="Line-cap overflow" warnings={snapshot.lineCapOverflowWarnings} />
-        <DevWarningSection title="Typewriter overrun" warnings={snapshot.typewriterOverrunWarnings} />
-        <DevWarningSection title="Timeline optimizer" warnings={snapshot.optimizerFindings} />
+        <DevWarningSection
+          sectionId="comparison"
+          title="Preview/export comparison"
+          warnings={snapshot.comparisonWarnings}
+        />
+        <DevWarningSection
+          sectionId="timing-mismatch"
+          title="Timing mismatch"
+          warnings={snapshot.timingMismatchWarnings}
+        />
+        <DevWarningSection
+          sectionId="subtitle-completion"
+          title="Subtitle completion"
+          warnings={snapshot.subtitleCompletionWarnings}
+        />
+        <DevWarningSection
+          sectionId="line-cap-overflow"
+          title="Line-cap overflow"
+          warnings={snapshot.lineCapOverflowWarnings}
+        />
+        <DevWarningSection
+          sectionId="typewriter-overrun"
+          title="Typewriter overrun"
+          warnings={snapshot.typewriterOverrunWarnings}
+        />
+        <DevWarningSection
+          sectionId="timeline-optimizer"
+          title="Timeline optimizer"
+          warnings={snapshot.optimizerFindings}
+        />
 
         <DevSection title="Full diagnostics">
           <DevPre value={formatTimelineDevDiagnosticsForDev(snapshot)} />

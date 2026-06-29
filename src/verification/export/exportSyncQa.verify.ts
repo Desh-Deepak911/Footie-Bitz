@@ -166,7 +166,9 @@ test("1. initial generated story exports with voiceover + music", () => {
   assert.equal(musicSettings?.exportDurationMs, preflight.exportDurationMs);
 
   const videoRender = readSrc("src/features/export/services/video-render.service.ts");
-  assert.match(videoRender, /prepareStoryForExport\(script\)/);
+  assert.match(videoRender, /prepareStoryVoiceoverForExport\(script\)/);
+  assert.match(videoRender, /prepareStoryForExport\(voiceoverPreparedScript\)/);
+  assert.match(videoRender, /resolveExportVoiceoverAudioInput/);
   assert.match(videoRender, /mixExportVoiceoverAndBackgroundMusic/);
   assert.match(videoRender, /includeBackgroundMusicMix/);
   assert.match(videoRender, /exportDurationMs/);
@@ -252,6 +254,9 @@ test("5. edit narration after voiceover shows mismatch warning", () => {
   const exportPanel = readSrc("src/components/ExportPanel.tsx");
   assert.match(exportPanel, /hasNarrationVoiceoverMismatch/);
   assert.match(exportPanel, /EXPORT_NARRATION_VOICEOVER_MISMATCH_WARNING/);
+  assert.match(exportPanel, /prepareStoryVoiceoverForExport/);
+  assert.match(exportPanel, /getVoiceoverAvailability/);
+  assert.match(exportPanel, /EXPORT_NARRATION_UNAVAILABLE_WARNING/);
 });
 
 test("6. background music uses final normalized export duration", () => {

@@ -48,6 +48,31 @@ export function resolveTimelineFrameTimeMs(frameIndex: number, fps: number): num
   return Math.floor((frameIndex * 1000) / fps);
 }
 
+/** Resolves content end — last active visual moment before the final render hold buffer. */
+export function resolveMasterTimelineContentEndMs(masterTimeline: MasterTimeline): number {
+  if (masterTimeline.contentEndMs > 0) {
+    return masterTimeline.contentEndMs;
+  }
+
+  return (
+    masterTimeline.diagnostics.contentEndMs ??
+    masterTimeline.diagnostics.renderEndBeforeBufferMs ??
+    masterTimeline.renderDurationMs
+  );
+}
+
+/**
+ * Clamps playback clock to content end so tail-hold frames freeze motion/subtitles
+ * instead of advancing through the final render buffer.
+ */
+export function resolveTimelineVisualTimeMs(
+  masterTimeline: MasterTimeline,
+  currentTimeMs: number,
+): number {
+  const contentEndMs = resolveMasterTimelineContentEndMs(masterTimeline);
+  return Math.min(Math.max(0, currentTimeMs), contentEndMs);
+}
+
 /** Frame count needed to cover a render span (inclusive of final frame). */
 export function resolveTimelineFrameCount(renderDurationMs: number, fps: number): number {
   return Math.max(1, Math.ceil((renderDurationMs * fps) / 1000));
@@ -113,7 +138,11 @@ function toActiveTimelineEvent<T extends TimelineEvent>(
 function resolveActiveEventAtTime<T extends TimelineEvent>(
   events: T[],
   currentTimeMs: number,
-  options: { holdTail?: boolean; renderDurationMs?: number } = {},
+  options: {
+    holdTail?: boolean;
+    renderDurationMs?: number;
+    contentEndMs?: number;
+  } = {},
 ): ActiveTimelineEvent<T> | null {
   const holdTail = options.holdTail ?? true;
   const sorted = sortEventsByStart(events);
@@ -135,27 +164,34 @@ function resolveActiveEventAtTime<T extends TimelineEvent>(
     return null;
   }
 
+  const contentEndMs = options.contentEndMs;
+  const holdTimeMs =
+    contentEndMs != null ? Math.min(timeMs, contentEndMs) : timeMs;
+
   if (renderDurationMs != null && timeMs >= renderDurationMs) {
     return null;
   }
 
   let hold: T | null = null;
   for (const event of sorted) {
-    if (timeMs >= event.startMs) {
+    if (holdTimeMs >= event.startMs) {
       hold = event;
     }
   }
 
   if (!hold) {
     const first = sorted[0]!;
-    return toActiveTimelineEvent(first, getTimelineProgress(first, timeMs));
+    return toActiveTimelineEvent(first, getTimelineProgress(first, holdTimeMs));
   }
 
-  const tailProgress = getTimelineProgress(hold, timeMs);
+  const tailProgress = getTimelineProgress(hold, holdTimeMs);
   return toActiveTimelineEvent(hold, {
     ...tailProgress,
-    elapsedMs: Math.min(hold.durationMs, timeMs - hold.startMs),
-    progress: hold.durationMs > 0 ? Math.min(1, (timeMs - hold.startMs) / hold.durationMs) : 1,
+    elapsedMs: Math.min(hold.durationMs, holdTimeMs - hold.startMs),
+    progress:
+      hold.durationMs > 0
+        ? Math.min(1, (holdTimeMs - hold.startMs) / hold.durationMs)
+        : 1,
   });
 }
 
@@ -163,6 +199,7 @@ function resolveActiveEventsOptions(masterTimeline: MasterTimeline) {
   return {
     holdTail: true,
     renderDurationMs: masterTimeline.renderDurationMs,
+    contentEndMs: resolveMasterTimelineContentEndMs(masterTimeline),
   };
 }
 
@@ -294,12 +331,13 @@ export function resolveTimelineSceneFrame<TScene extends { id: string; durationM
     return null;
   }
 
+  const visualTimeMs = resolveTimelineVisualTimeMs(masterTimeline, currentTimeMs);
   const sceneById = new Map(scenes.map((scene) => [scene.id, scene]));
   const fallbackScene = scenes[0]!;
-  const sceneActive = getActiveSceneAtTime(masterTimeline, currentTimeMs);
-  const subtitle = getActiveSubtitleAtTime(masterTimeline, currentTimeMs);
-  const captionAnimation = getActiveCaptionAnimationAtTime(masterTimeline, currentTimeMs);
-  const imageMotion = getActiveImageMotionAtTime(masterTimeline, currentTimeMs);
+  const sceneActive = getActiveSceneAtTime(masterTimeline, visualTimeMs);
+  const subtitle = getActiveSubtitleAtTime(masterTimeline, visualTimeMs);
+  const captionAnimation = getActiveCaptionAnimationAtTime(masterTimeline, visualTimeMs);
+  const imageMotion = getActiveImageMotionAtTime(masterTimeline, visualTimeMs);
 
   if (!sceneActive) {
     return {

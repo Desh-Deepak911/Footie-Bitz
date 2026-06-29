@@ -4,7 +4,7 @@ import { normalizeTransitionEffect } from "@/features/story/utils/timeline.utils
 import { resolveTransitionState } from "./resolve-transition-state.utils";
 import type { TransitionState } from "./resolve-transition-state.utils";
 import type { MasterTimeline, TransitionTimelineEvent } from "./timeline.types";
-import { getActiveTransitionAtTime } from "./timeline-playback.utils";
+import { getActiveTransitionAtTime, resolveTimelineVisualTimeMs } from "./timeline-playback.utils";
 
 /** Active transition overlay resolved from MasterTimeline absolute time. */
 export interface TimelineTransitionOverlay {
@@ -24,12 +24,13 @@ export function resolveTimelineTransitionOverlay(
   scenes: FootieScene[],
   timeMs: number,
 ): TimelineTransitionOverlay | null {
-  const active = getActiveTransitionAtTime(masterTimeline, timeMs);
+  const visualTimeMs = resolveTimelineVisualTimeMs(masterTimeline, timeMs);
+  const active = getActiveTransitionAtTime(masterTimeline, visualTimeMs);
   if (!active) {
     return null;
   }
 
-  const transitionState = resolveTransitionState(active.event, timeMs);
+  const transitionState = resolveTransitionState(active.event, visualTimeMs);
   if (!transitionState.isActive || !transitionState.shouldRenderBothScenes) {
     return null;
   }

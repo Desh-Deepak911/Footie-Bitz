@@ -23,6 +23,7 @@ import { normalizeCaptionMode, sceneHasImage, type SceneImageTransformPatch } fr
 import type { TimelinePlaybackSnapshot } from "@/features/timeline-editor/timeline-playback-port.types";
 import { EMPTY_TIMELINE_PLAYBACK_SNAPSHOT } from "@/features/timeline-editor/timeline-playback-port.types";
 import {
+  studioError,
   studioPreviewControls,
   studioPreviewPill,
   studioPreviewPillMuted,
@@ -30,6 +31,7 @@ import {
   studioSelectChevronCompact,
   studioSelectCompact,
 } from "@/lib/utils/studioUi";
+import { formatDisplayTimeRangeSec } from "@/lib/utils/formatDisplayDuration.utils";
 import type { FootieScript } from "@/features/story/types";
 
 interface VideoPreviewProps {
@@ -74,7 +76,9 @@ export default function VideoPreview({
     sceneCount,
     totalDuration,
     safeIndex,
-    hasNarration,
+    hasCanonicalVoiceover,
+    hasPlayableVoiceover,
+    playbackError,
     isPlaying,
     isSpeaking,
     playbackMode,
@@ -342,12 +346,14 @@ export default function VideoPreview({
             {showGeneratedCaption ? <CaptionOverlay scene={displayScene} /> : null}
 
             <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-white/50">
-              {displayScene.sceneType ? (
+              {displayScene.sceneType && displayScene.sceneType !== "transition" ? (
                 <span className="capitalize">{displayScene.sceneType}</span>
               ) : null}
-              {displayScene.sceneType ? <span>·</span> : null}
+              {displayScene.sceneType && displayScene.sceneType !== "transition" ? (
+                <span>·</span>
+              ) : null}
               <span className="tabular-nums">
-                {displayScene.start}s – {displayScene.end}s
+                {formatDisplayTimeRangeSec(displayScene.start, displayScene.end)}
               </span>
               {isSpeaking ? (
                 <>
@@ -405,9 +411,10 @@ export default function VideoPreview({
       <div className={`${studioPreviewControls} flex flex-wrap items-center justify-center gap-1.5`}>
         <button
           type="button"
-          onClick={playPreview}
-          disabled={isPlaying || !hasNarration}
+          onClick={() => void playPreview()}
+          disabled={isPlaying || !hasPlayableVoiceover}
           className={studioPreviewPillPrimary}
+          aria-label="Play preview with voiceover"
         >
           <Play className="h-3 w-3" />
           Play
@@ -418,6 +425,11 @@ export default function VideoPreview({
           onClick={playWithBrowserVoice}
           disabled={isPlaying}
           className={studioPreviewPill}
+          title={
+            hasCanonicalVoiceover
+              ? "Preview with browser text-to-speech (does not use generated voiceover)"
+              : "Preview with browser text-to-speech"
+          }
         >
           <Volume2 className="h-3 w-3" />
           Voice
@@ -440,10 +452,25 @@ export default function VideoPreview({
         </button>
       </div>
 
-      {!hasNarration ? (
+      {!hasCanonicalVoiceover ? (
         <p className={`${studioPreviewControls} text-center text-[10px] leading-relaxed text-muted`}>
-          No narration yet. Create it from your script to sync scenes and preview audio.
+          Generate or upload voiceover to preview with audio.
         </p>
+      ) : null}
+
+      {hasCanonicalVoiceover && !hasPlayableVoiceover && !playbackError ? (
+        <p className={`${studioPreviewControls} text-center text-[10px] leading-relaxed text-muted`}>
+          Voiceover exists but could not be loaded. Regenerate or upload audio.
+        </p>
+      ) : null}
+
+      {playbackError ? (
+        <div
+          className={`${studioPreviewControls} ${studioError} text-center`}
+          role="alert"
+        >
+          <p className="text-[10px] leading-relaxed">{playbackError}</p>
+        </div>
       ) : null}
 
       <div className={`${studioPreviewControls} flex items-center gap-1.5`}>

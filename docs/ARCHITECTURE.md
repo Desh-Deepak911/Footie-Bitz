@@ -414,7 +414,7 @@ Story-level `FootieScript.voiceSettings`:
 - Voice — OpenAI TTS voice id
 - Speed — 0.75x to 1.4x presets
 
-UI: **`VoiceSettingsCard`** in `EditorProjectInspector`. Regeneration: **`NarrationPanel`** → `/api/generate-voiceover`.
+UI: **`ProjectAudioStudio`** in `EditorProjectInspector` (`ProjectAudioVoiceoverSection`, `ProjectAudioBackgroundMusicSection`, export mix summary). Review flow: **`VoiceSettingsCard`** → `/api/generate-voiceover`.
 
 ### Scene duration editing
 

@@ -20,7 +20,7 @@ The Editing layer is where creators refine AI output after generation. Every cha
 | Sidebar | `EditorProjectSidebar` | Scene list, quick jump |
 | Canvas | `VideoPreview` + `StudioContextRibbon` | Preview; fit/fill/reset/replace when image selected |
 | Inspector | `InspectorResolver` → `StudioSceneInspector` | Scene duration, type, captions, image, motion, transitions |
-| Project panel | `EditorProjectInspector` | Title, narration (`StoryReview`), voice settings |
+| Project panel | `EditorProjectInspector` | Project Audio Studio, title, narration (`StoryReview`) |
 | Timeline | `StudioTimeline` | Scene rail, reorder, playhead, context menu |
 | Export | `ExportDrawer` → `ExportPanel` | Quality, audio mode, download |
 
@@ -64,7 +64,7 @@ Editing never calls OpenAI. The only paths that hit the server after initial gen
 
 | Action | Trigger | API |
 |--------|---------|-----|
-| Regenerate voiceover | User clicks **Apply Changes** in `VoiceSettingsCard` | `POST /api/generate-voiceover` |
+| Regenerate voiceover | User clicks **Generate / Regenerate voiceover** in `ProjectAudioVoiceoverSection` | `POST /api/generate-voiceover` |
 | Create new story | User submits a new brief in `CreateStoryFlow` | `POST /api/generate-script` |
 
 Scene edits, image uploads, caption changes, duration tweaks, and transition updates are **pure client-side** state updates.
@@ -79,7 +79,7 @@ State helpers are designed to merge patches, not replace whole stories:
 - **`applyStoryVoiceSettings()`** — updates voice/speed prefs **without** regenerating audio
 - **`syncFootieScript(next, previous)`** — normalization pass that uses `previous` to preserve user subtitle text, skip unnecessary narration excerpt re-sync, and keep transition-only edits intact
 
-When narration text changes, `applyStoryUpdate()` clears the stale voiceover blob (audio no longer matches copy) but **does not** auto-regenerate — the user must click Apply Changes.
+When narration text changes, `applyStoryUpdate()` clears the stale voiceover blob (audio no longer matches copy) but **does not** auto-regenerate — the user must click **Regenerate voiceover** in Project Audio Studio.
 
 When voiceover is explicitly regenerated, `applyVoiceoverChanges()` refits scene **timings** proportionally but preserves scene content, captions, images, and transitions.
 
@@ -91,7 +91,7 @@ flowchart LR
   State --> Preview[VideoPreview]
   State --> Export[ExportPanel]
 
-  Apply[Apply Changes button] --> API[/api/generate-voiceover]
+  Regen[Generate / Regenerate voiceover] --> API[/api/generate-voiceover]
   API --> Refit[refitScenesToVoiceoverDuration]
   Refit --> Sync
 ```
@@ -237,9 +237,9 @@ Max **3 visible lines**, **90% frame width** when wrapped.
 
 Choose narrator voice and speed. Changes to preferences are stored immediately; audio regeneration is a separate explicit step.
 
-### Controls
+### Editor controls
 
-`VoiceSettingsCard` in `EditorProjectInspector` — story-level, not per-scene:
+`ProjectAudioStudio` → **`ProjectAudioVoiceoverSection`** in `EditorProjectInspector` — story-level, not per-scene:
 
 | Setting | Options | Storage |
 |---------|---------|---------|
@@ -248,9 +248,9 @@ Choose narrator voice and speed. Changes to preferences are stored immediately; 
 
 Changing voice or speed updates prefs via `applyStoryVoiceSettings()` — **no API call**.
 
-### Apply Changes (explicit regeneration)
+### Regenerate voiceover (explicit)
 
-The **Apply Changes** button calls `useStoryVoiceoverApply` → `POST /api/generate-voiceover`.
+The **Generate / Regenerate voiceover** button calls `useStoryVoiceoverApply` → `POST /api/generate-voiceover`.
 
 On success, `applyVoiceoverChanges()`:
 
@@ -260,9 +260,15 @@ On success, `applyVoiceoverChanges()`:
 
 On failure, state rolls back to the pre-request baseline (`restoreVoiceoverBaseline`).
 
+Preview playback uses the canvas **Play** button — no native browser audio controls in the inspector.
+
+### Review flow
+
+`VoiceSettingsCard` in `ReviewInspector` still owns **Create / Update Narration** (Apply Changes) before the user enters the editor.
+
 ### Narration text changes
 
-Editing narration in `StoryReview` clears the stale voiceover blob (`applyStoryUpdate` → `narrationNeedsRefresh`) but does **not** auto-regenerate. The user sees narration panel without audio until they click Apply Changes.
+Editing narration in `StoryReview` clears the stale voiceover blob (`applyStoryUpdate` → `narrationNeedsRefresh`) but does **not** auto-regenerate. Regenerate from Project Audio Studio when ready.
 
 ---
 
@@ -383,7 +389,7 @@ Scenes control **when** images and captions appear. They do not edit the narrati
 
 ### Voice prefs vs voice audio
 
-Voice and speed selectors apply immediately to **preferences**. Audio file replacement requires an explicit **Apply Changes** click.
+Voice and speed selectors apply immediately to **preferences**. Audio file replacement requires an explicit **Generate / Regenerate voiceover** click in Project Audio Studio.
 
 ### Draft persistence
 

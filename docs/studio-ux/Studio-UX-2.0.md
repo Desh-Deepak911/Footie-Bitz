@@ -226,7 +226,8 @@ Inspector = **properties panel**, not a settings app.
 Wrap existing controls — do **not** rewrite:
 
 - `SceneImageInspector`, `CaptionModeControl`, `SubtitleEffectControl` → inspector sections
-- `VoiceSettingsCard`, `BackgroundMusicCard` → project accordion
+- `ProjectAudioStudio` (`ProjectAudioVoiceoverSection`, `ProjectAudioBackgroundMusicSection`) → project inspector
+- `VoiceSettingsCard` → review flow only
 - `ExportPanel` → export mode content
 
 Remove duplicate headings (`WorkspacePanel` step labels) when inspector provides context.

@@ -182,6 +182,7 @@ export function createEmptyMasterTimeline(
   return {
     id: options.id ?? `timeline-${authority}-${builtAtIso}`,
     authority,
+    contentEndMs: 0,
     renderDurationMs: 0,
     audioDurationMs: 0,
     narrationDurationMs: 0,

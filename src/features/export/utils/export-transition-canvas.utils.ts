@@ -173,7 +173,11 @@ export function drawExportTransitionBackgrounds(
       drawFromBackground,
       drawToBackground,
     );
-  } catch {
+  } catch (error) {
+    console.warn(
+      "[ExportTransition] Canvas transition failed; falling back to fade.",
+      { effect, error },
+    );
     const fadeLayers = resolveTransitionEffectLayers("fade", transitionState.progress);
     drawExportTransitionLayers(
       ctx,

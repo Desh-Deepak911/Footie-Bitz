@@ -8,6 +8,9 @@ import {
 export const EXPORT_NARRATION_VOICEOVER_MISMATCH_WARNING =
   "Your script changed after narration was recorded. Update narration for the best sync.";
 
+export const EXPORT_NARRATION_UNAVAILABLE_WARNING =
+  "Narration audio is unavailable. Regenerate narration or reload the draft before exporting with narration.";
+
 function normalizeNarrationText(value: string | undefined): string {
   return value?.trim() ?? "";
 }

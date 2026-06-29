@@ -32,7 +32,7 @@ interface VoiceSettingsCardProps {
   script: FootieScript;
   onScriptChange: (script: FootieScript) => void;
   disabled?: boolean;
-  /** Review flow uses Create/Update Narration; editor keeps Apply Changes. */
+  /** Review flow uses Create/Update Narration; editor uses ProjectAudioVoiceoverSection CTAs. */
   variant?: "editor" | "review";
   /** When false, apply CTA is omitted (e.g. review shell header owns primary action). */
   showApplyButton?: boolean;

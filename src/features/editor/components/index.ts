@@ -46,6 +46,11 @@ export { default as SubtitleEffectControl } from "./SubtitleEffectControl";
 export { default as StudioSceneInspector } from "./StudioSceneInspector";
 export { default as EditorProjectSidebar } from "./EditorProjectSidebar";
 export { default as EditorProjectInspector } from "./EditorProjectInspector";
+export { default as EditorVoiceoverPanel } from "./EditorVoiceoverPanel";
+export { default as ProjectAudioStudio } from "./ProjectAudioStudio";
+export { default as ProjectAudioVoiceoverSection } from "./ProjectAudioVoiceoverSection";
+export { default as ProjectAudioBackgroundMusicSection } from "./ProjectAudioBackgroundMusicSection";
+export { default as ProjectAudioExportMixSummary } from "./ProjectAudioExportMixSummary";
 export {
   InspectorRegistry,
   InspectorContext,

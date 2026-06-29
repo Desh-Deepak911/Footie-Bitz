@@ -8,6 +8,7 @@ import type { CaptionAnimationState } from "@/features/timeline-intelligence/res
 import {
   resolveTimelineSceneFrame,
   resolveTimelineSubtitleChunkAtTime,
+  resolveTimelineVisualTimeMs,
 } from "@/features/timeline-intelligence/timeline-playback.utils";
 import type { MasterTimeline } from "@/features/timeline-intelligence/timeline.types";
 import type { FootieScene, FootieScript } from "@/features/story/types";
@@ -47,13 +48,14 @@ export function resolvePreviewPlaybackState(
     return null;
   }
 
+  const visualTimeMs = resolveTimelineVisualTimeMs(masterTimeline, currentTimeMs);
   const subtitleChunk = resolveTimelineSubtitleChunkAtTime(
     frame.scene.id,
     frame.subtitle,
     frame.captionAnimation,
   );
   const captionAnimationState = frame.captionAnimation
-    ? resolveCaptionAnimationState(frame.captionAnimation.event, currentTimeMs)
+    ? resolveCaptionAnimationState(frame.captionAnimation.event, visualTimeMs)
     : null;
   const subtitleAvailableDurationMs =
     frame.captionAnimation?.event.metadata.availableDurationMs ??

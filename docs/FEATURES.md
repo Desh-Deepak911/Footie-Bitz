@@ -61,10 +61,10 @@ Convert the story narration into spoken audio for preview playback and export mu
 | Capability | Details |
 |------------|---------|
 | Auto-generation | Created during audio-first pipeline on initial story create |
-| Manual regeneration | `VoiceSettingsCard` → apply via `useStoryVoiceoverApply` |
+| Manual regeneration | Editor: `ProjectAudioVoiceoverSection` · Review: `VoiceSettingsCard` → `useStoryVoiceoverApply` |
 | Standalone API | `POST /api/generate-voiceover` |
 | Storage | `FootieScript.voiceoverUrl` (client blob URL) + `voiceoverDurationMs` |
-| Preview | `<audio>` element in `NarrationPanel` and synced preview playback |
+| Preview | Canvas Play + synced preview playback (no inspector `<audio>` controls) |
 | Export | Optional narration track muxed via FFmpeg.wasm |
 | Voices | alloy, echo, fable, onyx, nova, shimmer (+ extended set in resolver) |
 | Service | `voiceover.service.ts` |
@@ -661,8 +661,8 @@ Component: `VideoPreview.tsx`. Timing: `previewTimeline.ts`, `previewSceneTiming
 | Feature | Primary UI | Primary code |
 |---------|------------|--------------|
 | Story Generation | `CreateStoryFlow`, `BriefCanvas` | `audio-first-generation.service.ts` |
-| Voiceover | `VoiceSettingsCard`, `NarrationPanel` | `voiceover.service.ts` |
-| Voice Speed | `VoiceSettingsCard` | `voiceoverOptions.ts` |
+| Voiceover | `ProjectAudioStudio`, `VoiceSettingsCard` (review) | `voiceover.service.ts` |
+| Voice Speed | `ProjectAudioVoiceoverSection`, `VoiceSettingsCard` (review) | `voiceoverOptions.ts` |
 | Scene Editing | `StudioTimeline`, `StudioSceneInspector` | `timeline.utils.ts` |
 | Manual Scene Duration | `StudioSceneInspector` duration input | `recalculateSceneTimings()` |
 | Subtitle Modes | `CaptionModeControl` | `caption.utils.ts` |

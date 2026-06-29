@@ -176,6 +176,8 @@ export interface FootieScript {
   voiceoverDurationMs?: number;
   /** Story narration text used when the current voiceover audio was generated. */
   voiceoverNarration?: string;
+  /** Voice and speed used when the current voiceover audio was generated. */
+  voiceoverVoiceSettings?: StoryVoiceSettings;
   /** Story-level narrator voice and speed preferences. */
   voiceSettings?: StoryVoiceSettings;
   /** Story-level background music preferences. Optional for legacy stories. */

@@ -12,7 +12,39 @@ export type {
   AudioTrackType,
 } from "./types/audio.types";
 
-export type { CanonicalVoiceover } from "./utils/canonical-voiceover.utils";
+export type {
+  CanonicalVoiceover,
+  VoiceoverAvailability,
+  VoiceoverSource,
+} from "./utils/canonical-voiceover.utils";
+
+export {
+  getCanonicalVoiceover,
+  getVoiceoverAvailability,
+  readVoiceoverAudioBase64,
+  resolveCanonicalVoiceoverFromUrlFields,
+  resolveVoiceoverSourceFromUrlFields,
+} from "./utils/canonical-voiceover.utils";
+
+export {
+  hasPlayableVoiceoverSource,
+  inferVoiceoverMimeTypeFromBytes,
+  materializePlayableVoiceoverFromBase64,
+  resolvePlayableVoiceoverFromStory,
+  VOICEOVER_UNPLAYABLE_MESSAGE,
+  type PlayableVoiceoverDiagnostics,
+  type PlayableVoiceoverResolution,
+  type PlayableVoiceoverSrcKind,
+} from "./utils/playable-voiceover-src.utils";
+
+export {
+  hasEditorVoiceoverStaleReasons,
+  hasNarrationTextVoiceoverMismatch,
+  hasVoiceSettingsVoiceoverMismatch,
+  resolveEditorVoiceoverStatus,
+  type EditorVoiceoverStatus,
+  type EditorVoiceoverStatusKind,
+} from "./utils/voiceover-status.utils";
 
 export {
   AudioEngine,
@@ -30,7 +62,6 @@ export {
 export type { VoiceoverTrackUpdate } from "./services/audio-engine.service";
 
 export { fetchAudioBlobFromUrl, normalizeVoiceoverBlob } from "./utils/audio-blob.utils";
-export { getCanonicalVoiceover } from "./utils/canonical-voiceover.utils";
 export {
   classifyAudioSrcType,
   getAudioEngineDebugState,

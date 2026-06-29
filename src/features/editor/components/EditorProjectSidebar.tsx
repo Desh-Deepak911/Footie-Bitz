@@ -19,6 +19,11 @@ import { getCanonicalVoiceover } from "@/features/audio";
 import { useEditorSelection } from "@/features/editor/selection";
 import { getSceneImageUrl, sceneHasImage } from "@/features/story/utils";
 import {
+  formatDisplayDurationMs,
+  formatDisplayDurationSec,
+  formatDisplayTimeRangeSec,
+} from "@/lib/utils/formatDisplayDuration.utils";
+import {
   studioBadge,
   studioCompactButton,
   studioFieldLabel,
@@ -50,15 +55,15 @@ const SCENE_TYPE_ICONS: Record<SceneType, typeof Sparkles> = {
 function resolveVoiceoverStatus(script: FootieScript): { label: string; ready: boolean } {
   const voiceover = getCanonicalVoiceover(script);
   if (voiceover?.url) {
-    const durationSec =
+    const durationLabel =
       voiceover.durationMs != null
-        ? Math.round(voiceover.durationMs / 1000)
+        ? formatDisplayDurationMs(voiceover.durationMs)
         : script.voiceoverDurationMs != null
-          ? Math.round(script.voiceoverDurationMs / 1000)
+          ? formatDisplayDurationMs(script.voiceoverDurationMs)
           : null;
 
     return {
-      label: durationSec != null ? `Voiceover ready · ${durationSec}s` : "Voiceover ready",
+      label: durationLabel != null ? `Voiceover ready · ${durationLabel}` : "Voiceover ready",
       ready: true,
     };
   }
@@ -103,7 +108,8 @@ function SidebarSceneRow({ scene, index, isSelected, onSelect }: SidebarSceneRow
           Scene {index + 1}
         </span>
         <span className={studioSidebarSceneMeta}>
-          {scene.duration}s · {scene.start}s–{scene.end}s
+          {formatDisplayDurationSec(scene.duration)} ·{" "}
+          {formatDisplayTimeRangeSec(scene.start, scene.end)}
         </span>
       </span>
     </button>
@@ -138,7 +144,7 @@ export default function EditorProjectSidebar({
           </span>
           <span className={studioBadge}>
             <Clock className="h-3 w-3" />
-            {script.totalDuration}s
+            {formatDisplayDurationSec(script.totalDuration)}
           </span>
           <span className={`${studioBadge} ${voiceoverStatus.ready ? "" : "text-muted"}`}>
             <Mic className="h-3 w-3" />

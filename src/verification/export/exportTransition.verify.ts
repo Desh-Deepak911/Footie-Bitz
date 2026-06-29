@@ -38,8 +38,10 @@ test("export transition utils parse zoom and blur", () => {
   assert.equal(zoomOut.from.opacity, 0.5);
 
   const blur = getExportTransitionLayerDrawStates("blur", 0.5);
-  assert.equal(blur.from.blurPx, 4);
-  assert.equal(blur.to.blurPx, 4);
+  assert.equal(blur.from.opacity, 1);
+  assert.equal(blur.to.opacity, 1);
+  assert.equal(blur.from.blurPx, 6);
+  assert.equal(blur.to.blurPx, 6);
 });
 
 test("video render uses overlay map and hides captions during transition", () => {

@@ -249,7 +249,9 @@ export interface TimelineOptimizerDiagnosticsSummary {
 export interface MasterTimeline {
   id: string;
   authority: TimelineAuthorityMode;
-  /** Total render/export span — future master clock length. */
+  /** Latest active visual/audio content end before the final render hold buffer. */
+  contentEndMs: number;
+  /** Total render/export span — master clock length including final hold buffer. */
   renderDurationMs: number;
   /** Voiceover + background music mux span. */
   audioDurationMs: number;

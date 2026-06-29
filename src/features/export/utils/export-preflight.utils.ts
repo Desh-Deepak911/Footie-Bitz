@@ -11,6 +11,8 @@ export interface PrepareStoryForExportResult {
   story: FootieScript;
   /** Canonical render/export span from MasterTimeline.renderDurationMs. */
   exportDurationMs: number;
+  /** Latest active visual moment before the final render hold buffer. */
+  contentEndMs: number;
   warnings: string[];
   masterTimeline: MasterTimeline;
 }
@@ -47,6 +49,7 @@ export function prepareStoryForExport(story: FootieScript): PrepareStoryForExpor
   return {
     story: normalizedStory,
     exportDurationMs: masterTimeline.renderDurationMs,
+    contentEndMs: masterTimeline.contentEndMs,
     warnings,
     masterTimeline,
   };

@@ -50,9 +50,20 @@ const previewTimeline = readFileSync(
   join(root, "src/features/preview/utils/previewTimeline.ts"),
   "utf8",
 );
-const narrationPanel = readFileSync(join(root, "src/components/NarrationPanel.tsx"), "utf8");
 const voiceSettingsCard = readFileSync(join(root, "src/components/VoiceSettingsCard.tsx"), "utf8");
 const voiceoverApplyHook = readFileSync(join(root, "src/hooks/useStoryVoiceoverApply.ts"), "utf8");
+const projectAudioVoiceoverSection = readFileSync(
+  join(root, "src/features/editor/components/ProjectAudioVoiceoverSection.tsx"),
+  "utf8",
+);
+const editorProjectInspector = readFileSync(
+  join(root, "src/features/editor/components/EditorProjectInspector.tsx"),
+  "utf8",
+);
+const registerEditorInspectors = readFileSync(
+  join(root, "src/features/editor/inspector/registerEditorInspectors.ts"),
+  "utf8",
+);
 
 test("story workspace places voice settings near story controls", () => {
   const workspace = readFileSync(join(root, "src/components/StoryWorkspace.tsx"), "utf8");
@@ -60,9 +71,27 @@ test("story workspace places voice settings near story controls", () => {
     join(root, "src/features/editor/components/EditorProjectInspector.tsx"),
     "utf8",
   );
+  const projectAudioStudio = readFileSync(
+    join(root, "src/features/editor/components/ProjectAudioStudio.tsx"),
+    "utf8",
+  );
   assert.match(workspace, /InspectorResolver/);
-  assert.match(projectInspector, /VoiceSettingsCard/);
+  assert.match(projectInspector, /ProjectAudioStudio/);
+  assert.match(projectAudioStudio, /ProjectAudioVoiceoverSection/);
+  assert.match(projectAudioStudio, /ProjectAudioBackgroundMusicSection/);
   assert.match(projectInspector, /StoryReview/);
+});
+
+test("editor project audio is a single studio surface without duplicate voiceover controls", () => {
+  assert.doesNotMatch(editorProjectInspector, /VoiceSettingsCard/);
+  assert.doesNotMatch(editorProjectInspector, /NarrationPanel/);
+  assert.doesNotMatch(registerEditorInspectors, /component: AudioInspector/);
+  assert.match(projectAudioVoiceoverSection, /Regenerate voiceover/);
+  assert.match(projectAudioVoiceoverSection, /Generate voiceover/);
+  assert.doesNotMatch(projectAudioVoiceoverSection, /Apply Changes/);
+  assert.doesNotMatch(projectAudioVoiceoverSection, /<audio/);
+  assert.doesNotMatch(projectAudioVoiceoverSection, /Replace audio/i);
+  assert.doesNotMatch(videoPreview, /controls/);
 });
 
 test("generated caption mode uses inline preview path unchanged", () => {
@@ -344,7 +373,7 @@ test("transition and voiceover generation flows unchanged", () => {
   assert.match(voiceover, /Does not modify narration text or trigger AI generation/);
   assert.match(voiceoverApplyHook, /generate-voiceover/);
   assert.match(voiceSettingsCard, /Apply Changes/);
-  assert.doesNotMatch(narrationPanel, /subtitleText/);
+  assert.doesNotMatch(projectAudioVoiceoverSection, /subtitleText/);
 });
 
 test("export and preview skip transition items as video segments", () => {
@@ -364,6 +393,11 @@ test("export and preview skip transition items as video segments", () => {
   assert.match(exportVideo, /getRenderableScenesFromPayload/);
   assert.match(exportVideo, /isTransitionVideoContent/);
   assert.doesNotMatch(videoPreview, /TRANSITION_CARD_TITLE/);
+  const captionOverlay = readFileSync(
+    join(root, "src/features/preview/components/CaptionOverlay.tsx"),
+    "utf8",
+  );
+  assert.match(captionOverlay, /getPreviewDisplayCaption/);
   const studioTimeline = readFileSync(
     join(root, "src/features/timeline-editor/StudioTimeline.tsx"),
     "utf8",

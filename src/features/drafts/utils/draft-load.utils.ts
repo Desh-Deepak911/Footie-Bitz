@@ -9,7 +9,9 @@ import { applyEditorSlicesToScript } from "./draft-model.utils";
 
 /** Merges denormalized draft slices and restores persisted audio for the editor. */
 export function resolveDraftScriptForEditor(draft: Draft): FootieScript {
-  const merged = applyEditorSlicesToScript(draft.script, {
+  const hydratedScript = hydrateDraftScriptAudio(draft.script);
+
+  const merged = applyEditorSlicesToScript(hydratedScript, {
     scenes: draft.scenes,
     timelineItems: draft.timelineItems,
     voiceSettings: draft.voiceSettings,
@@ -18,5 +20,5 @@ export function resolveDraftScriptForEditor(draft: Draft): FootieScript {
     backgroundMusic: draft.backgroundMusic,
   });
 
-  return syncFootieScript(hydrateDraftScriptAudio(merged));
+  return syncFootieScript(merged);
 }

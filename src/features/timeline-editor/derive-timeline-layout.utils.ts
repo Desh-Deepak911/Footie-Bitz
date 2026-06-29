@@ -5,6 +5,7 @@ import type {
   TransitionTimelineEvent,
 } from "@/features/timeline-intelligence/timeline.types";
 import type { FootieScript } from "@/features/story/types";
+import { formatDisplayDurationSec } from "@/lib/utils/formatDisplayDuration.utils";
 
 import type {
   TimelineLayoutSegment,
@@ -172,9 +173,5 @@ export function deriveTimelineLayout(
 
 /** Formats block duration for compact timeline labels. */
 export function formatTimelineDurationLabel(durationSec: number): string {
-  if (Number.isInteger(durationSec)) {
-    return `${durationSec}s`;
-  }
-
-  return `${durationSec.toFixed(1)}s`;
+  return formatDisplayDurationSec(durationSec);
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { normalizeCaptionMode } from "@/features/story/utils";
-import { getDisplayCaption, type DisplayCaptionScene } from "@/features/story/utils";
+import { getPreviewDisplayCaption, normalizeCaptionMode } from "@/features/story/utils";
+import type { DisplayCaptionScene } from "@/features/story/utils";
 
 import { renderSceneCaptionContent } from "@/features/editor/components/subtitleEffectPreview";
 import { studioPreviewCaption } from "@/lib/utils/studioUi";
@@ -18,7 +18,7 @@ export default function CaptionOverlay({ scene, className = "" }: CaptionOverlay
     return null;
   }
 
-  const visibleCaption = getDisplayCaption(scene);
+  const visibleCaption = getPreviewDisplayCaption(scene);
   const caption = renderSceneCaptionContent(
     scene,
     studioPreviewCaption,

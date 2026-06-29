@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 
 import {
+  applyVoiceoverToScript,
   createDraft,
   createMemoryDraftStorageAdapter,
   deleteDraft,
@@ -19,6 +20,8 @@ import {
 import { buildAudioMixFromStory } from "@/features/audio";
 import type { FootieScript } from "@/features/story/types";
 import type { ExportSettings, StoryBackgroundMusic, StoryVoiceSettings } from "@/features/story/types";
+import { applySceneImageSettings } from "@/lib/utils/voiceover";
+import { syncFootieScript } from "@/lib/utils/voiceover";
 
 function test(name: string, fn: () => void) {
   fn();
@@ -424,6 +427,140 @@ test("updateDraft applies mergeDraftUpdatesSafely before writing to storage", ()
   assert.ok(reloaded);
   assert.equal(reloaded!.script.scenes.length, 1);
   assert.equal(reloaded!.pipelineStage, "editor_ready");
+});
+
+test("resolveDraftScriptForEditor recovers voiceover when draft.voiceover slice has stale blob url", () => {
+  const persistedBase64 = Buffer.from("stale-slice-voiceover").toString("base64");
+  const draft = normalizeDraft({
+    id: "draft-stale-slice",
+    script: {
+      ...baseScript,
+      voiceoverUrl: undefined,
+      voiceoverDurationMs: 12_000,
+      voiceoverAudioBase64: persistedBase64,
+    } as FootieScript,
+  });
+
+  draft.voiceover = {
+    url: "blob:stale-from-slice",
+    durationMs: 12_000,
+  };
+
+  const resolved = resolveDraftScriptForEditor(draft);
+  const mix = buildAudioMixFromStory(resolved);
+
+  assert.ok(mix.voiceover?.src);
+  assert.match(mix.voiceover!.src, /^blob:/);
+  assert.equal(
+    (resolved as FootieScript & { voiceoverAudioBase64?: string }).voiceoverAudioBase64,
+    persistedBase64,
+  );
+});
+
+test("applyVoiceoverToScript preserves script base64 when slice omits audioBase64", () => {
+  const persistedBase64 = Buffer.from("preserve-base64").toString("base64");
+  const script = {
+    ...baseScript,
+    voiceoverAudioBase64: persistedBase64,
+    voiceoverUrl: "blob:hydrated",
+  } as FootieScript;
+
+  const merged = applyVoiceoverToScript(script, {
+    url: "blob:stale-slice",
+    durationMs: 12_000,
+  });
+
+  assert.equal(
+    (merged as FootieScript & { voiceoverAudioBase64?: string }).voiceoverAudioBase64,
+    persistedBase64,
+  );
+  assert.equal(merged.voiceoverUrl, "blob:hydrated");
+});
+
+test("review storyboard merge and reload keep voiceover for preview and export", () => {
+  const persistedBase64 = Buffer.from("review-flow-voiceover").toString("base64");
+  const reviewScript: FootieScript = {
+    title: "Review Flow",
+    narration: "A last-minute winner changes everything.",
+    totalDuration: 0,
+    scenes: [],
+    voiceoverUrl: "blob:review-live",
+    voiceoverDurationMs: 12_000,
+    voiceoverAudioBase64: persistedBase64,
+    voiceSettings: { voice: "alloy", speed: 1 },
+  };
+
+  const withScenes = syncFootieScript({
+    ...reviewScript,
+    title: "Review Flow",
+    narration: reviewScript.narration,
+    totalDuration: 12,
+    scenes: baseScript.scenes,
+    timelineItems: baseScript.timelineItems,
+  });
+
+  const draft = normalizeDraft({
+    id: "draft-review-flow",
+    script: {
+      ...withScenes,
+      voiceoverUrl: undefined,
+      voiceoverAudioBase64: persistedBase64,
+    } as FootieScript,
+    pipelineStage: "editor_ready",
+  });
+  draft.voiceover = {
+    url: "blob:stale-after-touch",
+    durationMs: 12_000,
+  };
+
+  const resolved = resolveDraftScriptForEditor(draft);
+  const mix = buildAudioMixFromStory(resolved);
+
+  assert.ok(mix.voiceover?.src);
+  assert.equal(mix.voiceover?.durationMs, 12_000);
+});
+
+test("scene image edits preserve persisted voiceover after reload resolution", () => {
+  const persistedBase64 = Buffer.from("scene-edit-voiceover").toString("base64");
+  const script = {
+    ...baseScript,
+    scenes: [
+      {
+        ...baseScript.scenes[0]!,
+        image: {
+          url: "blob:scene-image",
+          fitMode: "cover",
+          scale: 1,
+          panX: 0,
+          panY: 0,
+          rotation: 0,
+        },
+      },
+    ],
+    voiceoverAudioBase64: persistedBase64,
+    voiceoverUrl: "blob:voice",
+  } as FootieScript;
+
+  const edited = applySceneImageSettings(script, "1", { scale: 1.2 });
+  const draft = normalizeDraft({
+    id: "draft-scene-edit",
+    script: {
+      ...edited,
+      voiceoverUrl: undefined,
+      voiceoverAudioBase64: persistedBase64,
+    } as FootieScript,
+    pipelineStage: "editor_ready",
+  });
+
+  const resolved = resolveDraftScriptForEditor(draft);
+  const mix = buildAudioMixFromStory(resolved);
+
+  assert.ok(mix.voiceover?.src);
+  assert.equal(
+    (resolved as FootieScript & { voiceoverAudioBase64?: string }).voiceoverAudioBase64,
+    persistedBase64,
+  );
+  assert.equal(resolved.scenes[0]?.image?.scale, 1.2);
 });
 
 console.log("All draft checks passed.");

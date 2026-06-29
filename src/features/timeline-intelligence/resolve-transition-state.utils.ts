@@ -112,8 +112,8 @@ export function resolveTransitionEffectLayers(
     case "blur":
       return withBothScenes(
         {
-          opacityFrom: 1 - p * 0.25,
-          opacityTo: p,
+          opacityFrom: 1,
+          opacityTo: 1,
           transformFrom: "none",
           transformTo: "none",
         },
@@ -215,8 +215,10 @@ export function resolveTransitionPreviewFilters(
     return {};
   }
 
+  const blurPx = p * 12;
+
   return {
-    filterFrom: `blur(${p * 8}px)`,
-    filterTo: `blur(${(1 - p) * 8}px)`,
+    filterFrom: `blur(${blurPx}px)`,
+    filterTo: `blur(${(1 - p) * 12}px)`,
   };
 }

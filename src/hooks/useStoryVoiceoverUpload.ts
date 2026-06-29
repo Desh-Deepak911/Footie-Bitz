@@ -10,7 +10,8 @@ import {
   applyVoiceoverRegeneration,
   resolveVoiceoverDurationFromBlob,
 } from "@/lib/utils/voiceover";
-import { DEFAULT_VOICEOVER_VOICE } from "@/lib/utils/voiceoverOptions";
+
+const ACCEPTED_AUDIO_PATTERN = /\.(mp3|wav|m4a|aac|ogg|webm|flac)$/i;
 
 function restoreVoiceoverBaseline(
   current: FootieScript,
@@ -21,6 +22,8 @@ function restoreVoiceoverBaseline(
     ...current,
     voiceoverUrl: baseline.voiceoverUrl,
     voiceoverDurationMs: baseline.voiceoverDurationMs,
+    voiceoverNarration: baseline.voiceoverNarration,
+    voiceoverVoiceSettings: baseline.voiceoverVoiceSettings,
     voiceSettings: baseline.voiceSettings,
   };
 
@@ -33,7 +36,23 @@ function restoreVoiceoverBaseline(
   return next;
 }
 
-export function useStoryVoiceoverApply(
+function normalizeUploadedAudioBlob(file: File): Promise<Blob> {
+  if (file.type.includes("audio")) {
+    return Promise.resolve(file);
+  }
+
+  if (ACCEPTED_AUDIO_PATTERN.test(file.name)) {
+    return file.arrayBuffer().then(
+      (buffer) => new Blob([buffer], { type: "audio/mpeg" }),
+    );
+  }
+
+  return Promise.reject(
+    new Error("Please choose an audio file (MP3, WAV, M4A, AAC, or OGG)."),
+  );
+}
+
+export function useStoryVoiceoverUpload(
   script: FootieScript,
   onScriptChange: (script: FootieScript) => void,
 ) {
@@ -46,82 +65,29 @@ export function useStoryVoiceoverApply(
     scriptRef.current = script;
   }, [script]);
 
-  useEffect(() => {
-    return () => {
-      audioEngine.releaseManagedVoiceoverUrls();
-    };
-  }, [audioEngine]);
-
-  useEffect(() => {
-    if (!audioEngine.hasVoiceover(script)) {
-      audioEngine.releaseManagedVoiceoverUrls();
-    }
-  }, [audioEngine, script]);
-
-  const applyVoiceoverChanges = async () => {
+  const applyUploadedVoiceover = async (file: File) => {
     setError(null);
 
     const baseline = scriptRef.current;
-    const narrationText = baseline.narration.trim();
-    if (!narrationText) {
-      setError("Add narration to your story before applying voice settings.");
-      return;
-    }
-
-    const voiceSettings = getStoryVoiceSettings(baseline);
-    const voice = voiceSettings.voice ?? DEFAULT_VOICEOVER_VOICE;
-    const speed = voiceSettings.speed;
-
     setLoading(true);
 
     let pendingVoiceoverUrl: string | null = null;
 
     try {
-      const response = await fetch("/api/generate-voiceover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          narration: narrationText,
-          voice,
-          speed,
-        }),
-      });
+      const audioBlob = await normalizeUploadedAudioBlob(file);
 
-      if (!response.ok) {
-        let message = "Could not update the voiceover. Please try again.";
-        try {
-          const data = (await response.json()) as { error?: string };
-          if (data.error?.trim()) {
-            message = data.error.trim();
-          }
-        } catch {
-          // Non-JSON error body
-        }
-        throw new Error(message);
+      if (audioBlob.size === 0) {
+        throw new Error("Uploaded audio file is empty.");
       }
-
-      const contentType = response.headers.get("Content-Type") ?? "";
-      if (!contentType.includes("audio")) {
-        throw new Error("Voiceover returned an unexpected response. Please try again.");
-      }
-
-      const blob = await response.blob();
-      if (blob.size === 0) {
-        throw new Error("Voiceover audio was empty. Please try again.");
-      }
-
-      const audioBlob = blob.type.includes("audio")
-        ? blob
-        : new Blob([await blob.arrayBuffer()], { type: "audio/mpeg" });
 
       pendingVoiceoverUrl = audioEngine.materializeVoiceoverBlob(audioBlob);
 
-      const headerDurationMs = Number(response.headers.get("X-Voiceover-Duration-Ms"));
-      const voiceoverDurationMs =
-        Number.isFinite(headerDurationMs) && headerDurationMs > 0
-          ? Math.round(headerDurationMs)
-          : await resolveVoiceoverDurationFromBlob(audioBlob, narrationText);
+      const voiceoverDurationMs = await resolveVoiceoverDurationFromBlob(
+        audioBlob,
+        baseline.narration.trim(),
+      );
 
+      const voiceSettings = getStoryVoiceSettings(baseline);
       const previousVoiceoverUrl = getCanonicalVoiceover(baseline)?.url;
 
       const withEmbeddedVoiceover = await embedVoiceoverBlobInScript(baseline, audioBlob);
@@ -130,7 +96,10 @@ export function useStoryVoiceoverApply(
         applyVoiceoverRegeneration(withEmbeddedVoiceover, {
           voiceoverUrl: pendingVoiceoverUrl,
           voiceoverDurationMs,
-          voiceSettings: { voice, speed },
+          voiceSettings: {
+            voice: voiceSettings.voice,
+            speed: voiceSettings.speed,
+          },
         }),
       );
 
@@ -148,7 +117,7 @@ export function useStoryVoiceoverApply(
       setError(
         err instanceof Error
           ? err.message
-          : "Could not update the voiceover. Please try again.",
+          : "Could not upload voiceover audio. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -156,7 +125,7 @@ export function useStoryVoiceoverApply(
   };
 
   return {
-    applyVoiceoverChanges,
+    applyUploadedVoiceover,
     loading,
     error,
     clearError: () => setError(null),

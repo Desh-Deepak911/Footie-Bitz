@@ -3,6 +3,7 @@
 import { ArrowLeftRight } from "lucide-react";
 
 import { formatTransitionLabel } from "./timeline-display.utils";
+import { formatDisplayDurationSec } from "@/lib/utils/formatDisplayDuration.utils";
 import {
   timelineTransitionMarkerBody,
   timelineTransitionMarkerDivider,
@@ -17,7 +18,7 @@ export interface TimelineTransitionMarkerProps {
 export default function TimelineTransitionMarker({ marker }: TimelineTransitionMarkerProps) {
   const transitionLabel = formatTransitionLabel(marker.transitionType);
   const durationSec = Math.max(0.1, marker.durationMs / 1000);
-  const tooltip = `${transitionLabel} · ${durationSec.toFixed(1)}s`;
+  const tooltip = `${transitionLabel} · ${formatDisplayDurationSec(durationSec)}`;
 
   return (
     <div

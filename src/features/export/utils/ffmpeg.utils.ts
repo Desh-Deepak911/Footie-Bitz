@@ -317,6 +317,7 @@ export async function muxVideoWithExportAudio(
       "aout",
     );
   } else if (hasVoiceover && voiceInputIndex != null) {
+    // atrim preserves voiceover playback rate; apad appends silence to match video length.
     filterComplex = `[${voiceInputIndex}:a]atrim=0:${duration},apad=whole_dur=${duration}[aout]`;
   }
 

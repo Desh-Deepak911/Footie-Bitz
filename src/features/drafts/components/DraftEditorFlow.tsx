@@ -18,6 +18,7 @@ import {
   studioSectionDesc,
   studioSectionTitle,
 } from "@/lib/utils/studioUi";
+import { formatDisplayDurationSec } from "@/lib/utils/formatDisplayDuration.utils";
 import { applyStoryUpdate, syncFootieScript } from "@/lib/utils/voiceover";
 
 const SAVE_CONFIRMATION_MS = 3000;
@@ -268,7 +269,7 @@ function DraftEditorFlowBody({
       onSelectedSceneChange={handleSelectedSceneChange}
       onExportSettingsChange={handleExportSettingsChange}
       projectTitle={studioScript.title}
-      projectMeta={`${totalDuration}s · ${studioScript.scenes.length} scenes`}
+      projectMeta={`${formatDisplayDurationSec(totalDuration)} · ${studioScript.scenes.length} scenes`}
       onSaveDraft={handleSaveDraft}
       saveDraftDisabled={isSaving}
       saveDraftConfirmation={saveConfirmation ?? autosaveSavedMessage}

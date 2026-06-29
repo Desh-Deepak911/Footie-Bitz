@@ -1,4 +1,3 @@
-import AudioInspector from "./panels/AudioInspector";
 import CaptionInspector from "./panels/CaptionInspector";
 import ImageInspector from "./panels/ImageInspector";
 import ProjectInspector from "./panels/ProjectInspector";
@@ -12,6 +11,6 @@ export function createEditorInspectorRegistry(): InspectorRegistry {
     .register({ id: "image", component: ImageInspector, order: 20 })
     .register({ id: "caption", component: CaptionInspector, order: 30 })
     .register({ id: "transition", component: TransitionInspector, order: 40 })
-    .register({ id: "audio", component: AudioInspector, order: 50 })
+    // AudioInspector is future-only — register when resolveInspectorPanels adds "audio".
     .register({ id: "project", component: ProjectInspector, order: 100 });
 }

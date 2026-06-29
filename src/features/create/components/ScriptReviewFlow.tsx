@@ -180,6 +180,7 @@ function ScriptReviewFlowContent({ draftId }: ScriptReviewFlowProps) {
   const [sceneCountOverride, setSceneCountOverride] = useState<number | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isCreatingScenes, setIsCreatingScenes] = useState(false);
+  const [isPersistingForEditor, setIsPersistingForEditor] = useState(false);
   const [createScenesError, setCreateScenesError] = useState<string | null>(null);
   const [scenesCreatedSuccessfully, setScenesCreatedSuccessfully] = useState(false);
   const [storyboardStep, setStoryboardStep] = useState<GenerationLoadingStep>(3);
@@ -342,15 +343,26 @@ function ScriptReviewFlowContent({ draftId }: ScriptReviewFlowProps) {
     [creationBrief, setCreationBrief],
   );
 
-  const handleOpenEditor = useCallback(() => {
+  const handleOpenEditor = useCallback(async () => {
     if (!script || script.scenes.length === 0) {
       setCreateScenesError("Build your storyboard before opening the editor.");
       return;
     }
 
     setCreateScenesError(null);
-    router.push(`/editor/${draftId}`);
-    void flushPersist("editor_ready");
+    setIsPersistingForEditor(true);
+
+    try {
+      const updated = await flushPersist("editor_ready", script);
+      if (!updated) {
+        setCreateScenesError("Could not save narration before opening the editor. Try again.");
+        return;
+      }
+
+      router.push(`/editor/${draftId}`);
+    } finally {
+      setIsPersistingForEditor(false);
+    }
   }, [draftId, flushPersist, router, script]);
 
   const handleCreateScenes = useCallback(async () => {
@@ -416,10 +428,18 @@ function ScriptReviewFlowContent({ draftId }: ScriptReviewFlowProps) {
       setScenesCreatedSuccessfully(true);
       isCreatingScenesRef.current = false;
       setIsCreatingScenes(false);
+      setIsPersistingForEditor(true);
 
-      router.push(`/editor/${draftId}`);
+      try {
+        const updated = await flushPersist("editor_ready", nextScriptWithScenes);
+        if (!updated) {
+          throw new Error("Could not save narration before opening the editor. Try again.");
+        }
 
-      void flushPersist("editor_ready", nextScriptWithScenes);
+        router.push(`/editor/${draftId}`);
+      } finally {
+        setIsPersistingForEditor(false);
+      }
     } catch (error) {
       isCreatingScenesRef.current = false;
       setIsCreatingScenes(false);
@@ -432,7 +452,7 @@ function ScriptReviewFlowContent({ draftId }: ScriptReviewFlowProps) {
 
   const handlePrimaryAction = useCallback(() => {
     if (hasStoryboard || scenesCreatedSuccessfully) {
-      handleOpenEditor();
+      void handleOpenEditor();
       return;
     }
 
@@ -457,6 +477,13 @@ function ScriptReviewFlowContent({ draftId }: ScriptReviewFlowProps) {
   if (isCreatingScenes) {
     primaryAction = {
       label: "Building storyboard",
+      onClick: handlePrimaryAction,
+      disabled: true,
+      loading: true,
+    };
+  } else if (isPersistingForEditor) {
+    primaryAction = {
+      label: "Saving narration",
       onClick: handlePrimaryAction,
       disabled: true,
       loading: true,

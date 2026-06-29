@@ -2,6 +2,7 @@ import type { FootieScript } from "@/features/story/types";
 
 import { buildAudioMixFromStory } from "../services/audio-engine.service";
 import type { AudioMix } from "../types/audio.types";
+import { readVoiceoverAudioBase64 } from "./canonical-voiceover.utils";
 
 export function isAudioDebugEnabled(): boolean {
   return process.env.NEXT_PUBLIC_AUDIO_DEBUG === "true";
@@ -18,8 +19,7 @@ export interface AudioEngineDebugState {
 }
 
 function hasPersistedVoiceoverBase64(story: FootieScript): boolean {
-  const value = (story as { voiceoverAudioBase64?: unknown }).voiceoverAudioBase64;
-  return typeof value === "string" && value.length > 0;
+  return Boolean(readVoiceoverAudioBase64(story));
 }
 
 function hasPersistedBackgroundBase64(story: FootieScript): boolean {

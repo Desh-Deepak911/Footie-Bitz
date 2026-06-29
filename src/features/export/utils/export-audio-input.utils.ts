@@ -1,4 +1,13 @@
 import type { AudioTrack } from "@/features/audio/types/audio.types";
+import {
+  getVoiceoverAvailability,
+  readVoiceoverAudioBase64,
+  type VoiceoverSource,
+} from "@/features/audio/utils/canonical-voiceover.utils";
+import { isAudioDebugEnabled } from "@/features/audio/utils/audio-debug.utils";
+import type { FootieScript } from "@/features/story/types";
+
+import type { ExportAudioMode } from "./export-quality.utils";
 
 const SUPPORTED_EXTENSIONS = new Set([".mp3", ".wav", ".m4a", ".aac", ".ogg", ".webm"]);
 
@@ -453,4 +462,61 @@ export function buildFfmpegVoiceInputFilename(extension: string): string {
 /** Virtual FFmpeg filename for a normalized background music input. */
 export function buildFfmpegMusicInputFilename(extension: string): string {
   return `music${extension}`;
+}
+
+export interface ExportAudioDiagnostics {
+  hasCanonicalVoiceover: boolean;
+  hasVoiceoverUrl: boolean;
+  hasVoiceoverBase64: boolean;
+  voiceoverSource: VoiceoverSource;
+  exportAudioMode: ExportAudioMode;
+  hasPlayableVoiceover: boolean;
+}
+
+export function buildExportAudioDiagnostics(
+  story: FootieScript,
+  exportAudioMode: ExportAudioMode,
+  hasPlayableVoiceover: boolean,
+): ExportAudioDiagnostics {
+  return {
+    ...getVoiceoverAvailability(story),
+    exportAudioMode,
+    hasPlayableVoiceover,
+  };
+}
+
+export function logExportAudioDiagnostics(
+  diagnostics: ExportAudioDiagnostics,
+  context = "export",
+): void {
+  if (!isAudioDebugEnabled()) {
+    return;
+  }
+
+  console.info("[ExportAudio]", context, diagnostics);
+}
+
+/**
+ * Resolves export voiceover input, preferring persisted base64 over potentially stale blob URLs.
+ */
+export function resolveExportVoiceoverAudioInput(
+  track: AudioTrack | undefined,
+  story: FootieScript,
+): ExportAudioInput | undefined {
+  if (!track) {
+    return undefined;
+  }
+
+  const base64 = readVoiceoverAudioBase64(story);
+  if (base64) {
+    const metadataMimeType = track.metadata?.mimeType;
+    return {
+      base64,
+      fileName: track.fileName ?? "voiceover.mp3",
+      mimeType: typeof metadataMimeType === "string" ? metadataMimeType : "audio/mpeg",
+      fallbackBaseName: "voiceover",
+    };
+  }
+
+  return track;
 }

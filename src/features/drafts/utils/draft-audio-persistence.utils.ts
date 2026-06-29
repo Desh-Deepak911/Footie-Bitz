@@ -1,4 +1,8 @@
-import { getCanonicalVoiceover } from "@/features/audio";
+import {
+  getCanonicalVoiceover,
+  readVoiceoverAudioBase64,
+  resolveCanonicalVoiceoverFromUrlFields,
+} from "@/features/audio/utils/canonical-voiceover.utils";
 import { fetchAudioBlobFromUrl } from "@/features/audio/utils/audio-blob.utils";
 import {
   inferExportAudioMimeTypeFromFileName,
@@ -32,6 +36,17 @@ function blobToBase64(blob: Blob): Promise<string> {
     }
     return btoa(binary);
   });
+}
+
+/** Embeds freshly generated voiceover bytes on the script before draft autosave runs. */
+export async function embedVoiceoverBlobInScript(
+  script: FootieScript,
+  audioBlob: Blob,
+): Promise<DraftPersistedScript> {
+  return {
+    ...(script as DraftPersistedScript),
+    voiceoverAudioBase64: await blobToBase64(audioBlob),
+  };
 }
 
 async function fetchAudioBlobForDraftPersist(url: string): Promise<Blob> {
@@ -118,16 +133,30 @@ export async function persistDraftAudioInScript(
   };
 }
 
+function resolveVoiceoverUrlForPlayback(
+  urlFromFields: string | undefined,
+  voiceoverAudioBase64: string | undefined,
+): string | undefined {
+  if (!voiceoverAudioBase64) {
+    return urlFromFields;
+  }
+
+  if (!urlFromFields || isEphemeralAudioUrl(urlFromFields)) {
+    return materializeVoiceoverBase64(voiceoverAudioBase64);
+  }
+
+  return urlFromFields;
+}
+
 /** Restores playable blob URLs from persisted draft audio payloads. */
 export function hydrateDraftScriptAudio(script: FootieScript): FootieScript {
   const persisted = script as DraftPersistedScript;
-  const canonical = getCanonicalVoiceover(persisted);
-  let voiceoverUrl = canonical?.url ?? persisted.voiceoverUrl;
-  const voiceoverAudioBase64 = persisted.voiceoverAudioBase64;
-
-  if ((!voiceoverUrl || isEphemeralAudioUrl(voiceoverUrl)) && voiceoverAudioBase64) {
-    voiceoverUrl = materializeVoiceoverBase64(voiceoverAudioBase64);
-  }
+  const canonical = resolveCanonicalVoiceoverFromUrlFields(persisted);
+  const voiceoverAudioBase64 = readVoiceoverAudioBase64(persisted);
+  const voiceoverUrl = resolveVoiceoverUrlForPlayback(
+    canonical?.url ?? persisted.voiceoverUrl,
+    voiceoverAudioBase64,
+  );
 
   const backgroundMusic = normalizeStoryBackgroundMusic(
     persisted.backgroundMusic,
@@ -155,5 +184,25 @@ export function hydrateDraftScriptAudio(script: FootieScript): FootieScript {
     voiceoverDurationMs: canonical?.durationMs ?? persisted.voiceoverDurationMs,
     voiceSettings: normalizeStoryVoiceSettings(persisted),
     backgroundMusic: nextBackgroundMusic,
+  };
+}
+
+/**
+ * Rehydrates voiceover from persisted base64 before export.
+ * Always materializes a fresh blob URL when base64 exists so dead/revoked blob URLs cannot block mux.
+ */
+export function prepareStoryVoiceoverForExport(script: FootieScript): FootieScript {
+  const persisted = script as DraftPersistedScript;
+  const canonical = resolveCanonicalVoiceoverFromUrlFields(persisted);
+  const voiceoverAudioBase64 = readVoiceoverAudioBase64(persisted);
+  const voiceoverUrl = voiceoverAudioBase64
+    ? materializeVoiceoverBase64(voiceoverAudioBase64)
+    : (canonical?.url ?? persisted.voiceoverUrl);
+
+  return {
+    ...persisted,
+    voiceoverUrl,
+    voiceoverDurationMs: canonical?.durationMs ?? persisted.voiceoverDurationMs,
+    voiceSettings: normalizeStoryVoiceSettings(persisted),
   };
 }

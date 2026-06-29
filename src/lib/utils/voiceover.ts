@@ -1,3 +1,7 @@
+import {
+  inferVoiceoverMimeTypeFromBytes,
+  materializePlayableVoiceoverFromBase64,
+} from "@/features/audio/utils/playable-voiceover-src.utils";
 import { revokeBlobUrl } from "./blobUrl";
 import {
   coerceLegacyStoryFields,
@@ -48,9 +52,42 @@ export function createAudioBlobUrl(
   audioBase64: string,
   mimeType = "audio/mpeg",
 ): string {
-  const binary = atob(audioBase64);
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+  const trimmed = audioBase64.trim();
+
+  if (trimmed.startsWith("data:")) {
+    const materialized = materializePlayableVoiceoverFromBase64(trimmed, { preferObjectUrl: true });
+    if (materialized) {
+      return materialized.src;
+    }
+  }
+
+  let bytes: Uint8Array;
+  try {
+    bytes = decodeVoiceoverBase64Payload(trimmed);
+  } catch {
+    const binary = atob(trimmed);
+    bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  }
+
+  const resolvedMime =
+    mimeType !== "audio/mpeg" ? mimeType : inferVoiceoverMimeTypeFromBytes(bytes);
+
+  return URL.createObjectURL(new Blob([Uint8Array.from(bytes)], { type: resolvedMime }));
+}
+
+function decodeVoiceoverBase64Payload(payload: string): Uint8Array {
+  const trimmed = payload.trim();
+  if (trimmed.startsWith("data:")) {
+    const match = trimmed.match(/^data:[^,]*;base64,([\s\S]+)$/);
+    if (!match?.[1]) {
+      throw new Error("Invalid voiceover data URL");
+    }
+    const binary = atob(match[1].trim());
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  }
+
+  const binary = atob(trimmed);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 
 /** Creates an object URL from a base64-encoded MP3 payload. */
@@ -98,12 +135,16 @@ function resolveVoiceoverNarrationSnapshot(script: FootieScript): string {
 function buildVoiceoverAttachmentFields(
   script: FootieScript,
   attachment: VoiceoverAttachment,
-): Pick<FootieScript, "voiceoverUrl" | "voiceoverDurationMs" | "voiceoverNarration" | "voiceSettings"> {
+): Pick<
+  FootieScript,
+  "voiceoverUrl" | "voiceoverDurationMs" | "voiceoverNarration" | "voiceoverVoiceSettings" | "voiceSettings"
+> {
   const voiceSettings = mergeVoiceSettings(script, attachment.voiceSettings);
 
   return {
     voiceoverUrl: attachment.voiceoverUrl,
     voiceoverNarration: resolveVoiceoverNarrationSnapshot(script),
+    voiceoverVoiceSettings: voiceSettings,
     ...(attachment.voiceoverDurationMs != null && attachment.voiceoverDurationMs > 0
       ? { voiceoverDurationMs: Math.round(attachment.voiceoverDurationMs) }
       : {}),
@@ -177,6 +218,7 @@ export function applyVoiceoverChanges(
         ...script,
         voiceoverUrl: attachment.voiceoverUrl,
         voiceoverNarration: resolveVoiceoverNarrationSnapshot(script),
+        voiceoverVoiceSettings: voiceSettings,
         voiceSettings,
       },
       script,
@@ -191,6 +233,7 @@ export function applyVoiceoverChanges(
       voiceoverUrl: attachment.voiceoverUrl,
       voiceoverDurationMs: Math.round(voiceoverDurationMs),
       voiceoverNarration: resolveVoiceoverNarrationSnapshot(script),
+      voiceoverVoiceSettings: voiceSettings,
       voiceSettings,
       scenes,
     },
@@ -224,6 +267,7 @@ export function applyStoryUpdate(prev: FootieScript, next: FootieScript): Footie
     voiceoverUrl: undefined,
     voiceoverDurationMs: undefined,
     voiceoverNarration: undefined,
+    voiceoverVoiceSettings: undefined,
   };
 }
 

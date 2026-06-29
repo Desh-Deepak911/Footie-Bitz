@@ -6,6 +6,7 @@ import {
   getSceneEndMs,
   getStoryTotalDuration,
   isAudioFirstStory,
+  isTransitionVideoContent,
   recalculateSceneTimings,
   resolveStoryDurationSec,
   scenesHaveMsTiming,
@@ -20,7 +21,6 @@ import {
   isSceneTimelineItem,
   isTransitionTimelineItem,
   normalizeSceneIds,
-  TRANSITION_CARD_TITLE,
 } from "@/features/story/utils";
 import type {
   CaptionMode,
@@ -164,18 +164,7 @@ export function isExportTransitionTimelineItem(
   return item.type === "transition";
 }
 
-/** True when text is transition connector copy — must never appear in exported video. */
-export function isTransitionVideoContent(text: string | undefined): boolean {
-  const normalized = text?.trim() ?? "";
-  if (!normalized) {
-    return false;
-  }
-
-  return (
-    normalized === TRANSITION_CARD_TITLE ||
-    normalized.toLowerCase() === "transition to next scene"
-  );
-}
+export { isTransitionVideoContent } from "@/features/story/utils/caption.utils";
 
 /** Only scene timeline items may become video segments. */
 export function isVideoSegmentTimelineItem(

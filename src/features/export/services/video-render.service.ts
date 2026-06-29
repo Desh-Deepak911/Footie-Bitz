@@ -11,7 +11,13 @@ import {
   type FootieExportPayload,
 } from "./export-payload.service";
 import { buildAudioMixFromStory, logAudioEngineState } from "@/features/audio";
+import { prepareStoryVoiceoverForExport } from "@/features/drafts";
 import type { ExportAudioInput } from "@/features/export/utils/export-audio-input.utils";
+import {
+  buildExportAudioDiagnostics,
+  logExportAudioDiagnostics,
+  resolveExportVoiceoverAudioInput,
+} from "@/features/export/utils/export-audio-input.utils";
 import { downloadBlob } from "@/features/export/utils/download.utils";
 import {
   EXPORT_AUDIO_FULL_SUCCESS_MESSAGE,
@@ -41,6 +47,7 @@ import {
   type ExportPath,
 } from "@/features/export/utils/export-path.utils";
 import { prepareStoryForExport } from "@/features/export/utils/export-preflight.utils";
+import { EXPORT_NARRATION_UNAVAILABLE_WARNING } from "@/features/export/utils/export-narration-voiceover.utils";
 import { logExportMasterTimelineDiagnostics } from "@/features/timeline-intelligence/export-timeline-diagnostics.dev.utils";
 import type { ExportAudioMuxOutputFormat } from "@/features/export/utils/ffmpeg.utils";
 import {
@@ -61,6 +68,7 @@ import {
   resolveTimelineFrameCount,
   resolveTimelineFrameTimeMs,
   resolveTimelineSceneFrame,
+  resolveTimelineVisualTimeMs,
 } from "@/features/timeline-intelligence/timeline-playback.utils";
 import type { MasterTimeline } from "@/features/timeline-intelligence/timeline.types";
 import {
@@ -179,6 +187,7 @@ export function resolveExportFrameFromMasterTimeline(
   sceneById: Map<string, ExportScene>,
   currentTimeMs: number,
 ): ExportFrameFromTimeline {
+  const visualTimeMs = resolveTimelineVisualTimeMs(masterTimeline, currentTimeMs);
   const frame = resolveTimelineSceneFrame(masterTimeline, scenes, currentTimeMs);
   const fallbackScene = scenes[0]!;
 
@@ -203,7 +212,7 @@ export function resolveExportFrameFromMasterTimeline(
     scene,
     frame.subtitle,
     frame.captionAnimation,
-    currentTimeMs,
+    visualTimeMs,
   );
 
   return {
@@ -292,6 +301,7 @@ function drawSceneFrame(
   masterTimeline: MasterTimeline,
   currentTimeMs: number,
 ) {
+  const visualTimeMs = resolveTimelineVisualTimeMs(masterTimeline, currentTimeMs);
   const scale = width / 1080;
   const padX = 72 * scale;
   const titleY = 180 * scale;
@@ -313,7 +323,7 @@ function drawSceneFrame(
           transitionOverlay.fromScene as ExportScene,
           transitionImages.from,
           masterTimeline,
-          currentTimeMs,
+          visualTimeMs,
         );
       },
       drawToBackground: (layerCtx, layerWidth, layerHeight) => {
@@ -324,12 +334,12 @@ function drawSceneFrame(
           transitionOverlay.toScene as ExportScene,
           transitionImages.to,
           masterTimeline,
-          currentTimeMs,
+          visualTimeMs,
         );
       },
     });
   } else {
-    drawSceneBackground(ctx, width, height, scene, image, masterTimeline, currentTimeMs);
+    drawSceneBackground(ctx, width, height, scene, image, masterTimeline, visualTimeMs);
   }
 
   // Gradient overlay for text legibility.
@@ -750,14 +760,15 @@ export async function exportFootieShort(
 ): Promise<void> {
   assertBrowserExportEnvironment();
 
-  const exportSettings = resolveExportSettings(script, options);
+  const voiceoverPreparedScript = prepareStoryVoiceoverForExport(script);
+  const exportSettings = resolveExportSettings(voiceoverPreparedScript, options);
   const exportPath = resolveExportPath(exportSettings);
 
   if (exportPath.blocked) {
     throw new Error(exportPath.blockReason ?? "Selected export format is unavailable.");
   }
 
-  const preflight = prepareStoryForExport(script);
+  const preflight = prepareStoryForExport(voiceoverPreparedScript);
   const exportScript = preflight.story;
   const exportDurationMs = preflight.exportDurationMs;
   const exportDurationSec = exportDurationMs / 1000;
@@ -778,12 +789,23 @@ export async function exportFootieShort(
   const quality = resolveExportRenderPreset(exportScript, options);
   const audioMix = buildAudioMixFromStory(exportScript);
   logAudioEngineState(exportScript, "export");
+  const exportAudioMode = options.audioMode ?? "silent";
+  const voiceoverDiagnostics = buildExportAudioDiagnostics(
+    exportScript,
+    exportAudioMode,
+    Boolean(audioMix.voiceover?.src),
+  );
+  logExportAudioDiagnostics(voiceoverDiagnostics, "export");
   const voiceoverSrc = audioMix.voiceover?.src;
   const backgroundTrack = audioMix.background;
   const backgroundMusicSrc =
     backgroundTrack?.enabled ? backgroundTrack.src : undefined;
   const includeNarration =
-    options.audioMode === "with-voice" && Boolean(voiceoverSrc);
+    exportAudioMode === "with-voice" && Boolean(voiceoverSrc);
+
+  if (exportAudioMode === "with-voice" && !voiceoverSrc) {
+    throw new Error(EXPORT_NARRATION_UNAVAILABLE_WARNING);
+  }
 
   const silentBlob = await exportSilentVideoBlob(
     exportScript,
@@ -846,7 +868,9 @@ export async function exportFootieShort(
       message: includeNarration ? "Adding narration..." : "Preparing audio...",
     });
 
-    const voiceoverInput = includeNarration ? audioMix.voiceover : undefined;
+    const voiceoverInput = includeNarration
+      ? resolveExportVoiceoverAudioInput(audioMix.voiceover, exportScript)
+      : undefined;
     const backgroundMusicInput = includeBackgroundMusicMix ? backgroundTrack : undefined;
     const attemptedVoice = Boolean(voiceoverInput);
     const attemptedMusic = Boolean(backgroundMusicInput);

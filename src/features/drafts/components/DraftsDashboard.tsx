@@ -18,6 +18,7 @@ import {
   studioStepLabel,
   studioSubtleText,
 } from "@/lib/utils/studioUi";
+import { formatDisplayDurationSec } from "@/lib/utils/formatDisplayDuration.utils";
 
 function formatDraftTimestamp(iso: string): string {
   const date = new Date(iso);
@@ -140,7 +141,7 @@ export default function DraftsDashboard() {
                       </div>
                       <div>
                         <dt className="font-medium text-foreground/70">Duration</dt>
-                        <dd className="mt-0.5">{draft.totalDuration}s</dd>
+                        <dd className="mt-0.5">{formatDisplayDurationSec(draft.totalDuration)}</dd>
                       </div>
                     </dl>
                   </div>

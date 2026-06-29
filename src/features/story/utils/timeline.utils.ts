@@ -324,8 +324,20 @@ export function normalizeTransitionDurationMs(durationMs: number): TransitionDur
 }
 
 export function normalizeTransitionEffect(effect: string): TransitionEffect {
-  if (TRANSITION_EFFECT_OPTIONS.some((option) => option.value === effect)) {
-    return effect as TransitionEffect;
+  const trimmed = effect.trim();
+  const exact = TRANSITION_EFFECT_OPTIONS.find((option) => option.value === trimmed);
+  if (exact) {
+    return exact.value;
+  }
+
+  const lower = trimmed.toLowerCase();
+  const normalized = TRANSITION_EFFECT_OPTIONS.find((option) => option.value === lower);
+  if (normalized) {
+    return normalized.value;
+  }
+
+  if (lower === "cross-blur" || lower === "crossfade-blur") {
+    return "blur";
   }
 
   return DEFAULT_TRANSITION_EFFECT;

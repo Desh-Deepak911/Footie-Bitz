@@ -9,9 +9,12 @@ import {
   Film,
   Loader2,
 } from "lucide-react";
-import { useMemo, useState, useEffect, type ReactNode } from "react";
+import { useMemo, useRef, useState, useEffect, type ReactNode } from "react";
 
-import { buildAudioMixFromStory } from "@/features/audio";
+import ExportSuccessSummary from "@/components/export/ExportSuccessSummary";
+import { buildExportSuccessDiagnostics } from "@/components/export/build-export-success-diagnostics.utils";
+import { buildAudioMixFromStory, getVoiceoverAvailability } from "@/features/audio";
+import { prepareStoryVoiceoverForExport } from "@/features/drafts";
 import {
   applyStoryBackgroundMusic,
 } from "@/features/story/utils";
@@ -32,13 +35,21 @@ import {
   type ExportProgress,
 } from "@/features/export/services";
 import {
+  EXPORT_NARRATION_UNAVAILABLE_WARNING,
   EXPORT_NARRATION_VOICEOVER_MISMATCH_WARNING,
   hasNarrationVoiceoverMismatch,
 } from "@/features/export/utils/export-narration-voiceover.utils";
 import {
-  EXPORT_AUDIO_VOICE_ONLY_FALLBACK_WARNING,
+  buildExportAudioDiagnostics,
+  logExportAudioDiagnostics,
+} from "@/features/export/utils/export-audio-input.utils";
+import {
   isExportBackgroundMusicActiveFromMix,
 } from "@/features/export/utils/export-background-music.utils";
+import {
+  setExportDownloadCaptureHandler,
+} from "@/features/export/utils/download.utils";
+import { prepareStoryForExport } from "@/features/export/utils/export-preflight.utils";
 import {
   studioBadge,
   studioChecklistItem,
@@ -64,6 +75,7 @@ import {
   studioWarningPanel,
 } from "@/lib/utils/studioUi";
 import { CREATOR_BRAND } from "@/lib/constants/product-brand";
+import { formatDisplayDurationSec } from "@/lib/utils/formatDisplayDuration.utils";
 import { syncFootieScript } from "@/lib/utils/voiceover";
 import { sceneHasImage } from "@/features/story/utils";
 import type { ExportSettings, FootieScript } from "@/features/story/types";
@@ -87,6 +99,53 @@ interface ChecklistItem {
 }
 
 type ExportState = ExportProgress["status"] | "idle";
+
+interface ExportSuccessSnapshot {
+  fileName: string;
+  durationSec: number;
+  resolution: string;
+  voiceoverEnabled: boolean;
+  backgroundMusicEnabled: boolean;
+  diagnostics: string[];
+  downloadBlob: Blob | null;
+  downloadFileName: string;
+}
+
+interface PendingExportContext {
+  settings: ExportSettings;
+  requestedVoiceover: boolean;
+  requestedMusic: boolean;
+  durationSec: number;
+}
+
+function resolveExportedAudioFlags(
+  resultKind: ExportProgress["resultKind"] | undefined,
+  requestedVoiceover: boolean,
+  requestedMusic: boolean,
+): Pick<ExportSuccessSnapshot, "voiceoverEnabled" | "backgroundMusicEnabled"> {
+  switch (resultKind) {
+    case "audio-full":
+      return {
+        voiceoverEnabled: requestedVoiceover,
+        backgroundMusicEnabled: requestedMusic,
+      };
+    case "audio-voice-only":
+      return {
+        voiceoverEnabled: requestedVoiceover,
+        backgroundMusicEnabled: false,
+      };
+    case "audio-silent":
+      return {
+        voiceoverEnabled: false,
+        backgroundMusicEnabled: false,
+      };
+    default:
+      return {
+        voiceoverEnabled: requestedVoiceover,
+        backgroundMusicEnabled: requestedMusic,
+      };
+  }
+}
 
 const FORMAT_HELPERS: Record<ExportSettings["format"], string> = {
   webm: "Faster export",
@@ -126,9 +185,12 @@ export default function ExportPanel({
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [progress, setProgress] = useState(0);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
-  const [exportWarning, setExportWarning] = useState<string | null>(null);
-  const [exportResultKind, setExportResultKind] = useState<ExportProgress["resultKind"]>("default");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [exportSuccessSnapshot, setExportSuccessSnapshot] = useState<ExportSuccessSnapshot | null>(
+    null,
+  );
+  const pendingExportContextRef = useRef<PendingExportContext | null>(null);
+  const capturedDownloadRef = useRef<{ blob: Blob; filename: string } | null>(null);
   const [includeNarrationPreference, setIncludeNarrationPreference] = useState(true);
   const baseExportSettings = useMemo(
     (): ExportSettings => resolveExportSettings(script),
@@ -183,8 +245,14 @@ export default function ExportPanel({
     return () => onExportActiveChange?.(false);
   }, [isExporting, onExportActiveChange]);
 
+  const voiceoverAvailability = useMemo(
+    () => getVoiceoverAvailability(script),
+    [script],
+  );
   const audioMix = useMemo(() => buildAudioMixFromStory(script), [script]);
   const voiceoverSrc = audioMix.voiceover?.src;
+  const hasPersistedVoiceover = voiceoverAvailability.hasCanonicalVoiceover;
+  const hasPlayableVoiceover = Boolean(voiceoverSrc);
   const narrationVoiceoverMismatch = useMemo(
     () => hasNarrationVoiceoverMismatch(script),
     [script],
@@ -207,7 +275,7 @@ export default function ExportPanel({
       {
         label: "Timeline complete",
         done: sceneCount > 0,
-        detail: `${sceneCount} scenes · ${totalDuration}s total`,
+        detail: `${sceneCount} scenes · ${formatDisplayDurationSec(totalDuration)} total`,
       },
       {
         label: "Images uploaded",
@@ -215,10 +283,12 @@ export default function ExportPanel({
         detail: `${uploadedCount} of ${sceneCount} scenes`,
       },
       {
-        label: voiceoverSrc ? "Narration ready" : "Narration",
-        done: Boolean(voiceoverSrc),
-        detail: voiceoverSrc
-          ? "Ready for preview and download"
+        label: hasPersistedVoiceover ? "Narration ready" : "Narration",
+        done: hasPersistedVoiceover,
+        detail: hasPersistedVoiceover
+          ? hasPlayableVoiceover
+            ? "Ready for preview and download"
+            : "Persisted narration found — will restore before export"
           : "No narration yet — create it from your script.",
       },
       {
@@ -227,12 +297,14 @@ export default function ExportPanel({
         detail: allImagesUploaded ? "All scenes have images" : "Placeholders used for missing images",
       },
     ],
-    [script.title, script.narration, voiceoverSrc, sceneCount, totalDuration, uploadedCount, allImagesUploaded],
+    [script.title, script.narration, hasPersistedVoiceover, hasPlayableVoiceover, sceneCount, totalDuration, uploadedCount, allImagesUploaded],
   );
 
   const readyCount = checklist.filter((item) => item.done).length;
-  const hasNarration = Boolean(voiceoverSrc);
+  const hasNarration = hasPersistedVoiceover;
   const includeNarration = hasNarration && includeNarrationPreference;
+  const narrationUnavailableForExport =
+    includeNarrationPreference && hasPersistedVoiceover && !hasPlayableVoiceover;
   const hasBackgroundMusicConfigured = Boolean(audioMix.background?.src);
   const includeBackgroundMusic =
     hasBackgroundMusicConfigured && Boolean(audioMix.background?.enabled);
@@ -261,11 +333,15 @@ export default function ExportPanel({
 
   const handleExport = async () => {
     setErrorMessage(null);
-    setExportWarning(null);
     setExportMessage(null);
-    setExportResultKind("default");
+    setExportSuccessSnapshot(null);
     setProgress(0);
     setExportState("preparing");
+    pendingExportContextRef.current = null;
+    capturedDownloadRef.current = null;
+    setExportDownloadCaptureHandler((blob, filename) => {
+      capturedDownloadRef.current = { blob, filename };
+    });
 
     try {
       const normalizedExportSettings = normalizeExportSettings(exportSettings, script.title);
@@ -277,17 +353,68 @@ export default function ExportPanel({
         return;
       }
 
+      const exportScript = prepareStoryVoiceoverForExport(syncFootieScript(script));
+      const preflight = prepareStoryForExport(exportScript);
+      pendingExportContextRef.current = {
+        settings: normalizedExportSettings,
+        requestedVoiceover: includeNarration,
+        requestedMusic: includeBackgroundMusic,
+        durationSec: preflight.exportDurationMs / 1000,
+      };
+      const exportMix = buildAudioMixFromStory(exportScript);
+      const resolvedExportAudioMode: ExportAudioMode = includeNarration
+        ? getDefaultExportAudioMode(true)
+        : "silent";
+
+      logExportAudioDiagnostics(
+        buildExportAudioDiagnostics(
+          exportScript,
+          resolvedExportAudioMode,
+          Boolean(exportMix.voiceover?.src),
+        ),
+        "export-panel",
+      );
+
+      if (includeNarrationPreference && !exportMix.voiceover?.src) {
+        setExportState("error");
+        setErrorMessage(EXPORT_NARRATION_UNAVAILABLE_WARNING);
+        return;
+      }
+
       await exportFootieShort(
-        syncFootieScript(script),
+        exportScript,
         (update) => {
           setExportState(update.status);
           setProgress(update.progress);
           setExportMessage(update.message);
-          setExportWarning(update.warning ?? null);
-          setExportResultKind(update.resultKind ?? "default");
+
+          if (update.status === "done") {
+            const context = pendingExportContextRef.current;
+            const settings = context?.settings ?? normalizedExportSettings;
+            const path = resolveExportPath(settings);
+            const completedFileName = buildExportDownloadFileName(settings, path.path);
+            const audioFlags = resolveExportedAudioFlags(
+              update.resultKind,
+              context?.requestedVoiceover ?? includeNarration,
+              context?.requestedMusic ?? includeBackgroundMusic,
+            );
+
+            setExportSuccessSnapshot({
+              fileName: completedFileName,
+              durationSec: context?.durationSec ?? totalDuration,
+              resolution: settings.resolution,
+              ...audioFlags,
+              diagnostics: buildExportSuccessDiagnostics(script, {
+                runtimeWarning: update.warning,
+                runtimeMessage: update.message,
+              }),
+              downloadBlob: capturedDownloadRef.current?.blob ?? null,
+              downloadFileName: capturedDownloadRef.current?.filename ?? completedFileName,
+            });
+          }
         },
         {
-          audioMode: exportAudioMode,
+          audioMode: resolvedExportAudioMode,
           exportSettings: normalizedExportSettings,
         },
       );
@@ -296,6 +423,8 @@ export default function ExportPanel({
       setProgress(0);
       setExportMessage(null);
       setErrorMessage(error instanceof Error ? error.message : "We couldn't finish the export. Try again.");
+    } finally {
+      setExportDownloadCaptureHandler(null);
     }
   };
 
@@ -392,7 +521,20 @@ export default function ExportPanel({
         </div>
       )}
 
-      {narrationVoiceoverMismatch && voiceoverSrc && (
+      {narrationUnavailableForExport && (
+        <div className={`${studioWarningPanel} flex items-start gap-3`}>
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
+          <div>
+            <p className="text-sm font-medium text-amber-100/90">Narration needs restoration</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-200/60">
+              Saved narration was found but is not playable yet. Export will restore it automatically,
+              or regenerate narration if export still fails.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {narrationVoiceoverMismatch && hasPersistedVoiceover && (
         <div className={`${studioWarningPanel} flex items-start gap-3`}>
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
           <div>
@@ -431,7 +573,7 @@ export default function ExportPanel({
           <p className="mt-2 text-[11px] text-muted">
             {exportWithNarration
               ? "Drawing your scenes, then adding narration. Keep this tab open."
-              : `Drawing your scenes (~${totalDuration}s). Keep this tab open.`}
+              : `Drawing your scenes (~${formatDisplayDurationSec(totalDuration)}). Keep this tab open.`}
           </p>
         </div>
       )}
@@ -661,48 +803,9 @@ export default function ExportPanel({
         </ExportSettingsSection>
       </div>
 
-      {exportState === "done" && exportMessage && exportResultKind === "audio-voice-only" && (
-        <div className={`${studioWarningPanel} flex items-start gap-3`}>
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
-          <div>
-            <p className="text-sm font-medium leading-relaxed text-amber-100/90">
-              {exportWarning ?? EXPORT_AUDIO_VOICE_ONLY_FALLBACK_WARNING}
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-amber-200/60">{exportMessage}</p>
-          </div>
-        </div>
-      )}
-
-      {exportState === "done" && exportMessage && exportResultKind !== "audio-silent" && exportResultKind !== "audio-voice-only" && (
-        <div className={`${studioPanel} flex items-start gap-3`}>
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
-          <div>
-            <p className="text-sm leading-relaxed text-foreground/90">{exportMessage}</p>
-            {exportWarning && (
-              <p className="mt-2 text-xs leading-relaxed text-muted">{exportWarning}</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {exportState === "done" && exportMessage && exportResultKind === "audio-silent" && (
-        <div className={`${studioWarningPanel} flex items-start gap-3`}>
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
-          <div>
-            <p className="text-sm leading-relaxed text-amber-100/90">{exportMessage}</p>
-            {exportWarning && (
-              <p className="mt-2 text-xs leading-relaxed text-amber-200/50">{exportWarning}</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {exportState === "done" && exportWarning && exportResultKind !== "audio-silent" && exportResultKind !== "audio-voice-only" && !exportMessage && (
-        <div className={`${studioWarningPanel} flex items-start gap-3`}>
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80" />
-          <p className="text-sm leading-relaxed text-amber-200/70">{exportWarning}</p>
-        </div>
-      )}
+      {exportState === "done" && exportSuccessSnapshot ? (
+        <ExportSuccessSummary {...exportSuccessSnapshot} />
+      ) : null}
 
       {errorMessage && (
         <div className={studioError}>

@@ -22,7 +22,8 @@ import type {
 } from "../types/audio-engine.types";
 import type { AudioMix, AudioTrack } from "../types/audio.types";
 import { fetchAudioBlobFromUrl, normalizeVoiceoverBlob } from "../utils/audio-blob.utils";
-import { getCanonicalVoiceover } from "../utils/canonical-voiceover.utils";
+import { getCanonicalVoiceover, readVoiceoverAudioBase64 } from "../utils/canonical-voiceover.utils";
+import { resolvePlayableVoiceoverFromStory } from "../utils/playable-voiceover-src.utils";
 
 const VOICEOVER_TRACK_ID = "voiceover";
 const BACKGROUND_TRACK_ID = "background";
@@ -281,6 +282,8 @@ export class AudioEngine {
   private readonly narrationElements = new Map<string, HTMLAudioElement>();
   private readonly backgroundMusicElements = new Map<string, HTMLAudioElement>();
   private readonly managedVoiceoverUrls = new Set<string>();
+  /** Stable blob URLs keyed by persisted base64 — avoids preview URL churn on script edits. */
+  private readonly voiceoverBase64UrlCache = new Map<string, string>();
 
   resolveSnapshot(script: FootieScript | null | undefined): AudioEngineSnapshot | null {
     return resolveAudioEngineSnapshot(script);
@@ -292,6 +295,47 @@ export class AudioEngine {
 
   getVoiceoverUrl(script: FootieScript | null | undefined): string | undefined {
     return getCanonicalVoiceover(script)?.url;
+  }
+
+  /**
+   * Returns a stable playable voiceover URL for preview/export hydration.
+   * Materializes persisted base64 once per payload so editor script edits do not
+   * revoke/recreate blob URLs on every render.
+   */
+  getStableVoiceoverPlaybackUrl(
+    script: FootieScript | null | undefined,
+  ): string | undefined {
+    if (!script) {
+      return undefined;
+    }
+
+    const base64 = readVoiceoverAudioBase64(script);
+    const resolution = resolvePlayableVoiceoverFromStory(script, { preferObjectUrl: true });
+    if (!resolution.hasPlayableSrc || !resolution.src) {
+      return undefined;
+    }
+
+    if (base64) {
+      let cachedUrl = this.voiceoverBase64UrlCache.get(base64);
+      if (!cachedUrl) {
+        cachedUrl = resolution.src;
+        this.voiceoverBase64UrlCache.set(base64, cachedUrl);
+        if (cachedUrl.startsWith("blob:")) {
+          this.registerManagedVoiceoverUrl(cachedUrl);
+        }
+      }
+      return cachedUrl;
+    }
+
+    if (resolution.src.startsWith("blob:")) {
+      this.registerManagedVoiceoverUrl(resolution.src);
+    }
+
+    return resolution.src;
+  }
+
+  resolvePlayableVoiceover(script: FootieScript | null | undefined) {
+    return resolvePlayableVoiceoverFromStory(script, { preferObjectUrl: true });
   }
 
   getBackgroundMusicUrl(script: FootieScript | null | undefined): string | null {
@@ -411,9 +455,14 @@ export class AudioEngine {
 
     let element = this.narrationElements.get(url);
     if (!element) {
-      element = new Audio(url);
+      element = new Audio();
       element.preload = "auto";
       this.narrationElements.set(url, element);
+    }
+
+    if (element.getAttribute("src") !== url) {
+      element.src = url;
+      element.load();
     }
 
     return element;

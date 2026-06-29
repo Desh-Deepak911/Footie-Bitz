@@ -93,6 +93,28 @@ export function getSubtitleEffectLabel(effect: SubtitleEffect): string {
 
 const PLACEHOLDER_CAPTION = "Add subtitle...";
 
+/** User-facing transition connector copy — must never appear in preview/export video. */
+const TRANSITION_CONNECTOR_COPY = "Transition to next scene";
+
+/** True when text is transition connector copy — must never appear in preview/export video. */
+export function isTransitionVideoContent(text: string | undefined): boolean {
+  const normalized = text?.trim() ?? "";
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    normalized === TRANSITION_CONNECTOR_COPY ||
+    normalized.toLowerCase() === TRANSITION_CONNECTOR_COPY.toLowerCase()
+  );
+}
+
+/** Returns display caption with transition connector copy removed for preview/export renderers. */
+export function getPreviewDisplayCaption(scene: DisplayCaptionScene): string {
+  const caption = getDisplayCaption(scene);
+  return isTransitionVideoContent(caption) ? "" : caption;
+}
+
 export type DisplayCaptionScene = Pick<
   FootieScene,
   "captionMode" | "subtitle" | "narration" | "subtitleText" | "subtitleEffect"

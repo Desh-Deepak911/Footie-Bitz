@@ -600,8 +600,8 @@ export function buildMasterTimeline(
 
   const narrationDurationMs = voiceover.hasValidVoiceover ? voiceover.durationMs : 0;
 
-  const contentEndMs = getTimelineContentEndMs({ tracks: preliminaryTracks });
-  const audioEvents = buildAudioEvents(synced, voiceover, contentEndMs);
+  const eventContentEndMs = getTimelineContentEndMs({ tracks: preliminaryTracks });
+  const audioEvents = buildAudioEvents(synced, voiceover, eventContentEndMs);
   const audioDurationMs = audioEvents.reduce(
     (maxEndMs, event) => Math.max(maxEndMs, event.endMs),
     0,
@@ -627,16 +627,12 @@ export function buildMasterTimeline(
       : 0;
 
   const renderEndBeforeBufferMs = Math.max(
-    audioDurationMs,
-    narrationDurationMs,
-    sceneDurationMs,
-    subtitleDurationMs,
-    animationDurationMs,
-    transitionDurationMs,
-    contentEndMs,
+    eventContentEndMs,
     subtitleCompletionEndMs,
+    narrationDurationMs,
   );
-  const renderDurationMs = renderEndBeforeBufferMs + endBufferMs;
+  const contentEndMs = renderEndBeforeBufferMs;
+  const renderDurationMs = contentEndMs + endBufferMs;
 
   const audioShorterThanSubtitleTimeline =
     narrationDurationMs > 0 && narrationDurationMs < subtitleDurationMs;
@@ -657,6 +653,7 @@ export function buildMasterTimeline(
   const validation = validateMasterTimeline({
     id: "pending",
     authority,
+    contentEndMs,
     renderDurationMs,
     audioDurationMs,
     narrationDurationMs,
@@ -740,6 +737,7 @@ export function buildMasterTimeline(
   return {
     id: `timeline-${options.mode}-${authority}-${builtAtIso}`,
     authority,
+    contentEndMs,
     renderDurationMs,
     audioDurationMs,
     narrationDurationMs,

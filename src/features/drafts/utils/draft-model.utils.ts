@@ -17,6 +17,30 @@ import {
 import type { DraftPersistedScript } from "./draft-audio-persistence.utils";
 import { createDraftId } from "./draft-id.utils";
 
+function isEphemeralAudioUrl(url: string | undefined): boolean {
+  return Boolean(url?.trim().startsWith("blob:"));
+}
+
+function shouldApplySliceVoiceoverUrl(
+  script: FootieScript,
+  sliceUrl: string | undefined,
+  mergedBase64: string | undefined,
+): boolean {
+  if (!sliceUrl) {
+    return false;
+  }
+
+  if (mergedBase64 && isEphemeralAudioUrl(sliceUrl)) {
+    return false;
+  }
+
+  if (mergedBase64 && isEphemeralAudioUrl(script.voiceoverUrl)) {
+    return false;
+  }
+
+  return true;
+}
+
 export function voiceoverFromScript(script: FootieScript): DraftVoiceover | undefined {
   const canonical = getCanonicalVoiceover(script);
   const audioBase64 = (script as DraftPersistedScript).voiceoverAudioBase64;
@@ -40,16 +64,20 @@ export function applyVoiceoverToScript(
     return script;
   }
 
+  const persisted = script as DraftPersistedScript;
+  const mergedBase64 = persisted.voiceoverAudioBase64 ?? voiceover.audioBase64;
+  const sliceUrl = voiceover.url?.trim();
+
   const next: DraftPersistedScript = {
     ...script,
-    voiceoverUrl: voiceover.url,
-    voiceoverDurationMs: voiceover.durationMs,
+    voiceoverDurationMs: voiceover.durationMs ?? script.voiceoverDurationMs,
+    voiceoverUrl: shouldApplySliceVoiceoverUrl(script, sliceUrl, mergedBase64)
+      ? sliceUrl
+      : script.voiceoverUrl,
   };
 
-  if (voiceover.audioBase64) {
-    next.voiceoverAudioBase64 = voiceover.audioBase64;
-  } else {
-    delete next.voiceoverAudioBase64;
+  if (mergedBase64) {
+    next.voiceoverAudioBase64 = mergedBase64;
   }
 
   return next;

@@ -94,8 +94,8 @@ Legend:
 | `PreviewFrame` | Same | Frozen | |
 | `SubtitleOverlay` | Same | Frozen | |
 | `CaptionOverlay` | Same | Frozen | |
-| `NarrationPanel` | Inspector audio section | Needs relocation | Compact player |
-| `VoiceSettingsCard` | Inspector voice section | Needs relocation | |
+| `NarrationPanel` | *(removed)* | Replaced by `ProjectAudioStudio` — canvas Play for preview |
+| `VoiceSettingsCard` | Review voice section | Editor uses `ProjectAudioVoiceoverSection` |
 | `BackgroundMusicCard` | Inspector music section | Needs relocation | |
 | `ExportPanel` | `ExportDrawer` content | Needs relocation | Trigger from header |
 | `TimelineDeveloperView` | Debug menu only | Needs relocation | Remove from default aside |
@@ -121,10 +121,10 @@ Legend:
 
 | Current | Future | Tag | Notes |
 |---------|--------|-----|-------|
-| `VoiceSettingsCard` | `VoiceInspectorSection` | Needs relocation | Used in Review + Editor |
-| `BackgroundMusicCard` | `MusicInspectorSection` | Needs relocation | |
+| `VoiceSettingsCard` | `VoiceInspectorSection` | Review only | Editor uses `ProjectAudioVoiceoverSection` |
+| `BackgroundMusicCard` | `MusicInspectorSection` | **Done** | Re-exported via `ProjectAudioBackgroundMusicSection` |
 | `ExportPanel` | `ExportInspectorSection` | Needs relocation | |
-| `NarrationPanel` | `NarrationInspectorSection` | Needs relocation | |
+| `ProjectAudioStudio` | Project inspector audio | **Done** | Voiceover, music, export mix |
 | `CopyButton` | Same | Reusable | |
 | `Card` | `StudioPanel` | Needs redesign | |
 

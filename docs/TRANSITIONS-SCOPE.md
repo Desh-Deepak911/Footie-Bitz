@@ -12,7 +12,7 @@ These systems are frozen while transitions are implemented:
 
 | System | Notes |
 |--------|--------|
-| Voiceover generation | `/api/generate-voiceover`, `generateVoiceover`, Apply Changes flow |
+| Voiceover generation | `/api/generate-voiceover`, `generateVoiceover`, editor regenerate + review Apply Changes |
 | Voice speed control | `voiceSettings`, `VoiceSettingsCard`, proportional refit |
 | Voiceover duration | `voiceoverDurationMs`, measured audio length, mux duration |
 | Scene timing fields | `scene.durationMs`, `scene.startMs`, `scene.endMs`, `start`/`end`/`duration` |

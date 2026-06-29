@@ -10,6 +10,15 @@ import {
 } from "react";
 
 import { buildAudioMixFromStory, getAudioEngine, logAudioEngineState } from "@/features/audio";
+import {
+  getVoiceoverAvailability,
+  readVoiceoverAudioBase64,
+} from "@/features/audio/utils/canonical-voiceover.utils";
+import {
+  resolvePlayableVoiceoverFromStory,
+  VOICEOVER_UNPLAYABLE_MESSAGE,
+  type PlayableVoiceoverDiagnostics,
+} from "@/features/audio/utils/playable-voiceover-src.utils";
 import { getDisplayCaption, getSceneTimingMap, getSceneVoiceoverExcerpt } from "@/features/story/utils";
 import {
   buildPreviewMasterTimeline,
@@ -24,6 +33,19 @@ import type { FootieScript } from "@/features/story/types";
 import { getStoryVoiceoverDurationSec } from "@/lib/utils/voiceover";
 
 export type PlaybackMode = "browser" | "narration";
+
+const VOICEOVER_MISSING_MESSAGE =
+  "Generate or upload voiceover to preview with audio.";
+
+function reportPreviewPlaybackError(
+  message: string,
+  err?: unknown,
+  diagnostics?: PlayableVoiceoverDiagnostics,
+): void {
+  if (process.env.NODE_ENV === "development") {
+    console.error("[FootieBitz preview playback]", message, err ?? "", diagnostics ?? "");
+  }
+}
 
 function useIsClient() {
   return useSyncExternalStore(
@@ -53,20 +75,43 @@ export function usePreviewPlayback({
   const audioMix = useMemo(() => buildAudioMixFromStory(script), [script]);
   const voiceoverTrack = audioMix.voiceover;
   const backgroundTrack = audioMix.background;
+  const voiceoverAvailability = useMemo(
+    () => getVoiceoverAvailability(script),
+    [script],
+  );
+  const persistedVoiceoverBase64 = script ? readVoiceoverAudioBase64(script) : undefined;
+  const storyVoiceoverUrl = script?.voiceoverUrl;
+  const playableVoiceover = useMemo(
+    () => resolvePlayableVoiceoverFromStory(script, { preferObjectUrl: true }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on persistedVoiceoverBase64 + storyVoiceoverUrl
+    [persistedVoiceoverBase64, storyVoiceoverUrl],
+  );
+  const voiceoverUrl = useMemo(
+    () => playableVoiceover.src ?? audioEngine.getStableVoiceoverPlaybackUrl(script),
+    // Re-resolve only when canonical voiceover payload changes — not on every scene edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on persistedVoiceoverBase64 + storyVoiceoverUrl
+    [audioEngine, persistedVoiceoverBase64, playableVoiceover.src, storyVoiceoverUrl],
+  );
+  const hasCanonicalVoiceover = voiceoverAvailability.hasCanonicalVoiceover;
+  const hasPlayableVoiceover = voiceoverAvailability.hasPlayableVoiceover;
+  const canPlayNarration = hasPlayableVoiceover && Boolean(voiceoverUrl);
+  const voiceoverDiagnostics = playableVoiceover;
   const masterTimeline = useMemo(() => buildPreviewMasterTimeline(script), [script]);
   const sceneCount = scenes.length;
   const totalDuration = masterTimeline
     ? resolvePreviewDurationSec(masterTimeline)
     : getStoryVoiceoverDurationSec(script);
   const safeIndex = sceneCount > 0 ? Math.min(selectedSceneIndex, sceneCount - 1) : 0;
-  const hasNarration = Boolean(voiceoverTrack?.src);
-  const voiceoverUrl = voiceoverTrack?.src;
+  const hasNarration = canPlayNarration;
   const backgroundMusicUrl =
     backgroundTrack?.enabled ? backgroundTrack.src : undefined;
 
   useEffect(() => {
     logAudioEngineState(script, "preview");
-  }, [script, audioMix.masterDurationMs, voiceoverUrl, backgroundMusicUrl]);
+    if (process.env.NODE_ENV === "development" && script) {
+      console.info("[FootieBitz preview playback] voiceover diagnostics", voiceoverDiagnostics);
+    }
+  }, [script, audioMix.masterDurationMs, voiceoverUrl, backgroundMusicUrl, voiceoverDiagnostics]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -82,6 +127,7 @@ export function usePreviewPlayback({
   const [previewClockMs, setPreviewClockMs] = useState(0);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [narrationEnded, setNarrationEnded] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   const isPlayingRef = useRef(false);
   const playbackModeRef = useRef<PlaybackMode | null>(null);
@@ -220,6 +266,16 @@ export function usePreviewPlayback({
     setPlaybackMode(null);
     resetTimeline();
   }, [clearAdvanceTimeout, resetTimeline, stopBackgroundMusic, stopNarrationAudio]);
+
+  const applyVoiceoverPlaybackRate = useCallback(
+    (audio: HTMLAudioElement) => {
+      const rate = voiceoverTrack?.playbackRate;
+      if (rate != null && Number.isFinite(rate) && rate > 0) {
+        audio.playbackRate = rate;
+      }
+    },
+    [voiceoverTrack?.playbackRate],
+  );
 
   const pauseVoice = useCallback(() => {
     clearAdvanceTimeout();
@@ -469,12 +525,70 @@ export function usePreviewPlayback({
   }, [onSelectedSceneChange, sceneCount, speakSceneAt, startBackgroundMusic, stopNarrationAudio]);
 
   const playPreview = async () => {
-    if (sceneCount === 0 || !voiceoverUrl || !script) return;
+    setPlaybackError(null);
 
-    const playbackAudio = audioEngine.getNarrationAudioElementBySrc(voiceoverUrl);
-    if (!playbackAudio) return;
+    if (sceneCount === 0 || !script) {
+      const message = "Add scenes before previewing.";
+      reportPreviewPlaybackError(message);
+      setPlaybackError(message);
+      return;
+    }
+
+    if (!hasCanonicalVoiceover) {
+      reportPreviewPlaybackError(VOICEOVER_MISSING_MESSAGE, undefined, voiceoverDiagnostics);
+      setPlaybackError(VOICEOVER_MISSING_MESSAGE);
+      return;
+    }
+
+    if (!hasPlayableVoiceover) {
+      reportPreviewPlaybackError(VOICEOVER_UNPLAYABLE_MESSAGE, undefined, voiceoverDiagnostics);
+      setPlaybackError(VOICEOVER_UNPLAYABLE_MESSAGE);
+      return;
+    }
+
+    const resolvedVoiceoverUrl =
+      voiceoverUrl ?? audioEngine.getStableVoiceoverPlaybackUrl(script);
+    if (!resolvedVoiceoverUrl) {
+      const message = VOICEOVER_UNPLAYABLE_MESSAGE;
+      reportPreviewPlaybackError(message, undefined, voiceoverDiagnostics);
+      setPlaybackError(message);
+      return;
+    }
+
+    const playbackAudio = audioEngine.getNarrationAudioElementBySrc(resolvedVoiceoverUrl);
+    if (!playbackAudio) {
+      const message = "Voiceover player failed to initialize.";
+      reportPreviewPlaybackError(message);
+      setPlaybackError(message);
+      return;
+    }
 
     narrationAudioRef.current = playbackAudio;
+    applyVoiceoverPlaybackRate(playbackAudio);
+
+    if (
+      playbackModeRef.current === "narration" &&
+      !playbackAudio.ended &&
+      playbackAudio.paused &&
+      playbackAudio.currentTime > 0
+    ) {
+      isPlayingRef.current = true;
+      setIsPlaying(true);
+      setIsSpeaking(false);
+
+      try {
+        await playbackAudio.play();
+        playbackStartedAtMsRef.current = Date.now();
+        await startBackgroundMusic(playbackAudio.currentTime);
+        syncBackgroundMusicVolume();
+      } catch (err) {
+        const message = "Could not resume voiceover playback.";
+        reportPreviewPlaybackError(message, err);
+        setPlaybackError(message);
+        stopVoice();
+      }
+      return;
+    }
 
     clearAdvanceTimeout();
     if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
@@ -502,7 +616,10 @@ export function usePreviewPlayback({
       playbackStartedAtMsRef.current = Date.now();
       await startBackgroundMusic(0);
       syncBackgroundMusicVolume();
-    } catch {
+    } catch (err) {
+      const message = "Could not play voiceover. Check browser audio permissions.";
+      reportPreviewPlaybackError(message, err);
+      setPlaybackError(message);
       stopVoice();
     }
   };
@@ -539,11 +656,11 @@ export function usePreviewPlayback({
     return () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("ended", handleEnded);
-      audioEngine.detachNarrationPreviewElement(voiceoverUrl, audio);
-      if (narrationAudioRef.current === audio) narrationAudioRef.current = null;
-      if (playbackModeRef.current === "narration") {
-        isPlayingRef.current = false;
-        playbackModeRef.current = null;
+      if (!isPlayingRef.current || playbackModeRef.current !== "narration") {
+        audioEngine.detachNarrationPreviewElement(voiceoverUrl, audio);
+        if (narrationAudioRef.current === audio) {
+          narrationAudioRef.current = null;
+        }
       }
     };
   }, [audioEngine, script, syncSceneToTimelineTime, voiceoverUrl]);
@@ -607,6 +724,11 @@ export function usePreviewPlayback({
     totalDuration,
     safeIndex,
     hasNarration,
+    hasCanonicalVoiceover,
+    hasPlayableVoiceover,
+    canPlayNarration,
+    playbackError,
+    voiceoverDiagnostics,
     isPlaying,
     isSpeaking,
     playbackMode,

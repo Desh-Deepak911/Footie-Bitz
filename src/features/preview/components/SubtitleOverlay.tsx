@@ -1,7 +1,7 @@
 "use client";
 
 import type { CaptionAnimationState } from "@/features/timeline-intelligence/resolve-caption-animation-state.utils";
-import { resolveActiveSubtitleForScene } from "@/features/story/utils";
+import { isTransitionVideoContent, resolveActiveSubtitleForScene } from "@/features/story/utils";
 import { type DisplayCaptionScene } from "@/features/story/utils";
 
 import { renderSceneCaptionContent } from "@/features/editor/components/subtitleEffectPreview";
@@ -38,7 +38,9 @@ export default function SubtitleOverlay({
           sceneElapsedMs,
           sceneDurationMs,
         });
-  const visibleCaption = previewChunkState.activeChunk;
+  const visibleCaption = isTransitionVideoContent(previewChunkState.activeChunk)
+    ? ""
+    : previewChunkState.activeChunk;
 
   const caption = renderSceneCaptionContent(
     scene,
@@ -46,7 +48,7 @@ export default function SubtitleOverlay({
     `${scene.id ?? "preview"}-${visibleCaption}`,
     {
       maxLines: 3,
-      activeSubtitleChunk: previewChunkState.activeChunk,
+      activeSubtitleChunk: visibleCaption,
       captionAnimationState: captionAnimationState ?? undefined,
       subtitleAvailableDurationMs,
     },
