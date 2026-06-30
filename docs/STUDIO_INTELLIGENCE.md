@@ -4,7 +4,7 @@ Studio Intelligence is a **planning subsystem** in ShortForge Studio. It transfo
 
 **Status:** **Studio Intelligence v1 frozen** — 3.3I runtime · 3.4D adapter · 3.5 opt-in production wiring · **3.6 validation & alignment complete**
 
-**Change policy:** Future Studio Intelligence work on this codebase should be **bug fixes** or **explicit feature milestones** (starting with **3.7 Asset Intelligence**). Do not make ad-hoc planner, adapter, or materializer changes without a scoped milestone and verification.
+**Change policy:** Future Studio Intelligence work on this codebase should be **bug fixes** or **explicit feature milestones** (starting with **3.8 Asset Search Platform**). Do not make ad-hoc planner, adapter, or materializer changes without a scoped milestone and verification.
 
 Deep dive companion: [ARCHITECTURE.md — Studio Intelligence layer](./ARCHITECTURE.md#studio-intelligence-layer)
 
@@ -376,7 +376,7 @@ Studio Intelligence **v1 is formally frozen** after 3.6G. This includes:
 
 **Requires a new milestone:** new planner behavior, adapter/materializer contract changes, production wiring expansion (e.g. audio-first), or editor/preview integration.
 
-**Next milestone:** **3.7 Asset Intelligence** — use blueprint asset queries to recommend or fetch imagery and clips.
+**Next milestone:** **3.8 Asset Search Platform** — Search Orchestrator and real asset retrieval. See [Next Milestone](#next-milestone) below.
 
 ---
 
@@ -409,17 +409,66 @@ npm run test:studio-intelligence-mode-templates
 npm run test:studio-intelligence-adapter-richness
 npm run test:studio-intelligence-prompt-alignment
 npm run test:studio-intelligence-story-validator
+
+# 3.7 — Asset Intelligence planning & Story Evolution
+npm run test:story-evolution
+npm run test:creator-asset-planning-cache
 ```
+
+---
+
+## Platform Status
+
+Studio Intelligence v1 is frozen.
+
+Asset Intelligence planning is complete.
+
+Creator Asset Studio is complete.
+
+Story Evolution is complete.
+
+Planning Refresh Service exists.
+
+Current editor capabilities:
+
+- persistent planning
+- soft-read cache
+- scene identity layer
+- planning staleness
+- stale recommendation UX
+- planning refresh foundation
+
+Production generation remains unchanged.
+
+---
+
+## Next Milestone
+
+### Asset Intelligence 3.8
+
+**Purpose:** Move from planning recommendations to real searchable asset retrieval.
+
+Search Orchestrator becomes the central gateway for:
+
+- manual upload
+- Pexels
+- Unsplash
+- Pixabay
+- Wikimedia
+- Internal Library
+- AI Generated assets
+
+No editor behavior changes until **3.8C**.
 
 ---
 
 ## Future roadmap
 
-### 3.7 — Asset Intelligence (next)
+### 3.8 — Asset Search Platform (next)
 
-Use blueprint asset queries and planning metadata to fetch or recommend imagery and clips.
+Search Orchestrator, provider connectors, unified asset browser, one-click attach, Smart Edit integration, and asset history. Detail: [ROADMAP.md — Asset Search Platform 3.8](../ROADMAP.md#asset-search-platform-38).
 
-### 3.8 — Smart Editing Intelligence
+### 3.9 — Smart Editing Intelligence (planned)
 
 Use planning metadata to suggest timeline edits, caption emphasis, and motion presets inside the editor.
 

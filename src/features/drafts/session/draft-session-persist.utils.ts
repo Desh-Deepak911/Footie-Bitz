@@ -4,6 +4,7 @@ import { syncFootieScript } from "@/lib/utils/voiceover";
 
 import { getDraft, updateDraft } from "../services";
 import type { Draft, DraftPipelineStage } from "../types";
+import { resolveAssetPlanningSnapshotForDraftPersist } from "../utils/draft-asset-planning-persistence.utils";
 import { hydrateDraftScriptAudio, type DraftPersistedScript } from "../utils/draft-audio-persistence.utils";
 import { resolvePipelineStageFromScript } from "../utils/draft-pipeline.utils";
 import { serializeEditorStateForDraftAsync } from "../utils/draft-serialization.utils";
@@ -75,10 +76,12 @@ export async function persistDraftSessionToStorage(
     sessionScript,
   );
   const serialized = await serializeEditorStateForDraftAsync(scriptToPersist);
+  const assetPlanningSnapshot = resolveAssetPlanningSnapshotForDraftPersist(draftId);
 
   const updated = updateDraft(draftId, {
     script: serialized,
     pipelineStage: stage,
+    ...(assetPlanningSnapshot ? { assetPlanningSnapshot } : {}),
   });
 
   if (!updated) {

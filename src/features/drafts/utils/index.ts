@@ -14,6 +14,14 @@ export {
 } from "./draft-audio-persistence.utils";
 export { resolveDraftScriptForEditor } from "./draft-load.utils";
 export {
+  buildPersistableAssetPlanningSnapshot,
+  DRAFT_ASSET_PLANNING_SNAPSHOT_MAX_BYTES,
+  isDraftAssetPlanningPersistenceEnabled,
+  measureDraftPlanningSnapshotBytes,
+  rehydrateAssetPlanningCacheFromDraft,
+  resolveAssetPlanningSnapshotForDraftPersist,
+} from "./draft-asset-planning-persistence.utils";
+export {
   applyEditorSlicesToScript,
   applyVoiceoverToScript,
   coerceLegacyDraft,

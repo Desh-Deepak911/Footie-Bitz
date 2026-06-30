@@ -20,6 +20,7 @@ export {
   readPlanningData,
   resetPlanningCachesForTests,
   updatePlanningCache,
+  updatePlanningCacheStaleness,
 } from "./creator-asset-planning.cache";
 
 export {
@@ -39,3 +40,34 @@ export {
   useCreatorAssetPlanningCache,
   useCreatorAssetStudioVisible,
 } from "./useCreatorAssetPlanningCache";
+
+export {
+  buildIdentityMismatchStaleness,
+  detectSceneIdentityIndexFallbacks,
+  resolvePlanningItemBySceneIdentity,
+  resolveSceneProviderByIdentity,
+  resolveSceneRecommendationByIdentity,
+} from "./creator-asset-scene-identity.utils";
+export {
+  attachPlanningStaleness,
+  buildMetadataDriftStaleness,
+  mergeSoftReadStaleness,
+  type PlanningReadMode,
+  type ReadPlanningDataMetadata,
+  type ReadPlanningDataOptions,
+} from "./creator-asset-planning-soft-read.utils";
+export type {
+  ScenePlanningIdentityContext,
+  ScenePlanningIdentityMatch,
+  ScenePlanningLookupMethod,
+} from "./creator-asset-scene-identity.utils";
+
+export {
+  refreshCreatorAssetPlanning,
+  CREATOR_ASSET_PLANNING_REFRESH_EFFECTIVE_SCOPE,
+  type CreatorAssetPlanningRefreshDiagnostics,
+  type CreatorAssetPlanningRefreshInput,
+  type CreatorAssetPlanningRefreshReason,
+  type CreatorAssetPlanningRefreshResult,
+  type CreatorAssetPlanningRefreshScope,
+} from "../creator-asset-planning-refresh";

@@ -135,6 +135,8 @@ export function mergeDraftUpdatesSafely(existingDraft: Draft, incomingDraft: Dra
     pipelineStage: resolveMergedPipelineStage(existingDraft, incomingDraft),
     script: mergedScript,
     creationBrief: primary.creationBrief ?? secondary.creationBrief,
+    assetPlanningSnapshot:
+      incomingDraft.assetPlanningSnapshot ?? existingDraft.assetPlanningSnapshot,
     updatedAt:
       incomingDraft.updatedAt > existingDraft.updatedAt
         ? incomingDraft.updatedAt

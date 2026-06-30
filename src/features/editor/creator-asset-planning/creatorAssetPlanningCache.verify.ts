@@ -21,6 +21,7 @@ import {
   readPlanningData,
   resetPlanningCachesForTests,
   updatePlanningCache,
+  updatePlanningCacheStaleness,
 } from "@/features/editor/creator-asset-planning/creator-asset-planning.cache";
 import {
   buildCreatorAssetPlanningCacheEntry,
@@ -32,12 +33,21 @@ import {
   hydrateCreatorAssetPlanningCache,
 } from "@/features/editor/creator-asset-planning/creator-asset-planning.utils";
 import { tryGenerateScenesFromStudioIntelligence } from "@/features/story/services/studio-intelligence-scene-plan.utils";
+import {
+  applyStoryEvolutionOnEdit,
+  SCENE_IDENTITY_MISMATCH_REASON,
+} from "@/features/editor/story-evolution";
+import { buildPlanningStaleBadge, buildPlanningStaleChips } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.staleness.utils";
+import { buildIdentityMismatchStaleness } from "@/features/editor/creator-asset-planning/creator-asset-scene-identity.utils";
 import type { FootieScene } from "@/features/story/types";
 import { ensureTimelineItems, getStoryTotalDuration } from "@/features/story/utils";
 import { ASSET_INTELLIGENCE_GOLDEN_FIXTURES } from "@/verification/asset-intelligence/fixtures/asset-intelligence-golden-fixtures.registry";
 import { buildAssetIntelligenceFixtureInput } from "@/verification/asset-intelligence/fixtures/build-asset-intelligence-fixture-input.utils";
 import { STUDIO_INTELLIGENCE_GOLDEN_FIXTURES } from "@/verification/studio-intelligence/fixtures/golden-fixtures.registry";
-import { syncFootieScript } from "@/lib/utils/voiceover";
+import { syncFootieScript, applySceneUpdate } from "@/lib/utils/voiceover";
+
+import { runDraftAssetPlanningPersistenceTests } from "@/features/drafts/utils/draft-asset-planning-persistence.verify";
+import { runCreatorAssetPlanningRefreshTests } from "@/features/editor/creator-asset-planning-refresh/creator-asset-planning-refresh.verify";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MODULE_ROOT = join(__dirname, "../components/creator-asset-studio");
@@ -239,13 +249,25 @@ test("cache updates only when script metadata meaningfully changes", () => {
   );
 
   assert.equal(
-    readPlanningData("story-2", {
-      scriptHash: buildScriptHash(changedScript),
-      sceneCount: changedScript.scenes.length,
-      storyMode: "top_5",
-    }),
+    readPlanningData(
+      "story-2",
+      {
+        scriptHash: buildScriptHash(changedScript),
+        sceneCount: changedScript.scenes.length,
+        storyMode: "top_5",
+      },
+      { mode: "strict" },
+    ),
     null,
   );
+
+  const softRead = readPlanningData("story-2", {
+    scriptHash: buildScriptHash(changedScript),
+    sceneCount: changedScript.scenes.length,
+    storyMode: "top_5",
+  });
+  assert.ok(softRead);
+  assert.equal(softRead!.staleness?.isStale, true);
 });
 
 test("scene selection does not invalidate cache metadata", () => {
@@ -573,4 +595,176 @@ test("buildScriptHash excludes voiceoverDurationMs", () => {
   );
 });
 
+test("soft read returns stale planning on hash mismatch", () => {
+  resetPlanningCachesForTests();
+  const script = buildSampleScript();
+  cacheCreatorAssetPlanning({
+    storyId: "soft-read-hash",
+    script,
+    storyMode: "top_5",
+    planning: buildSamplePlanning(),
+  });
+
+  const changedScript = {
+    ...script,
+    narration: `${script.narration} Updated.`,
+  };
+
+  const softRead = readPlanningData("soft-read-hash", {
+    scriptHash: buildScriptHash(changedScript),
+    sceneCount: changedScript.scenes.length,
+    storyMode: "top_5",
+  });
+
+  assert.ok(softRead);
+  assert.equal(softRead!.staleness?.isStale, true);
+  assert.ok(softRead!.recommendation.sceneRecommendations.length > 0);
+});
+
+test("add scene soft read shows full stale instead of empty", () => {
+  resetPlanningCachesForTests();
+  const fixture = ASSET_INTELLIGENCE_GOLDEN_FIXTURES[0];
+  const scenes = buildAiGeneratedScenes(fixture.narration, 2);
+  const script = buildSyncedScript({ title: fixture.topic, narration: fixture.narration, scenes });
+  cacheCreatorAssetPlanning({
+    storyId: "soft-read-add",
+    script,
+    storyMode: fixture.mode,
+    planning: buildSamplePlanning(),
+  });
+
+  const withAddedScene = buildSyncedScript({
+    title: fixture.topic,
+    narration: fixture.narration,
+    scenes: [
+      ...scenes,
+      {
+        id: "buffer-scene",
+        start: 10,
+        end: 15,
+        duration: 5,
+        subtitle: "Add subtitle...",
+        sceneType: "context" as const,
+      },
+    ],
+  });
+
+  const softRead = readPlanningData("soft-read-add", {
+    scriptHash: buildScriptHash(withAddedScene),
+    sceneCount: withAddedScene.scenes.length,
+    storyMode: fixture.mode,
+  });
+
+  assert.ok(softRead);
+  assert.ok(softRead!.staleness!.score >= 1);
+  assert.equal(buildPlanningStaleBadge(softRead!.staleness)?.level, "full");
+});
+
+test("narration change soft read shows full stale", () => {
+  resetPlanningCachesForTests();
+  const script = buildSampleScript();
+  cacheCreatorAssetPlanning({
+    storyId: "soft-read-narration",
+    script,
+    storyMode: "top_5",
+    planning: buildSamplePlanning(),
+  });
+
+  const nextScript = { ...script, narration: `${script.narration} Updated ending.` };
+  applyStoryEvolutionOnEdit({
+    storyId: "soft-read-narration",
+    prevScript: script,
+    nextScript,
+  });
+
+  const softRead = readPlanningData("soft-read-narration", {
+    scriptHash: buildScriptHash(nextScript),
+    sceneCount: nextScript.scenes.length,
+    storyMode: "top_5",
+  });
+
+  assert.ok(softRead);
+  assert.ok(softRead!.staleness!.score >= 1);
+  assert.ok(softRead!.staleness!.reasons.includes("narration.global"));
+});
+
+test("subtitle edit soft read shows partial stale", () => {
+  resetPlanningCachesForTests();
+  const script = buildSampleScript();
+  cacheCreatorAssetPlanning({
+    storyId: "soft-read-subtitle",
+    script,
+    storyMode: "top_5",
+    planning: buildSamplePlanning(),
+  });
+
+  const nextScript = applySceneUpdate(script, script.scenes[0]!.id, { subtitle: "Updated caption" });
+  applyStoryEvolutionOnEdit({
+    storyId: "soft-read-subtitle",
+    prevScript: script,
+    nextScript,
+  });
+
+  const softRead = readPlanningData("soft-read-subtitle", {
+    scriptHash: buildScriptHash(nextScript),
+    sceneCount: nextScript.scenes.length,
+    storyMode: "top_5",
+  });
+
+  assert.ok(softRead);
+  assert.ok(softRead!.staleness!.score >= 0.3);
+  assert.ok(softRead!.staleness!.score < 1);
+  assert.equal(buildPlanningStaleBadge(softRead!.staleness)?.level, "partial");
+  assert.ok(buildPlanningStaleChips(softRead!.staleness).some((chip) => chip.label === "Scene edited"));
+});
+
+test("identity mismatch soft read shows scene order badge", () => {
+  resetPlanningCachesForTests();
+  const script = buildSampleScript();
+  cacheCreatorAssetPlanning({
+    storyId: "soft-read-identity",
+    script,
+    storyMode: "top_5",
+    planning: buildSamplePlanning(),
+  });
+
+  updatePlanningCacheStaleness(
+    "soft-read-identity",
+    buildIdentityMismatchStaleness(undefined, true),
+  );
+
+  const softRead = readPlanningData("soft-read-identity", {
+    scriptHash: buildScriptHash(script),
+    sceneCount: script.scenes.length,
+    storyMode: "top_5",
+  });
+
+  assert.ok(softRead);
+  assert.ok(softRead!.staleness!.reasons.includes(SCENE_IDENTITY_MISMATCH_REASON));
+  assert.equal(buildPlanningStaleBadge(softRead!.staleness)?.title, "Scene order changed");
+});
+
+test("no planning still returns null in soft mode", () => {
+  resetPlanningCachesForTests();
+  assert.equal(
+    readPlanningData("missing-story", {
+      scriptHash: "missing",
+      sceneCount: 0,
+      storyMode: "top_5",
+    }),
+    null,
+  );
+});
+
 console.log("All creator asset planning cache checks passed.");
+
+void runDraftAssetPlanningPersistenceTests()
+  .then(() => runCreatorAssetPlanningRefreshTests())
+  .then(() => {
+    console.log("All draft asset planning persistence checks passed.");
+    console.log("All creator asset planning refresh checks passed.");
+  })
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });

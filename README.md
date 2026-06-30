@@ -210,7 +210,7 @@ Shipped in **v2.6.0 — Timeline Intelligence Runtime**. Deep dive: [ARCHITECTUR
 
 ## Studio Intelligence v1
 
-**Studio Intelligence v1 is frozen** (planning 3.3–3.6 + adapter 3.4 + opt-in production wiring 3.5). Future changes should be bug fixes or explicit feature milestones (starting with **3.7 Asset Intelligence**), not ad-hoc planner edits.
+**Studio Intelligence v1 is frozen** (planning 3.3–3.6 + adapter 3.4 + opt-in production wiring 3.5). Future planner changes should be bug fixes or explicit feature milestones (starting with **3.8 Asset Search Platform**), not ad-hoc edits.
 
 Studio Intelligence is a **planning subsystem** that turns story input into structured planning metadata — narrative beats, arcs, scene blueprints, visual/asset hints, timing, and coherence validation — before FootieScript scenes exist.
 
@@ -238,7 +238,18 @@ FootieScene[]  →  same downstream as AI path
 | **Entry point (planning)** | `runStudioIntelligence()` |
 | **Entry point (production)** | `tryGenerateScenesFromStudioIntelligence()` in `studio-intelligence-scene-plan.utils.ts` |
 | **Output** | `FootieScene[]` (materialized) or AI fallback scenes |
-| **Next milestone** | **3.7 Asset Intelligence** — asset-aware recommendations from blueprint queries |
+| **Current Platform Status** | See platform status below |
+
+**Current Platform Status**
+
+- ✅ Intent Intelligence v2
+- ✅ Prompt Intelligence
+- ✅ Studio Intelligence v1
+- ✅ Asset Intelligence (planning)
+- ✅ Creator Asset Studio
+- ✅ Story Evolution (planning lifecycle)
+
+**Current focus:** **3.8 Search Orchestrator** (real asset retrieval)
 
 **3.6 (complete, planning-only):** Intent Engine v2 · strategy-aware planning · mode templates · adapter semantic richness · Prompt ↔ SI alignment · Story Coherence Validator.
 
@@ -345,7 +356,7 @@ ShortForge Studio ships a production-ready creator workflow for football short-f
 - **Draft persistence** — Save, list, open, and delete drafts in the browser
 - **Browser rendering** — MP4 (FFmpeg.wasm) and WebM (MediaRecorder); aligned to Master Timeline render duration
 
-Latest release: **v2.6.0 — Timeline Intelligence Runtime** · [CHANGELOG.md](./CHANGELOG.md) · Planned work: [ROADMAP.md](./ROADMAP.md)
+Latest release: **v2.6.0 — Timeline Intelligence Runtime** · **v1.2.0 — Story Evolution & Asset Planning** (pending tag) · [CHANGELOG.md](./CHANGELOG.md) · Planned work: [ROADMAP.md](./ROADMAP.md)
 
 ---
 

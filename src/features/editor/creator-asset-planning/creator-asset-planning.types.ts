@@ -1,6 +1,7 @@
 import type { AssetProviderPlanResult } from "@/features/asset-intelligence/providers/asset-provider.types";
 import type { RecommendationResult } from "@/features/asset-intelligence/recommendation-engine/recommendation-engine.types";
 import type { AssetValidationResult } from "@/features/asset-intelligence/validator/asset-validator.types";
+import type { PlanningStaleness } from "@/features/editor/story-evolution/story-evolution.types";
 
 /** Semantic version for the creator asset planning cache contract. */
 export const CREATOR_ASSET_PLANNING_VERSION = "0.1.0";
@@ -10,6 +11,8 @@ export interface CreatorAssetStudioPlanningData {
   recommendation: RecommendationResult;
   providerPlan: AssetProviderPlanResult;
   validationResult: AssetValidationResult;
+  /** Populated on soft reads when cached planning may be outdated. */
+  staleness?: PlanningStaleness;
 }
 
 /** Metadata tracked alongside cached planning output. */
@@ -25,6 +28,8 @@ export interface CreatorAssetPlanningCacheMetadata {
 /** Cached planning entry keyed by story id. */
 export interface CreatorAssetPlanningCacheEntry extends CreatorAssetPlanningCacheMetadata {
   planning: CreatorAssetStudioPlanningData;
+  /** Computed after manual story edits — read UX unchanged in Phase 2. */
+  staleness?: PlanningStaleness;
 }
 
 /** In-memory planning cache handle for a single story. */

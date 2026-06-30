@@ -1,3 +1,4 @@
+import type { CreatorAssetPlanningSnapshot } from "@/features/editor/creator-asset-planning/creator-asset-planning.types";
 import type {
   ExportSettings,
   FootieScene,
@@ -86,6 +87,9 @@ export interface Draft {
 
   /** Where the user left off in the staged create workflow. */
   pipelineStage?: DraftPipelineStage;
+
+  /** Cached Creator Asset Studio planning — survives reload when Asset Intelligence is enabled. */
+  assetPlanningSnapshot?: CreatorAssetPlanningSnapshot;
 }
 
 /** @deprecated Prefer `Draft`. Kept for backward compatibility. */

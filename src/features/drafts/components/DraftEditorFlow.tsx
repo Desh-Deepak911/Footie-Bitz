@@ -10,6 +10,7 @@ import DraftLoadingState from "@/features/drafts/components/DraftLoadingState";
 import { useEditorStoryDocument } from "@/features/drafts/hooks/useEditorStoryDocument";
 import { useDraftPersistFeedback } from "@/features/drafts/hooks/useDraftPersistFeedback";
 import type { Draft } from "@/features/drafts";
+import { applyStoryEvolutionOnEdit } from "@/features/editor/story-evolution";
 import type { ExportSettings, FootieScript } from "@/features/story/types";
 import {
   studioPanel,
@@ -145,6 +146,11 @@ function DraftEditorFlowBody({
       }
 
       const merged = applyStoryUpdate(baseScript, next);
+      applyStoryEvolutionOnEdit({
+        storyId: draftId,
+        prevScript: syncFootieScript(baseScript),
+        nextScript: merged,
+      });
       const nextEdits: DraftEdits = {
         draftId,
         script: merged,

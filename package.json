@@ -116,7 +116,8 @@
     "test:asset-intelligence-recommendations": "tsx src/features/asset-intelligence/recommendation-engine/recommendation-engine.verify.ts",
     "test:asset-intelligence-provider": "tsx src/features/asset-intelligence/providers/asset-provider.verify.ts",
     "test:asset-intelligence-validator": "tsx src/features/asset-intelligence/validator/asset-validator.verify.ts",
-    "test:creator-asset-planning-cache": "tsx src/features/editor/creator-asset-planning/creatorAssetPlanningCache.verify.ts"
+    "test:creator-asset-planning-cache": "tsx src/features/editor/creator-asset-planning/creatorAssetPlanningCache.verify.ts",
+    "test:story-evolution": "tsx src/features/editor/story-evolution/story-evolution.verify.ts"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",

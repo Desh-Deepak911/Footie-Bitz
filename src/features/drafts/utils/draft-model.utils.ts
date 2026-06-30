@@ -158,6 +158,7 @@ export function normalizeDraft(
     hasVoiceover: summary.hasVoiceover,
     creationBrief,
     pipelineStage: input.pipelineStage,
+    assetPlanningSnapshot: input.assetPlanningSnapshot,
   };
 }
 

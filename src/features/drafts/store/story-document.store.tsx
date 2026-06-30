@@ -12,6 +12,7 @@ import type { FootieScript } from "@/features/story/types";
 import { syncFootieScript } from "@/lib/utils/voiceover";
 
 import type { Draft, DraftPipelineStage } from "../types";
+import { rehydrateAssetPlanningCacheFromDraft } from "../utils/draft-asset-planning-persistence.utils";
 import { resolveDraftScriptForEditor } from "../utils/draft-load.utils";
 import { touchDraft } from "../utils/draft-model.utils";
 
@@ -115,6 +116,7 @@ export function clearCurrentDocument(): void {
 
 /** Hydrate runtime state from a draft record (storage load, dashboard open, etc.). */
 export function hydrateFromDraft(draft: Draft): void {
+  rehydrateAssetPlanningCacheFromDraft(draft);
   setCurrentDraft(draft);
 }
 

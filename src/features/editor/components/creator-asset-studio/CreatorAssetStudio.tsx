@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import CreatorAssetPlanningStaleBadge from "@/features/editor/components/creator-asset-studio/CreatorAssetPlanningStaleBadge";
 import CreatorAssetAlternativeList from "@/features/editor/components/creator-asset-studio/CreatorAssetAlternativeList";
 import CreatorAssetCreatorTips from "@/features/editor/components/creator-asset-studio/CreatorAssetCreatorTips";
 import CreatorAssetPinnedRecommendation from "@/features/editor/components/creator-asset-studio/CreatorAssetPinnedRecommendation";
@@ -25,6 +26,10 @@ import {
   buildCreatorTips,
   formatRecommendationCopyText,
 } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.workflow.utils";
+import {
+  buildPlanningStaleBadge,
+  buildPlanningStaleChips,
+} from "@/features/editor/components/creator-asset-studio/creator-asset-studio.staleness.utils";
 import {
   selectSceneAlternatives,
   selectSceneHasRecommendation,
@@ -71,13 +76,21 @@ export default function CreatorAssetStudio({ sceneIndex, planning }: CreatorAsse
   const { script } = useInspectorContext();
   const scene = script.scenes[sceneIndex];
 
-  const sceneRecommendation = planning ? selectSceneRecommendation(planning, sceneIndex) : undefined;
-  const providerResult = planning ? selectSceneProviders(planning, sceneIndex) : undefined;
-  const alternatives = planning ? selectSceneAlternatives(planning, sceneIndex) : [];
+  const sceneRecommendation = planning
+    ? selectSceneRecommendation(planning, sceneIndex, scene?.id ?? "")
+    : undefined;
+  const providerResult = planning
+    ? selectSceneProviders(planning, sceneIndex, scene?.id ?? "")
+    : undefined;
+  const alternatives = planning ? selectSceneAlternatives(planning, sceneIndex, scene?.id ?? "") : [];
   const validationResult = planning ? selectSceneValidation(planning) : undefined;
-  const repairSuggestions = planning ? selectSceneRepairSuggestions(planning, sceneIndex) : [];
-  const searchQuery = planning ? selectSceneSearchQuery(planning, sceneIndex) : "";
-  const hasRecommendation = planning ? selectSceneHasRecommendation(planning, sceneIndex) : false;
+  const repairSuggestions = planning
+    ? selectSceneRepairSuggestions(planning, sceneIndex, scene?.id ?? "")
+    : [];
+  const searchQuery = planning ? selectSceneSearchQuery(planning, sceneIndex, scene?.id ?? "") : "";
+  const hasRecommendation = planning
+    ? selectSceneHasRecommendation(planning, sceneIndex, scene?.id ?? "")
+    : false;
   const primaryProvider = providerResult?.rankedProviders.find(
     (provider) => provider.priority === "primary",
   );
@@ -99,7 +112,7 @@ export default function CreatorAssetStudio({ sceneIndex, planning }: CreatorAsse
           return null;
         }
 
-        const recommendation = selectSceneRecommendation(planning, index)?.topRecommendation;
+        const recommendation = selectSceneRecommendation(planning, index, scriptScene.id)?.topRecommendation;
         if (!recommendation) {
           return null;
         }
@@ -126,6 +139,9 @@ export default function CreatorAssetStudio({ sceneIndex, planning }: CreatorAsse
     repairSuggestions,
   });
 
+  const staleBadge = buildPlanningStaleBadge(planning?.staleness);
+  const staleChips = buildPlanningStaleChips(planning?.staleness);
+
   if (!planning) {
     return <CreatorAssetStudioEmptyState />;
   }
@@ -151,6 +167,10 @@ export default function CreatorAssetStudio({ sceneIndex, planning }: CreatorAsse
           Scene-aware AI planning for the selected timeline moment — read only.
         </p>
       </header>
+
+      {staleBadge ? (
+        <CreatorAssetPlanningStaleBadge badge={staleBadge} chips={staleChips} />
+      ) : null}
 
       <div
         key={sceneIndex}

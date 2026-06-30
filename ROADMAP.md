@@ -14,6 +14,10 @@ Items marked complete ship in the current product. In-progress and planned work 
 
 - [Completed](#completed)
 - [Studio Intelligence v1](#studio-intelligence-v1)
+- [Studio Intelligence 3.7 Asset Intelligence](#studio-intelligence-37-asset-intelligence)
+- [Studio UX 3.7G Creator Asset Studio](#studio-ux-37g-creator-asset-studio)
+- [Studio UX 3.7H Story Evolution](#studio-ux-37h-story-evolution)
+- [Asset Search Platform 3.8](#asset-search-platform-38)
 - [In Progress](#in-progress)
 - [Planned](#planned)
 - [Long Term Vision](#long-term-vision)
@@ -79,7 +83,7 @@ Items marked complete ship in the current product. In-progress and planned work 
 
 ## Studio Intelligence v1
 
-**Status: complete and frozen.** Planning (3.3–3.6), Blueprint Adapter (3.4), and opt-in production wiring (3.5) ship as **Studio Intelligence v1**. Default production behavior remains the AI scene planner unless both dual gates pass. **Next:** [3.7 Asset Intelligence](#studio-intelligence-37-asset-intelligence).
+**Status: complete and frozen.** Planning (3.3–3.6), Blueprint Adapter (3.4), and opt-in production wiring (3.5) ship as **Studio Intelligence v1**. Default production behavior remains the AI scene planner unless both dual gates pass. **Next:** [3.8 Asset Search Platform](#asset-search-platform-38).
 
 ## Studio Intelligence 3.3
 
@@ -132,19 +136,60 @@ Items marked complete ship in the current product. In-progress and planned work 
 - [x] **3.6F Prompt ↔ Studio Intelligence alignment** — Shared mode-structure bridge; `test:studio-intelligence-prompt-alignment`
 - [x] **3.6G Story Coherence Validator** — Post-planning audit on `StudioIntelligenceResult`; `test:studio-intelligence-story-validator`
 
-**Next (post-v1):**
-
-- [ ] **3.7 Asset Intelligence** — Asset-aware recommendations from blueprint queries
-
 Detail: [docs/STUDIO_INTELLIGENCE.md](./docs/STUDIO_INTELLIGENCE.md)
 
 ---
 
 ## Studio Intelligence 3.7 Asset Intelligence
 
-*Next Studio Intelligence milestone — not started.*
+*Complete — planning-only. Production generation behavior unchanged.*
 
-Use blueprint asset queries and planning metadata to fetch or recommend imagery and clips. Does not change v1 planner contracts until explicitly scoped.
+- [x] **3.7 Asset Intelligence** — Recommendation engine, provider plan ranking, validation, and planning snapshot generation at storyboard time
+
+Asset Intelligence runs during **story generation** and produces planning metadata consumed by Creator Asset Studio. It does not fetch or attach real assets until 3.8.
+
+---
+
+## Studio UX 3.7G Creator Asset Studio
+
+*Complete — presentation-only inspector panel.*
+
+- [x] **3.7G Creator Asset Studio** — Read-only planning UI in the scene inspector: recommendations, provider rankings, validation, and repair hints from cached planning
+
+Editor reads cached planning only — no intelligence re-execution on the read path.
+
+---
+
+## Studio UX 3.7H Story Evolution
+
+*Complete — planning lifecycle architecture for Creator Asset Studio.*
+
+- [x] **3.7H.1 Story Evolution Audit** — Edit/persistence map and staleness architecture proposal
+- [x] **3.7H.2 Story Change Detection** — `detectStoryChanges()` wired on editor edits
+- [x] **3.7H.3 Planning Staleness** — `computePlanningStaleness()` and cache staleness metadata
+- [x] **3.7H.4 Soft Read + Stale UX** — Soft-read cache, stale badge, reason chips; empty state only when no planning exists
+- [x] **3.7H.5 Draft Planning Persistence** — `assetPlanningSnapshot` on drafts; rehydrate on editor load
+- [x] **3.7H.6 Planning Refresh Foundation** — `refreshCreatorAssetPlanning()` service (not UI-wired)
+
+**Next:** [3.8 Asset Search Platform](#asset-search-platform-38)
+
+---
+
+## Asset Search Platform 3.8
+
+*Next milestone — real asset retrieval.*
+
+Move from planning recommendations to searchable, attachable assets. Search Orchestrator becomes the central gateway for manual upload, Pexels, Unsplash, Pixabay, Wikimedia, Internal Library, and AI-generated assets.
+
+- [ ] **3.8A Search Orchestrator** — Unified search gateway and query routing
+- [ ] **3.8B Provider Connectors** — Pexels, Unsplash, Pixabay, Wikimedia, Internal Library, AI Generated
+- [ ] **3.8C Unified Asset Browser** — Editor-facing search and browse UI
+- [ ] **3.8D One-click Attach** — Attach retrieved assets to scenes from search results
+- [ ] **3.8E Smart Edit Integration** — Search handoff from Smart Edit workflows
+- [ ] **3.8F Asset History** — Recently used and draft-scoped asset history
+- [ ] **3.8G Freeze** — Verification, documentation, and behavior freeze
+
+No editor behavior changes until **3.8C**.
 
 ---
 
@@ -172,7 +217,7 @@ Post-generation validation before voiceover and scene generation.
 | **Collaborative editing** | Shared drafts and review workflows (requires cloud-backed state) |
 | **Cloud rendering** | Optional server-side export for longer or heavier workloads |
 | **Story Intelligence Engine** | Unified cross-stage story planning above the current runtime |
-| **Studio Intelligence 3.8 Smart Editing Intelligence** | Planning metadata handoff to editor suggestions |
+| **Asset Search Platform 3.8** | Search Orchestrator, provider connectors, unified browser, one-click attach — see [3.8](#asset-search-platform-38) |
 
 ---
 

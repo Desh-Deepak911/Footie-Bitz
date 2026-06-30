@@ -7,32 +7,37 @@ import type {
   AssetRepairSuggestion,
   AssetValidationResult,
 } from "@/features/asset-intelligence/validator/asset-validator.types";
+import {
+  resolveSceneProviderByIdentity,
+  resolveSceneRecommendationByIdentity,
+} from "@/features/editor/creator-asset-planning/creator-asset-scene-identity.utils";
 
 import type { CreatorAssetStudioPlanningData } from "./creator-asset-studio.types";
 
-function findSceneRecommendation(
-  planning: CreatorAssetStudioPlanningData | null | undefined,
-  sceneIndex: number,
-): SceneRecommendation | undefined {
-  return planning?.recommendation.sceneRecommendations.find(
-    (scene) => scene.sceneIndex === sceneIndex,
-  );
-}
-
-/** Returns the scene recommendation for a selected scene index. */
+/** Returns the scene recommendation for a selected scene — scene id first, index fallback. */
 export function selectSceneRecommendation(
   planning: CreatorAssetStudioPlanningData | null | undefined,
   sceneIndex: number,
+  sceneId: string,
 ): SceneRecommendation | undefined {
-  return findSceneRecommendation(planning, sceneIndex);
+  if (!planning) {
+    return undefined;
+  }
+
+  return resolveSceneRecommendationByIdentity(planning, sceneId, sceneIndex).value ?? undefined;
 }
 
-/** Returns ranked provider planning output for a selected scene index. */
+/** Returns ranked provider planning output for a selected scene — scene id first, index fallback. */
 export function selectSceneProviders(
   planning: CreatorAssetStudioPlanningData | null | undefined,
   sceneIndex: number,
+  sceneId: string,
 ): AssetProviderResult | undefined {
-  return planning?.providerPlan.sceneResults.find((scene) => scene.sceneIndex === sceneIndex);
+  if (!planning) {
+    return undefined;
+  }
+
+  return resolveSceneProviderByIdentity(planning, sceneId, sceneIndex).value ?? undefined;
 }
 
 /** Returns project-level validation output for the planning run. */
@@ -42,32 +47,34 @@ export function selectSceneValidation(
   return planning?.validationResult;
 }
 
-/** Returns ranked alternative recommendations for a selected scene index. */
+/** Returns ranked alternative recommendations for a selected scene — scene id first, index fallback. */
 export function selectSceneAlternatives(
   planning: CreatorAssetStudioPlanningData | null | undefined,
   sceneIndex: number,
+  sceneId: string,
 ): RecommendedAssetCandidate[] {
-  return findSceneRecommendation(planning, sceneIndex)?.alternatives ?? [];
+  return selectSceneRecommendation(planning, sceneIndex, sceneId)?.alternatives ?? [];
 }
 
 /** Returns repair suggestions scoped to a selected scene when possible. */
 export function selectSceneRepairSuggestions(
   planning: CreatorAssetStudioPlanningData | null | undefined,
   sceneIndex: number,
+  sceneId: string,
 ): AssetRepairSuggestion[] {
   if (!planning) {
     return [];
   }
 
-  const sceneId = findSceneRecommendation(planning, sceneIndex)?.sceneId;
+  const resolvedSceneId = selectSceneRecommendation(planning, sceneIndex, sceneId)?.sceneId ?? sceneId;
   const suggestions = planning.validationResult.repairSuggestions;
 
-  if (!sceneId) {
+  if (!resolvedSceneId) {
     return [...suggestions];
   }
 
   const scoped = suggestions.filter(
-    (suggestion) => !suggestion.targetSceneId || suggestion.targetSceneId === sceneId,
+    (suggestion) => !suggestion.targetSceneId || suggestion.targetSceneId === resolvedSceneId,
   );
 
   return scoped.length > 0 ? scoped : [...suggestions];
@@ -77,17 +84,25 @@ export function selectSceneRepairSuggestions(
 export function selectSceneHasRecommendation(
   planning: CreatorAssetStudioPlanningData | null | undefined,
   sceneIndex: number,
+  sceneId: string,
 ): boolean {
-  return Boolean(findSceneRecommendation(planning, sceneIndex)?.topRecommendation);
+  return Boolean(selectSceneRecommendation(planning, sceneIndex, sceneId)?.topRecommendation);
 }
 
-/** Returns the recommended search query for a selected scene. */
+/** Returns the recommended search query for a selected scene — scene id first, index fallback. */
 export function selectSceneSearchQuery(
   planning: CreatorAssetStudioPlanningData | null | undefined,
   sceneIndex: number,
+  sceneId: string,
 ): string {
-  const sceneRecommendation = findSceneRecommendation(planning, sceneIndex);
-  const providerResult = selectSceneProviders(planning, sceneIndex);
+  const sceneRecommendation = selectSceneRecommendation(planning, sceneIndex, sceneId);
+  const providerResult = selectSceneProviders(planning, sceneIndex, sceneId);
 
   return sceneRecommendation?.topRecommendation?.query ?? providerResult?.query ?? "";
 }
+
+/** Exposes identity resolution for verification without mutating cache. */
+export {
+  detectSceneIdentityIndexFallbacks,
+  resolveSceneRecommendationByIdentity,
+} from "@/features/editor/creator-asset-planning/creator-asset-scene-identity.utils";
