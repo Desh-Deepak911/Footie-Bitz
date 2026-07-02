@@ -12,6 +12,8 @@ export interface InspectorContextValue {
   registry: InspectorRegistry;
   script: FootieScript;
   onScriptChange: (script: FootieScript) => void;
+  /** Draft/story id for server-side asset search requests. */
+  storyId?: string;
   /** Optional Asset Intelligence planning snapshot — shell only, not persisted by default. */
   assetPlanning?: CreatorAssetStudioPlanningData | null;
   /** Whether the Creator Asset Studio shell should render in the inspector. */
@@ -24,6 +26,7 @@ export interface InspectorContextProviderProps {
   script: FootieScript;
   onScriptChange: (script: FootieScript) => void;
   registry?: InspectorRegistry;
+  storyId?: string;
   assetPlanning?: CreatorAssetStudioPlanningData | null;
   creatorAssetStudioVisible?: boolean;
   children: ReactNode;
@@ -33,6 +36,7 @@ export function InspectorContextProvider({
   script,
   onScriptChange,
   registry,
+  storyId,
   assetPlanning = null,
   creatorAssetStudioVisible = false,
   children,
@@ -44,10 +48,11 @@ export function InspectorContextProvider({
       registry: resolvedRegistry,
       script,
       onScriptChange,
+      storyId,
       assetPlanning,
       creatorAssetStudioVisible,
     }),
-    [assetPlanning, creatorAssetStudioVisible, onScriptChange, resolvedRegistry, script],
+    [assetPlanning, creatorAssetStudioVisible, onScriptChange, resolvedRegistry, script, storyId],
   );
 
   return <InspectorContext.Provider value={value}>{children}</InspectorContext.Provider>;

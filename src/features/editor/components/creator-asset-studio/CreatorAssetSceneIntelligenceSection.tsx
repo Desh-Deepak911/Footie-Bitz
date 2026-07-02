@@ -1,8 +1,9 @@
 "use client";
 
 import type { SceneIntelligenceChip } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.scene-view.utils";
-import { creatorAssetSectionClass } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.utils";
-import { studioShellSectionTitle, studioSubtleText } from "@/lib/utils/studioUi";
+import { useCreatorAssetStudioCompact } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.compact-context";
+import { resolveCreatorAssetSectionClass } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.utils";
+import { studioCardTag, studioShellSectionTitle, studioSubtleText } from "@/lib/utils/studioUi";
 
 export interface CreatorAssetSceneIntelligenceSectionProps {
   chips: readonly SceneIntelligenceChip[];
@@ -31,19 +32,25 @@ function intelligenceChipClass(chip: SceneIntelligenceChip): string {
 export default function CreatorAssetSceneIntelligenceSection({
   chips,
 }: CreatorAssetSceneIntelligenceSectionProps) {
+  const compact = useCreatorAssetStudioCompact();
+
   return (
-    <section className={creatorAssetSectionClass}>
-      <header className="mb-3">
+    <section className={resolveCreatorAssetSectionClass(compact)}>
+      <header className={compact ? "mb-2" : "mb-3"}>
         <p className={studioShellSectionTitle}>Scene Intelligence</p>
         <p className={studioSubtleText}>Story structure signals for this scene</p>
       </header>
 
       {chips.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className={`flex flex-wrap ${compact ? "gap-1" : "gap-2"}`}>
           {chips.map((chip) => (
             <span
               key={chip}
-              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition-opacity duration-300 ${intelligenceChipClass(chip)}`}
+              className={
+                compact
+                  ? `${studioCardTag} normal-case tracking-normal ${intelligenceChipClass(chip)}`
+                  : `inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition-opacity duration-300 ${intelligenceChipClass(chip)}`
+              }
             >
               {chip}
             </span>

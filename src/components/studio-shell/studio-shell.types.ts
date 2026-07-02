@@ -21,6 +21,8 @@ export interface StudioShellProps {
   hideFooterInFocusMode?: boolean;
   /** When false, canvas children fill the region (brief forms). Default true for preview. */
   canvasCenterContent?: boolean;
+  /** Editor preview layout — overflow hidden, vertically centered, no empty canvas scroll. */
+  canvasLayout?: "form" | "editor";
   /** When true, sidebar stacks above the canvas on viewports below `lg`. */
   sidebarVisibleBelowLg?: boolean;
   className?: string;

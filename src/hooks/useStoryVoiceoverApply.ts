@@ -84,6 +84,8 @@ export function useStoryVoiceoverApply(
           narration: narrationText,
           voice,
           speed,
+          stylePreset: voiceSettings.stylePreset,
+          expressiveDelivery: voiceSettings.expressiveDelivery,
         }),
       });
 
@@ -130,7 +132,7 @@ export function useStoryVoiceoverApply(
         applyVoiceoverRegeneration(withEmbeddedVoiceover, {
           voiceoverUrl: pendingVoiceoverUrl,
           voiceoverDurationMs,
-          voiceSettings: { voice, speed },
+          voiceSettings,
         }),
       );
 

@@ -335,6 +335,7 @@ export default function VideoPreview({
               chunkProgress={previewSceneTiming.chunkProgress}
               captionAnimationState={previewSceneTiming.captionAnimationState}
               subtitleAvailableDurationMs={previewSceneTiming.subtitleAvailableDurationMs}
+              captionTooShortForEffect={previewSceneTiming.captionTooShortForEffect}
               className={
                 isFrameEditing ? "pointer-events-none opacity-55 transition-opacity duration-150" : ""
               }

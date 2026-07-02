@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { buildAudioMixFromStory, getAudioEngine, logAudioEngineState } from "@/features/audio";
+import { resolvePreviewVoiceoverPlaybackRate } from "@/features/audio/utils/voiceover-playback-rate.utils";
 import {
   getVoiceoverAvailability,
   readVoiceoverAudioBase64,
@@ -269,10 +270,9 @@ export function usePreviewPlayback({
 
   const applyVoiceoverPlaybackRate = useCallback(
     (audio: HTMLAudioElement) => {
-      const rate = voiceoverTrack?.playbackRate;
-      if (rate != null && Number.isFinite(rate) && rate > 0) {
-        audio.playbackRate = rate;
-      }
+      audio.playbackRate = resolvePreviewVoiceoverPlaybackRate({
+        nominalSpeed: voiceoverTrack?.playbackRate,
+      });
     },
     [voiceoverTrack?.playbackRate],
   );

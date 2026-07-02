@@ -256,7 +256,7 @@ test("resolveCaptionAnimationState drives fade-up opacity and transform", () => 
   assert.equal(afterReveal.shouldRenderFullText, true);
 });
 
-test("resolveCaptionAnimationState typewriter paces by availableDurationMs / characterCount", () => {
+test("resolveCaptionAnimationState typewriter paces by scheduled reveal duration", () => {
   const text = "Short typewriter copy.";
   const story = buildStory([
     {
@@ -268,18 +268,32 @@ test("resolveCaptionAnimationState typewriter paces by availableDurationMs / cha
   const timeline = buildMasterTimeline(story, { mode: "preview", useVoiceoverRefit: true });
   const event = getFirstCaptionAnimationEvent(timeline);
   const startMs = event.metadata.subtitleStartMs;
-  const msPerChar = event.metadata.availableDurationMs / text.trim().length;
+  const revealDurationMs = event.metadata.animationEndMs - event.metadata.animationStartMs;
+  const msPerChar = revealDurationMs / text.trim().length;
+
+  assert.equal(revealDurationMs, event.metadata.requiredAnimationMs);
+  assert.ok(revealDurationMs < event.metadata.availableDurationMs);
 
   const firstFrame = resolveCaptionAnimationState(event, startMs);
   assert.equal(firstFrame.visibleText, text.trim().slice(0, 1));
+  assert.equal(firstFrame.shouldRenderFullText, false);
 
   const midReveal = resolveCaptionAnimationState(event, startMs + msPerChar * 5);
   assert.ok(midReveal.visibleText.length >= 1);
   assert.ok(midReveal.visibleText.length < text.trim().length);
+  assert.equal(midReveal.shouldRenderFullText, false);
 
-  const atEnd = resolveCaptionAnimationState(event, event.metadata.subtitleEndMs - 1);
-  assert.equal(atEnd.visibleText, text.trim());
-  assert.equal(atEnd.shouldRenderFullText, true);
+  const atAnimationEnd = resolveCaptionAnimationState(event, event.metadata.animationEndMs - 1);
+  assert.equal(atAnimationEnd.visibleText, text.trim());
+  assert.equal(atAnimationEnd.shouldRenderFullText, true);
+
+  const inHoldPhase = resolveCaptionAnimationState(event, event.metadata.animationEndMs + 50);
+  assert.equal(inHoldPhase.visibleText, text.trim());
+  assert.equal(inHoldPhase.shouldRenderFullText, true);
+
+  const atSubtitleEnd = resolveCaptionAnimationState(event, event.metadata.subtitleEndMs - 1);
+  assert.equal(atSubtitleEnd.visibleText, text.trim());
+  assert.equal(atSubtitleEnd.shouldRenderFullText, true);
 });
 
 test("resolveCaptionAnimationState accelerates typewriter when window is too short", () => {

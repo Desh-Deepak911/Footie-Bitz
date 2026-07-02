@@ -1,10 +1,12 @@
 "use client";
 
-import { ChevronDown, Loader2, Mic, RefreshCw, Upload } from "lucide-react";
+import { Loader2, Mic, RefreshCw, Upload } from "lucide-react";
 import { useId, useRef } from "react";
 import { useSyncExternalStore } from "react";
 
 import { resolveEditorVoiceoverStatus } from "@/features/audio/utils/voiceover-status.utils";
+import { VoiceLibraryPanel } from "@/features/voice-library";
+import { SpeechStylePanel } from "@/features/speech-style";
 import { formatDisplayDurationMs } from "@/lib/utils/formatDisplayDuration.utils";
 import {
   getDraftSessionSnapshot,
@@ -19,10 +21,8 @@ import { applyStoryVoiceSettings } from "@/lib/utils/voiceover";
 import {
   DEFAULT_VOICEOVER_VOICE,
   VOICEOVER_SPEED_OPTIONS,
-  VOICEOVER_VOICE_OPTIONS,
   VOICE_SPEED_LABELS,
   type VoiceoverSpeedOption,
-  type VoiceoverVoiceOption,
 } from "@/lib/utils/voiceoverOptions";
 import {
   studioBadge,
@@ -32,8 +32,6 @@ import {
   studioError,
   studioFieldLabel,
   studioPrimaryButton,
-  studioSelect,
-  studioSelectChevron,
   studioSubtleText,
   studioWarningPanel,
 } from "@/lib/utils/studioUi";
@@ -100,8 +98,10 @@ export default function ProjectAudioVoiceoverSection({
     isPersisting: persistStatus === "pending",
   });
   const voiceSettings = getStoryVoiceSettings(script);
-  const selectedVoice = (voiceSettings.voice ?? DEFAULT_VOICEOVER_VOICE) as VoiceoverVoiceOption;
+  const selectedVoice = voiceSettings.voice ?? DEFAULT_VOICEOVER_VOICE;
   const selectedSpeed = voiceSettings.speed;
+  const selectedStylePreset = voiceSettings.stylePreset;
+  const expressiveDelivery = voiceSettings.expressiveDelivery;
   const hasNarration = script.narration.trim().length > 0;
   const isBusy = regenerateLoading || uploadLoading || persistStatus === "pending";
   const durationLabel =
@@ -148,33 +148,46 @@ export default function ProjectAudioVoiceoverSection({
       </div>
 
       <div className="space-y-2 border-t border-border/15 pt-3">
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor={voiceSelectId} className={`${studioFieldLabel} shrink-0`}>
-            Voice
-          </label>
-          <div className="relative min-w-0 flex-1 max-w-[11rem]">
-            <select
-              id={voiceSelectId}
-              value={selectedVoice}
-              onChange={(event) =>
-                onScriptChange(
-                  applyStoryVoiceSettings(script, {
-                    voice: event.target.value,
-                  }),
-                )
-              }
-              disabled={isBusy}
-              className={`${studioSelect} capitalize py-1.5 text-xs`}
-            >
-              {VOICEOVER_VOICE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className={studioSelectChevron} />
-          </div>
-        </div>
+        <VoiceLibraryPanel
+          labelledBy={voiceSelectId}
+          selectedVoiceId={selectedVoice}
+          previewSpeed={selectedSpeed}
+          previewStylePreset={selectedStylePreset}
+          previewExpressiveDelivery={expressiveDelivery}
+          disabled={isBusy}
+          compact
+          onVoiceSelect={(voice) =>
+            onScriptChange(
+              applyStoryVoiceSettings(script, {
+                voice,
+              }),
+            )
+          }
+        />
+        <span id={voiceSelectId} className="sr-only">
+          Voice
+        </span>
+
+        <SpeechStylePanel
+          stylePreset={selectedStylePreset}
+          expressiveDelivery={expressiveDelivery}
+          disabled={isBusy}
+          compact
+          onStylePresetChange={(stylePreset) =>
+            onScriptChange(
+              applyStoryVoiceSettings(script, {
+                stylePreset,
+              }),
+            )
+          }
+          onExpressiveDeliveryChange={(nextExpressiveDelivery) =>
+            onScriptChange(
+              applyStoryVoiceSettings(script, {
+                expressiveDelivery: nextExpressiveDelivery,
+              }),
+            )
+          }
+        />
 
         <div>
           <p className={studioFieldLabel}>Speed</p>

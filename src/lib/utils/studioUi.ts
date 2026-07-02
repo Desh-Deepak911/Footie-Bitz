@@ -68,6 +68,16 @@ export const studioChip = `max-w-full rounded-full bg-surface-elevated/45 px-3 p
 export const studioChipActive =
   "rounded-full bg-accent-soft px-3 py-1.5 text-xs font-medium text-foreground ring-1 ring-accent/25";
 
+/** Rectangular selectable card — voice library, dense pickers. */
+export const studioCard = `w-full rounded-lg bg-surface-elevated/35 px-2 py-1.5 text-left ring-1 ring-border/20 transition hover:bg-surface-elevated/50 hover:ring-border/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 ${focusRing}`;
+
+export const studioCardActive =
+  "w-full rounded-lg bg-accent-soft/60 px-2 py-1.5 text-left ring-1 ring-accent/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]";
+
+/** Compact inline tag for card metadata. */
+export const studioCardTag =
+  "inline-flex items-center rounded-md bg-surface-elevated/55 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted ring-1 ring-border/15";
+
 /** Apple-style segmented control track. */
 export const studioSegmentedControl =
   "flex w-full rounded-xl bg-surface-elevated/35 p-1 ring-1 ring-border/20";
@@ -128,8 +138,11 @@ export const studioSubtleText =
 /* ── Layout & surfaces ─────────────────────────────────────────────────────── */
 
 /** Primary page section card. */
-export const studioCard =
+export const studioSectionCard =
   `min-w-0 rounded-2xl bg-surface/40 p-4 backdrop-blur-xl sm:p-6 lg:p-7 ${surfaceRing} ${shadowInset}`;
+
+/** @deprecated Use studioSectionCard */
+export const studioPageCard = studioSectionCard;
 
 /** Nested panel inside a card. */
 export const studioPanel =
@@ -139,7 +152,7 @@ export const studioPanel =
 export const studioGlass =
   "rounded-xl bg-surface-elevated/50 p-3.5 ring-1 ring-border/20 backdrop-blur-md sm:p-4";
 
-/** Storyboard main-column section — lighter than studioCard to reduce nesting weight. */
+/** Storyboard main-column section — lighter than studioSectionCard to reduce nesting weight. */
 export const studioWorkspaceSection =
   `min-w-0 rounded-2xl bg-surface/30 p-4 ring-1 ring-border/15 sm:p-5 lg:p-6 ${shadowInset}`;
 
@@ -380,6 +393,10 @@ export const studioShellCanvasRegion =
 export const studioShellCanvasRegionForm =
   "flex min-h-0 min-w-0 flex-1 flex-col items-stretch justify-start overflow-y-auto overscroll-contain";
 
+/** Editor preview canvas — fixed height, no empty scroll below centered preview. */
+export const studioShellCanvasRegionEditor =
+  "flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-hidden overscroll-contain";
+
 /** Preview frame sizing inside canvas (9:16 device). */
 export const studioShellCanvasMaxWidth =
   "w-full max-w-[min(100%,26.25rem)] sm:max-w-[min(100%,28rem)]";
@@ -388,9 +405,9 @@ export const studioShellCanvasMaxWidth =
 export const studioShellEditorCanvasMaxWidth =
   "w-full max-w-[min(100%,22rem)] sm:max-w-[min(100%,26rem)] lg:max-w-[min(100%,32rem)] xl:max-w-[min(100%,36rem)]";
 
-/** Scales relocated preview within the editor canvas for CapCut-style focus. */
+/** Scales relocated preview within the editor canvas — kept modest to avoid overflow scroll. */
 export const studioShellEditorPreviewWrap =
-  "flex w-full flex-col items-center justify-center origin-center scale-[1.05] sm:scale-[1.12] lg:scale-[1.2] xl:scale-[1.28]";
+  "flex w-full max-h-full min-h-0 flex-col items-center justify-center origin-center scale-[1.02] sm:scale-[1.05] lg:scale-[1.08] xl:scale-[1.1]";
 
 /** Bottom timeline rail — default height. */
 export const studioShellTimelineHeight =

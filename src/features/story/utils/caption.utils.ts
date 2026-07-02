@@ -117,7 +117,12 @@ export function getPreviewDisplayCaption(scene: DisplayCaptionScene): string {
 
 export type DisplayCaptionScene = Pick<
   FootieScene,
-  "captionMode" | "subtitle" | "narration" | "subtitleText" | "subtitleEffect"
+  | "captionMode"
+  | "subtitle"
+  | "narration"
+  | "subtitleText"
+  | "subtitleEffect"
+  | "captionPreset"
 > & {
   /** Generated on-screen caption (alias for `subtitle` when present). */
   caption?: string;

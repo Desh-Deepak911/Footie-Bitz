@@ -4,7 +4,11 @@ import { Check, Copy } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import CreatorAssetStudioToast from "@/features/editor/components/creator-asset-studio/CreatorAssetStudioToast";
-import { copyPlanningText } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.utils";
+import { useCreatorAssetStudioCompact } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.compact-context";
+import {
+  copyPlanningText,
+  resolveCreatorAssetSectionClass,
+} from "@/features/editor/components/creator-asset-studio/creator-asset-studio.utils";
 import { studioCompactButton } from "@/lib/utils/studioUi";
 
 export interface CreatorAssetQuickActionsProps {
@@ -23,6 +27,7 @@ export default function CreatorAssetQuickActions({
   recommendationText,
   providerLabel,
 }: CreatorAssetQuickActionsProps) {
+  const compact = useCreatorAssetStudioCompact();
   const [copiedAction, setCopiedAction] = useState<CopyAction>(null);
   const [toastMessage, setToastMessage] = useState("");
   const [toastVisible, setToastVisible] = useState(false);
@@ -68,8 +73,8 @@ export default function CreatorAssetQuickActions({
 
   return (
     <>
-      <section className="rounded-2xl bg-surface-elevated/20 p-3 ring-1 ring-border/15 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] hover:ring-border/30 motion-reduce:transform-none motion-reduce:shadow-none">
-        <div className="flex flex-wrap gap-2">
+      <section className={resolveCreatorAssetSectionClass(compact)}>
+        <div className={`flex flex-wrap ${compact ? "gap-1.5" : "gap-2"}`}>
           {actions.map((action) => (
             <button
               key={action.id}
@@ -77,7 +82,7 @@ export default function CreatorAssetQuickActions({
               disabled={action.disabled}
               aria-label={action.label}
               onClick={() => handleCopy(action.id, action.value, action.toast)}
-              className={`${studioCompactButton} min-w-0 flex-1 sm:flex-none`}
+              className={`${studioCompactButton} min-w-0 ${compact ? "w-full" : "flex-1 sm:flex-none"}`}
             >
               {copiedAction === action.id ? (
                 <Check className="h-3.5 w-3.5 text-emerald-300" aria-hidden />

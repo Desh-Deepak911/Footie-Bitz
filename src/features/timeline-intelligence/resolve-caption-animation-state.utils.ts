@@ -46,6 +46,7 @@ function resolveAnimationProgress(
 function resolveTypewriterVisibleText(
   text: string,
   localElapsedMs: number,
+  revealDurationMs: number,
   availableDurationMs: number,
   captionTooShortForEffect: boolean,
 ): { visibleText: string; shouldRenderFullText: boolean } {
@@ -55,9 +56,15 @@ function resolveTypewriterVisibleText(
   }
 
   const charCount = Math.max(normalized.length, 1);
-  const msPerChar = availableDurationMs / charCount;
+  const pacingDurationMs = captionTooShortForEffect
+    ? Math.max(1, availableDurationMs)
+    : Math.max(1, revealDurationMs);
+  const completionDurationMs = captionTooShortForEffect
+    ? Math.max(1, availableDurationMs)
+    : Math.max(1, revealDurationMs);
+  const msPerChar = pacingDurationMs / charCount;
 
-  if (localElapsedMs >= availableDurationMs) {
+  if (localElapsedMs >= completionDurationMs) {
     return { visibleText: normalized, shouldRenderFullText: true };
   }
 
@@ -82,7 +89,7 @@ function resolveTypewriterVisibleText(
     normalized[nextIndex] === " " ||
     partial.endsWith(" ");
 
-  if (!completesWord && localElapsedMs + msPerChar >= availableDurationMs) {
+  if (!completesWord && localElapsedMs + msPerChar >= completionDurationMs) {
     return { visibleText: normalized, shouldRenderFullText: true };
   }
 
@@ -175,17 +182,19 @@ export function resolveCaptionAnimationState(
   const captionTooShortForEffect = meta.captionTooShortForEffect ?? false;
 
   let visibleText = text;
-  let shouldRenderFullText = effect !== "typewriter" || inHoldPhase;
+  let shouldRenderFullText = effect !== "typewriter";
 
   if (effect === "typewriter" && text) {
+    const revealDurationMs = Math.max(1, meta.animationEndMs - meta.animationStartMs);
     const typewriter = resolveTypewriterVisibleText(
       text,
       localElapsedMs,
+      revealDurationMs,
       Math.max(1, meta.availableDurationMs),
       captionTooShortForEffect,
     );
     visibleText = typewriter.visibleText;
-    shouldRenderFullText = shouldRenderFullText || typewriter.shouldRenderFullText;
+    shouldRenderFullText = typewriter.shouldRenderFullText;
   }
 
   const visuals = resolveEffectVisuals(

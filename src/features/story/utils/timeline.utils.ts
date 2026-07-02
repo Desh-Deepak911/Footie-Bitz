@@ -361,6 +361,7 @@ export type SceneTimelineUpdates = Partial<
     | "endMs"
     | "durationMs"
     | "durationSource"
+    | "assetAttachment"
   >
 >;
 

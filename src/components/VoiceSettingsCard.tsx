@@ -1,9 +1,10 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
 import { useEffect } from "react";
 
 import { getCanonicalVoiceover } from "@/features/audio";
+import { VoiceLibraryPanel } from "@/features/voice-library";
+import { SpeechStylePanel } from "@/features/speech-style";
 import { getStoryVoiceSettings } from "@/features/story/utils";
 import type { FootieScript } from "@/features/story/types";
 import { useStoryVoiceoverApply } from "@/hooks/useStoryVoiceoverApply";
@@ -15,17 +16,13 @@ import {
   studioFieldLabel,
   studioPanel,
   studioPrimaryButton,
-  studioSelect,
-  studioSelectChevron,
   studioSubtleText,
 } from "@/lib/utils/studioUi";
 import {
   DEFAULT_VOICEOVER_VOICE,
   VOICEOVER_SPEED_OPTIONS,
-  VOICEOVER_VOICE_OPTIONS,
   VOICE_SPEED_LABELS,
   type VoiceoverSpeedOption,
-  type VoiceoverVoiceOption,
 } from "@/lib/utils/voiceoverOptions";
 
 interface VoiceSettingsCardProps {
@@ -58,8 +55,10 @@ export default function VoiceSettingsCard({
     onScriptChange,
   );
   const voiceSettings = getStoryVoiceSettings(script);
-  const selectedVoice = (voiceSettings.voice ?? DEFAULT_VOICEOVER_VOICE) as VoiceoverVoiceOption;
+  const selectedVoice = voiceSettings.voice ?? DEFAULT_VOICEOVER_VOICE;
   const selectedSpeed = voiceSettings.speed;
+  const selectedStylePreset = voiceSettings.stylePreset;
+  const expressiveDelivery = voiceSettings.expressiveDelivery;
   const controlsDisabled = disabled;
   const hasNarration = script.narration.trim().length > 0;
   const hasVoiceover = Boolean(getCanonicalVoiceover(script)?.url);
@@ -98,33 +97,46 @@ export default function VoiceSettingsCard({
         <h3 className="text-sm font-semibold tracking-tight text-foreground">Voice Settings</h3>
       </div>
 
-      <div>
-        <label htmlFor="story-voice" className={studioFieldLabel}>
-          Voice
-        </label>
-        <div className="relative mt-1.5 w-full">
-          <select
-            id="story-voice"
-            value={selectedVoice}
-            onChange={(e) =>
-              onScriptChange(
-                applyStoryVoiceSettings(script, {
-                  voice: e.target.value,
-                }),
-              )
-            }
-            disabled={controlsDisabled}
-            className={`${studioSelect} capitalize`}
-          >
-            {VOICEOVER_VOICE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className={studioSelectChevron} />
-        </div>
-      </div>
+      <VoiceLibraryPanel
+        labelledBy="story-voice-label"
+        selectedVoiceId={selectedVoice}
+        previewSpeed={selectedSpeed}
+        previewStylePreset={selectedStylePreset}
+        previewExpressiveDelivery={expressiveDelivery}
+        disabled={controlsDisabled}
+        compact
+        onVoiceSelect={(voice) =>
+          onScriptChange(
+            applyStoryVoiceSettings(script, {
+              voice,
+            }),
+          )
+        }
+      />
+      <span id="story-voice-label" className="sr-only">
+        Voice
+      </span>
+
+      <SpeechStylePanel
+        stylePreset={selectedStylePreset}
+        expressiveDelivery={expressiveDelivery}
+        disabled={controlsDisabled}
+        compact
+        onStylePresetChange={(stylePreset) =>
+          onScriptChange(
+            applyStoryVoiceSettings(script, {
+              stylePreset,
+            }),
+          )
+        }
+        onExpressiveDeliveryChange={(nextExpressiveDelivery) =>
+          onScriptChange(
+            applyStoryVoiceSettings(script, {
+              expressiveDelivery: nextExpressiveDelivery,
+            }),
+          )
+        }
+      />
 
       <div>
         <span className={studioFieldLabel}>Voice Speed</span>

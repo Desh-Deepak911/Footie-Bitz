@@ -1,3 +1,6 @@
+import type { CaptionPresetId } from "@/features/caption-engine/caption-engine.types";
+import { inferCaptionTooShortForTypewriter } from "@/features/caption-engine/tiktok-motion-caption-style.utils";
+import { resolveSceneCaptionPreset } from "@/features/caption-engine/caption-engine.utils";
 import type { ActiveTimelineEvent } from "@/features/timeline-intelligence/timeline-playback.utils";
 import { resolveCaptionAnimationState } from "@/features/timeline-intelligence/resolve-caption-animation-state.utils";
 import type { CaptionAnimationState } from "@/features/timeline-intelligence/resolve-caption-animation-state.utils";
@@ -30,6 +33,7 @@ type ExportSubtitleScene = Pick<
   ExportScene,
   | "id"
   | "captionMode"
+  | "captionPreset"
   | "subtitleEffect"
   | "subtitleChunks"
   | "subtitleText"
@@ -109,6 +113,10 @@ export interface ExportSubtitleDisplay {
   /** Word-wrap rows derived from the active chunk (typewriter uses progressive reveal). */
   lines: string[];
   effect: SubtitleEffect;
+  /** Resolved caption preset for fade-safe export styling (visual only). */
+  captionPreset?: CaptionPresetId;
+  /** When true, motion presets degrade to legacy typewriter styling. */
+  captionTooShortForEffect?: boolean;
   sceneElapsedMs: number;
   chunkElapsedMs: number;
   activeChunkDurationMs: number;
@@ -160,6 +168,11 @@ export function resolveExportSubtitleDisplay(
   }
 
   const effect = normalizeSubtitleEffect(scene.subtitleEffect);
+  const captionPreset = resolveSceneCaptionPreset(scene);
+  const captionTooShortForEffect =
+    effect === "typewriter"
+      ? inferCaptionTooShortForTypewriter(activeChunk, state.activeChunkDurationMs)
+      : false;
 
   if (effect === "typewriter") {
     const revealed = getTypewriterRevealedText(activeChunk, state.effectProgress).trim();
@@ -173,6 +186,8 @@ export function resolveExportSubtitleDisplay(
       activeChunk,
       lines: layout.lines.length > 0 ? layout.lines : [revealed],
       effect,
+      captionPreset,
+      captionTooShortForEffect,
       sceneElapsedMs: timing.sceneElapsedMs,
       chunkElapsedMs: state.chunkElapsedMs,
       activeChunkDurationMs: state.activeChunkDurationMs,
@@ -191,6 +206,7 @@ export function resolveExportSubtitleDisplay(
     activeChunk,
     lines: layout.lines,
     effect,
+    captionPreset,
     sceneElapsedMs: timing.sceneElapsedMs,
     chunkElapsedMs: state.chunkElapsedMs,
     activeChunkDurationMs: state.activeChunkDurationMs,
@@ -226,8 +242,14 @@ export function resolveExportSubtitleDisplayFromTimeline(
     captionAnimation?.event.metadata.effectType ??
     captionAnimation?.event.metadata.effect ??
     normalizeSubtitleEffect(scene.subtitleEffect);
+  const captionPreset = resolveSceneCaptionPreset(scene);
   const subtitleAvailableDurationMs =
     captionAnimation?.event.metadata.availableDurationMs ?? subtitle.durationMs;
+  const captionTooShortForEffect =
+    captionAnimation?.event.metadata.captionTooShortForEffect ??
+    (effect === "typewriter"
+      ? inferCaptionTooShortForTypewriter(activeChunk, subtitleAvailableDurationMs)
+      : false);
   const chunkElapsedMs = animationState?.localElapsedMs ?? subtitle.elapsedMs;
   const effectProgress = animationState?.progress ?? captionAnimation?.progress ?? subtitle.progress;
 
@@ -252,6 +274,8 @@ export function resolveExportSubtitleDisplayFromTimeline(
       activeChunk,
       lines: layout.lines.length > 0 ? layout.lines : [progressiveText],
       effect,
+      captionPreset,
+      captionTooShortForEffect,
       sceneElapsedMs: chunkElapsedMs,
       chunkElapsedMs,
       activeChunkDurationMs: subtitleAvailableDurationMs,
@@ -270,6 +294,8 @@ export function resolveExportSubtitleDisplayFromTimeline(
     activeChunk,
     lines: layout.lines,
     effect,
+    captionPreset,
+    captionTooShortForEffect,
     sceneElapsedMs: chunkElapsedMs,
     chunkElapsedMs,
     activeChunkDurationMs: subtitleAvailableDurationMs,

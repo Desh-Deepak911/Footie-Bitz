@@ -1,5 +1,27 @@
 import type { ExportSubtitleDisplay } from "@/features/export/utils/export-subtitle.utils";
 import {
+  applyExportCaptionTextDrawState,
+  resetExportCaptionTextDrawState,
+  resolveExportCaptionStyleForDisplay,
+  type ExportCaptionStyleMetadata,
+} from "@/features/caption-engine/resolve-export-caption-style.utils";
+import {
+  resolveTikTokMotionOverlay,
+  resolveTikTokMotionVisualState,
+} from "@/features/caption-engine/tiktok-motion-caption-style.utils";
+import {
+  resolveNewsMotionOverlay,
+  resolveNewsMotionVisualState,
+  NEWS_MOTION_STYLE_TOKENS,
+  type NewsMotionVisualState,
+} from "@/features/caption-engine/news-motion-caption-style.utils";
+import {
+  resolveSportsMotionOverlay,
+  resolveSportsMotionVisualState,
+  SPORTS_MOTION_STYLE_TOKENS,
+  type SportsMotionVisualState,
+} from "@/features/caption-engine/sports-motion-caption-style.utils";
+import {
   resolveCaptionAnimationTranslateYPx,
 } from "@/features/timeline-intelligence/resolve-caption-animation-state.utils";
 import {
@@ -123,9 +145,13 @@ function measureSubtitleLineWidths(
   ctx: CanvasRenderingContext2D,
   lines: string[],
   fontSize: number,
+  exportStyle: ExportCaptionStyleMetadata,
+  scale: number,
 ): number[] {
-  ctx.font = `bold ${fontSize}px Arial, Helvetica, sans-serif`;
-  return lines.map((line) => ctx.measureText(line).width);
+  applyExportCaptionTextDrawState(ctx, fontSize, exportStyle, scale);
+  const widths = lines.map((line) => ctx.measureText(line).width);
+  resetExportCaptionTextDrawState(ctx);
+  return widths;
 }
 
 export interface ExportSubtitleTextBlockSize {
@@ -139,12 +165,20 @@ export function resolveExportSubtitleTextBlockSize(
   ctx: CanvasRenderingContext2D,
   lines: string[],
   metrics: ExportSubtitleLayoutMetrics,
+  exportStyle: ExportCaptionStyleMetadata = resolveExportCaptionStyleForDisplay(undefined),
+  scale = 1,
 ): ExportSubtitleTextBlockSize {
   if (lines.length === 0) {
     return { boxWidth: 0, boxHeight: 0, widestLineWidth: 0 };
   }
 
-  const lineWidths = measureSubtitleLineWidths(ctx, lines, metrics.fontSize);
+  const lineWidths = measureSubtitleLineWidths(
+    ctx,
+    lines,
+    metrics.fontSize,
+    exportStyle,
+    scale,
+  );
   const widestLineWidth = Math.max(...lineWidths, 0);
   const textBlockHeight = lines.length * metrics.lineHeight;
   const boxWidth = Math.min(metrics.maxBoxWidth, widestLineWidth + metrics.padX * 2);
@@ -167,16 +201,17 @@ function resolveLayoutMetrics(
   width: number,
   scale: number,
   fontScale = 1,
+  exportStyle: ExportCaptionStyleMetadata = resolveExportCaptionStyleForDisplay(undefined),
 ): ExportSubtitleLayoutMetrics {
   const base = getExportSubtitleLayoutMetrics(scale);
   const fontSize = base.fontSize * fontScale;
   const maxBoxWidth = width * SUBTITLE_MAX_WIDTH_RATIO;
   const maxTextWidth = Math.max(1, maxBoxWidth - base.padX * 2);
-  ctx.font = `bold ${fontSize}px Arial, Helvetica, sans-serif`;
+  applyExportCaptionTextDrawState(ctx, fontSize, exportStyle, scale);
   return {
     ...base,
     fontSize,
-    lineHeight: fontSize * SUBTITLE_LINE_HEIGHT_RATIO,
+    lineHeight: fontSize * exportStyle.lineHeightRatio,
     maxBoxWidth,
     maxTextWidth,
   };
@@ -225,37 +260,86 @@ function drawHighlightLine(
   fontSize: number,
   chunkElapsedMs: number,
   activeChunkDurationMs: number,
+  sportsMotion?: SportsMotionVisualState | null,
+  newsMotion?: NewsMotionVisualState | null,
 ): void {
   const barWidth = 3 * scale;
   const gap = 7 * scale;
   const padX = fontSize * 0.42;
   const padY = fontSize * 0.14;
+  const pillRadius = 8 * scale;
+  const overlayRadius = Math.min(pillRadius, fontSize * 0.35);
   const highlight = getExportHighlightSubtitleFrame(chunkElapsedMs, activeChunkDurationMs);
+  const bounceScale = sportsMotion?.usesSportsGlow ? sportsMotion.bounceScale : 1;
+  const slideOffsetPx = newsMotion?.usesNewsLowerThird ? newsMotion.slideOffsetPx * scale : 0;
+  const lineCenterY = baselineY - fontSize * 0.41;
+  const fontWeight = newsMotion?.usesNewsLowerThird
+    ? NEWS_MOTION_STYLE_TOKENS.fontWeight
+    : "700";
+
+  ctx.save();
+
+  if (slideOffsetPx !== 0) {
+    ctx.translate(0, slideOffsetPx);
+  }
+
+  if (bounceScale !== 1) {
+    ctx.translate(centerX, lineCenterY);
+    ctx.scale(bounceScale, bounceScale);
+    ctx.translate(-centerX, -lineCenterY);
+  }
+
+  if (sportsMotion?.usesSportsGlow) {
+    ctx.shadowBlur = SPORTS_MOTION_STYLE_TOKENS.glowBlurPx * scale;
+    ctx.shadowColor = SPORTS_MOTION_STYLE_TOKENS.glowColor;
+  }
+
+  ctx.font = `${fontWeight} ${fontSize}px Arial, Helvetica, sans-serif`;
+  ctx.letterSpacing = newsMotion?.usesNewsLowerThird
+    ? `${fontSize * NEWS_MOTION_STYLE_TOKENS.letterSpacingEm}px`
+    : "0px";
   const textWidth = ctx.measureText(line).width;
   const pillHeight = fontSize + padY * 2;
   const pillFullWidth = textWidth + padX * 2;
-  const pillWidth = pillFullWidth * highlight.highlightWidthProgress;
+  const overlayWidth = pillFullWidth * highlight.highlightWidthProgress;
   const barHeight = pillHeight * highlight.barScale;
   const blockWidth = barWidth + gap + pillFullWidth;
   const blockLeft = centerX - blockWidth / 2;
+  const pillLeft = blockLeft + barWidth + gap;
   const pillTop = baselineY - fontSize * 0.82 - padY;
   const barTop = pillTop + (pillHeight - barHeight) / 2;
 
   const barGradient = ctx.createLinearGradient(0, barTop, 0, barTop + barHeight);
-  barGradient.addColorStop(0, "rgba(250, 204, 21, 0.95)");
-  barGradient.addColorStop(1, "rgba(234, 179, 8, 0.75)");
+  if (newsMotion?.usesNewsLowerThird) {
+    barGradient.addColorStop(0, NEWS_MOTION_STYLE_TOKENS.barGradientStart);
+    barGradient.addColorStop(1, NEWS_MOTION_STYLE_TOKENS.barGradientEnd);
+  } else {
+    barGradient.addColorStop(0, "rgba(250, 204, 21, 0.95)");
+    barGradient.addColorStop(1, "rgba(234, 179, 8, 0.75)");
+  }
 
-  ctx.save();
   ctx.fillStyle = barGradient;
   roundRectPath(ctx, blockLeft, barTop, barWidth, barHeight, barWidth);
   ctx.fill();
 
-  const pillLeft = blockLeft + barWidth + gap;
   ctx.fillStyle = `rgba(255, 255, 255, ${highlight.backgroundAlpha})`;
-  roundRectPath(ctx, pillLeft, pillTop, pillWidth, pillHeight, 8 * scale);
+  roundRectPath(ctx, pillLeft, pillTop, pillFullWidth, pillHeight, pillRadius);
   ctx.fill();
 
+  if (overlayWidth > 0) {
+    ctx.save();
+    roundRectPath(ctx, pillLeft, pillTop, pillFullWidth, pillHeight, pillRadius);
+    ctx.clip();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+    roundRectPath(ctx, pillLeft, pillTop, overlayWidth, pillHeight, overlayRadius);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = "transparent";
   ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "left";
   ctx.fillText(line, pillLeft + padX, baselineY);
   ctx.restore();
 }
@@ -275,11 +359,68 @@ function drawWrappedSubtitleBlock(
     return;
   }
 
-  const metrics = resolveLayoutMetrics(ctx, width, scale, fontScale);
-  const { boxWidth, boxHeight } = resolveExportSubtitleTextBlockSize(ctx, lines, metrics);
+  const exportStyle = resolveExportCaptionStyleForDisplay(display);
+  const tiktokOverlay = display
+    ? resolveTikTokMotionOverlay({
+        captionPreset: display.captionPreset,
+        subtitleEffect: display.effect,
+        captionTooShortForEffect: display.captionTooShortForEffect,
+      })
+    : null;
+  const tiktokMotion = resolveTikTokMotionVisualState(
+    tiktokOverlay ?? {
+      presetId: "minimal",
+      usesTikTokMotionOverlay: false,
+      usesLegacyTypewriterFallback: false,
+    },
+    display?.animationState,
+  );
+  const sportsOverlay = display
+    ? resolveSportsMotionOverlay({
+        captionPreset: display.captionPreset,
+        subtitleEffect: display.effect,
+        captionTooShortForEffect: display.captionTooShortForEffect,
+        subtitleAvailableDurationMs:
+          display.subtitleAvailableDurationMs ?? display.activeChunkDurationMs,
+      })
+    : null;
+  const sportsMotion = resolveSportsMotionVisualState(
+    sportsOverlay ?? {
+      presetId: "minimal",
+      usesSportsMotionOverlay: false,
+      usesLegacyHighlightFallback: false,
+    },
+    display?.animationState,
+  );
+  const newsOverlay = display
+    ? resolveNewsMotionOverlay({
+        captionPreset: display.captionPreset,
+        subtitleEffect: display.effect,
+        captionTooShortForEffect: display.captionTooShortForEffect,
+        subtitleAvailableDurationMs:
+          display.subtitleAvailableDurationMs ?? display.activeChunkDurationMs,
+      })
+    : null;
+  const newsMotion = resolveNewsMotionVisualState(
+    newsOverlay ?? {
+      presetId: "minimal",
+      usesNewsMotionOverlay: false,
+      usesLegacyHighlightFallback: false,
+    },
+    display?.animationState,
+  );
+  const metrics = resolveLayoutMetrics(ctx, width, scale, fontScale, exportStyle);
+  const { boxWidth, boxHeight } = resolveExportSubtitleTextBlockSize(
+    ctx,
+    lines,
+    metrics,
+    exportStyle,
+    scale,
+  );
   const boxTop = subtitleY - boxHeight + yOffset;
   const centerX = width / 2;
   const textTopY = boxTop + metrics.padY;
+  const blockCenterY = boxTop + boxHeight / 2;
   const useHighlightLines = display?.effect === "highlight";
 
   if (!useHighlightLines) {
@@ -288,20 +429,21 @@ function drawWrappedSubtitleBlock(
 
   ctx.save();
   ctx.globalAlpha = opacity;
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${metrics.fontSize}px Arial, Helvetica, sans-serif`;
-  ctx.textAlign = "center";
+
+  if (tiktokMotion.popScale !== 1 && display?.effect === "typewriter") {
+    ctx.translate(centerX, blockCenterY);
+    ctx.scale(tiktokMotion.popScale, tiktokMotion.popScale);
+    ctx.translate(-centerX, -blockCenterY);
+  }
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
     const lineY = textTopY + (index + 1) * metrics.lineHeight;
 
     if (display?.effect === "highlight") {
-      const highlightDurationMs = Math.max(
-        1,
-        display.subtitleAvailableDurationMs ?? display.activeChunkDurationMs,
-      );
-      const highlightElapsedMs = display.animationState?.localElapsedMs ?? display.chunkElapsedMs;
+      ctx.font = `bold ${metrics.fontSize}px Arial, Helvetica, sans-serif`;
+      ctx.letterSpacing = "0px";
+      ctx.fillStyle = "#ffffff";
       drawHighlightLine(
         ctx,
         line,
@@ -309,11 +451,17 @@ function drawWrappedSubtitleBlock(
         lineY,
         scale,
         metrics.fontSize,
-        highlightElapsedMs,
-        highlightDurationMs,
+        display.animationState?.localElapsedMs ?? display.chunkElapsedMs,
+        Math.max(1, display.subtitleAvailableDurationMs ?? display.activeChunkDurationMs),
+        sportsMotion,
+        newsMotion,
       );
     } else {
+      applyExportCaptionTextDrawState(ctx, metrics.fontSize, exportStyle, scale);
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
       ctx.fillText(line, centerX, lineY);
+      resetExportCaptionTextDrawState(ctx);
     }
   }
 
@@ -330,7 +478,8 @@ function drawActiveChunkLines(
   captionYOffset: number,
 ): void {
   const fontScale = display.fontScale ?? 1;
-  const metrics = resolveLayoutMetrics(ctx, width, scale, fontScale);
+  const exportStyle = resolveExportCaptionStyleForDisplay(display);
+  const metrics = resolveLayoutMetrics(ctx, width, scale, fontScale, exportStyle);
   const lines = resolveDisplayLines(ctx, display, metrics.maxTextWidth, fontScale);
   drawWrappedSubtitleBlock(
     ctx,

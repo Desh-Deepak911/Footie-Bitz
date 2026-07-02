@@ -13,7 +13,7 @@ export default function EditorPage({ params }: EditorPageProps) {
   const { draftId } = use(params);
 
   return (
-    <StudioPage>
+    <StudioPage fixedViewport>
       <DraftEditorFlow draftId={draftId} />
     </StudioPage>
   );

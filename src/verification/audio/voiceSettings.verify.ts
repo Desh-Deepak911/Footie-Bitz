@@ -56,7 +56,11 @@ test("coerceLegacyStoryFields initializes voiceSettings.speed to 1.0", () => {
   const legacy = makeScript([makeScene("a", 4)]);
   const coerced = coerceLegacyStoryFields(legacy);
 
-  assert.deepEqual(coerced.voiceSettings, { speed: 1 });
+  assert.deepEqual(coerced.voiceSettings, {
+    speed: 1,
+    stylePreset: "neutral",
+    expressiveDelivery: false,
+  });
   assert.equal(getStoryVoiceSettings(coerced).speed, 1);
 });
 
@@ -67,7 +71,11 @@ test("coerceLegacyStoryFields migrates legacy voiceoverSpeed", () => {
   } as FootieScript & { voiceoverSpeed: number };
 
   const coerced = coerceLegacyStoryFields(legacy);
-  assert.deepEqual(coerced.voiceSettings, { speed: 1.25 });
+  assert.deepEqual(coerced.voiceSettings, {
+    speed: 1.25,
+    stylePreset: "neutral",
+    expressiveDelivery: false,
+  });
 });
 
 test("applyStoryVoiceSettings persists story-level voice and speed without scene changes", () => {
@@ -154,7 +162,12 @@ test("applyVoiceoverChanges preserves captions and media while refitting timings
 
   assert.equal(next.voiceoverUrl, "blob:new");
   assert.equal(next.voiceoverDurationMs, 7500);
-  assert.deepEqual(next.voiceSettings, { voice: "echo", speed: 1.25 });
+  assert.deepEqual(next.voiceSettings, {
+    voice: "echo",
+    speed: 1.25,
+    stylePreset: "neutral",
+    expressiveDelivery: false,
+  });
   assert.equal(next.scenes.length, 2);
   assert.equal(next.scenes[0]?.subtitle, "Scene caption");
   assert.equal(next.scenes[0]?.subtitleText, "Custom subtitle");
@@ -168,7 +181,11 @@ test("applyVoiceoverChanges preserves captions and media while refitting timings
 });
 
 test("normalizeStoryVoiceSettings keeps optional voice unset by default", () => {
-  assert.deepEqual(normalizeStoryVoiceSettings({}), { speed: 1 });
+  assert.deepEqual(normalizeStoryVoiceSettings({}), {
+    speed: 1,
+    stylePreset: "neutral",
+    expressiveDelivery: false,
+  });
 });
 
 test("story model defines voiceSettings once per story", () => {

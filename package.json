@@ -30,6 +30,10 @@
     "test:voiceover-service": "tsx src/verification/audio/voiceoverService.verify.ts",
     "test:voiceover-apply": "tsx src/verification/audio/voiceoverApply.verify.ts",
     "test:voice-speed-qa": "tsx src/verification/audio/voiceSpeedQa.verify.ts",
+    "test:voice-library": "tsx src/features/voice-library/voice-library.verify.ts",
+    "test:voice-preview": "tsx src/features/voice-preview/voice-preview.verify.ts",
+    "test:speech-style": "tsx src/features/speech-style/speech-style.verify.ts",
+    "test:caption-engine": "tsx src/features/caption-engine/caption-engine.verify.ts",
     "test:transitions-scope": "tsx src/verification/timeline/transitionsScope.verify.ts",
     "test:transition-overlay": "tsx src/verification/timeline/transitionOverlay.verify.ts",
     "test:export-transition": "tsx src/verification/export/exportTransition.verify.ts",
@@ -117,7 +121,13 @@
     "test:asset-intelligence-provider": "tsx src/features/asset-intelligence/providers/asset-provider.verify.ts",
     "test:asset-intelligence-validator": "tsx src/features/asset-intelligence/validator/asset-validator.verify.ts",
     "test:creator-asset-planning-cache": "tsx src/features/editor/creator-asset-planning/creatorAssetPlanningCache.verify.ts",
-    "test:story-evolution": "tsx src/features/editor/story-evolution/story-evolution.verify.ts"
+    "test:story-evolution": "tsx src/features/editor/story-evolution/story-evolution.verify.ts",
+    "test:asset-search-platform": "tsx src/features/asset-search/verification/asset-search-platform.verify.ts",
+    "test:provider-sdk": "tsx src/features/asset-search/providers/provider-sdk/provider-sdk.verify.ts",
+    "test:asset-search-pexels": "tsx src/features/asset-search/providers/pexels/pexels.verify.ts",
+    "test:asset-browser": "tsx src/features/editor/components/asset-browser/asset-browser.verify.ts",
+    "test:asset-attach": "tsx src/features/asset-attach/asset-attach.verify.ts",
+    "test:asset-materialization": "tsx src/features/asset-materialization/asset-materialization.verify.ts"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",

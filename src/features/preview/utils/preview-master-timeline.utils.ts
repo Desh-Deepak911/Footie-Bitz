@@ -22,6 +22,7 @@ export interface PreviewPlaybackState {
   chunkProgress: number;
   captionAnimationState: CaptionAnimationState | null;
   subtitleAvailableDurationMs: number;
+  captionTooShortForEffect: boolean;
   currentTimeMs: number;
 }
 
@@ -61,6 +62,8 @@ export function resolvePreviewPlaybackState(
     frame.captionAnimation?.event.metadata.availableDurationMs ??
     frame.subtitle?.durationMs ??
     0;
+  const captionTooShortForEffect =
+    frame.captionAnimation?.event.metadata.captionTooShortForEffect ?? false;
 
   return {
     scene: frame.scene,
@@ -71,6 +74,7 @@ export function resolvePreviewPlaybackState(
     chunkProgress: captionAnimationState?.progress ?? subtitleChunk?.chunkProgress ?? 0,
     captionAnimationState,
     subtitleAvailableDurationMs,
+    captionTooShortForEffect,
     currentTimeMs,
   };
 }

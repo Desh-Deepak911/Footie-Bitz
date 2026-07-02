@@ -3,6 +3,20 @@
 import { useEffect, useState } from "react";
 
 import type { CaptionAnimationState } from "@/features/timeline-intelligence/resolve-caption-animation-state.utils";
+import {
+  applyPreviewCaptionLineClassName,
+  applyPreviewCaptionStyleClassName,
+  resolvePreviewCaptionStyle,
+  resolvePreviewNewsMotionStyle,
+  resolvePreviewSportsMotionStyle,
+  resolvePreviewTikTokMotionStyle,
+  resolveNewsMotionOverlay,
+  resolveNewsMotionVisualState,
+  resolveSportsMotionOverlay,
+  resolveSportsMotionVisualState,
+  resolveTikTokMotionOverlay,
+  resolveTikTokMotionVisualState,
+} from "@/features/caption-engine";
 import { normalizeCaptionMode, normalizeSubtitleEffect } from "@/features/story/utils";
 import {
   getDisplayCaptionLines,
@@ -51,10 +65,12 @@ function TimelineFadeUpSubtitleCaption({
   lines,
   className,
   animationState,
+  lineClassName,
 }: {
   lines: string[];
   className: string;
   animationState: CaptionAnimationState;
+  lineClassName?: string;
 }) {
   return (
     <div
@@ -65,7 +81,7 @@ function TimelineFadeUpSubtitleCaption({
       }}
     >
       {lines.map((line, index) => (
-        <p key={index} className={index > 0 ? "mt-0.5" : undefined}>
+        <p key={index} className={index > 0 ? `mt-0.5 ${lineClassName ?? ""}` : lineClassName}>
           {line}
         </p>
       ))}
@@ -77,19 +93,31 @@ function TimelineTypewriterSubtitleCaption({
   text,
   className,
   animationState,
+  motionClassName,
+  motionTransform,
 }: {
   text: string;
   className: string;
   animationState: CaptionAnimationState;
+  motionClassName?: string;
+  motionTransform?: string;
 }) {
   const revealed = animationState.visibleText;
   const showCaret =
     !animationState.shouldRenderFullText &&
     revealed.length > 0 &&
     revealed.length < text.length;
+  const rootClassName = `${className} subtitle-effect-typewriter${motionClassName ? ` ${motionClassName}` : ""}`.trim();
 
   return (
-    <div className={`${className} subtitle-effect-typewriter`}>
+    <div
+      className={rootClassName}
+      style={
+        motionTransform && motionTransform !== "none"
+          ? { transform: motionTransform, transformOrigin: "center center" }
+          : undefined
+      }
+    >
       <p className={showCaret ? "subtitle-effect-typewriter-caret" : undefined}>{revealed}</p>
     </div>
   );
@@ -100,19 +128,34 @@ function TimelineHighlightSubtitleCaption({
   className,
   animationState,
   subtitleAvailableDurationMs,
+  motionClassName,
+  motionTransform,
+  textGlowClassName,
 }: {
   lines: string[];
   className: string;
   animationState: CaptionAnimationState;
   subtitleAvailableDurationMs: number;
+  motionClassName?: string;
+  motionTransform?: string;
+  textGlowClassName?: string;
 }) {
   const highlight = getExportHighlightSubtitleFrame(
     animationState.localElapsedMs,
     Math.max(1, subtitleAvailableDurationMs),
   );
+  const rootClassName =
+    `${className} subtitle-effect-highlight${motionClassName ? ` ${motionClassName}` : ""}`.trim();
 
   return (
-    <div className={`${className} subtitle-effect-highlight`}>
+    <div
+      className={rootClassName}
+      style={
+        motionTransform && motionTransform !== "none"
+          ? { transform: motionTransform, transformOrigin: "center center" }
+          : undefined
+      }
+    >
       {lines.map((line, index) => (
         <p key={index} className={`flex justify-center ${index > 0 ? "mt-1.5" : ""}`}>
           <span className="subtitle-effect-highlight-line">
@@ -125,7 +168,7 @@ function TimelineHighlightSubtitleCaption({
               }}
             />
             <span
-              className="subtitle-effect-highlight-text relative inline-block"
+              className={`subtitle-effect-highlight-text relative inline-block${textGlowClassName ? ` ${textGlowClassName}` : ""}`.trim()}
               style={{
                 backgroundColor: `rgba(255, 255, 255, ${highlight.backgroundAlpha})`,
               }}
@@ -147,14 +190,16 @@ function TimelineHighlightSubtitleCaption({
 function StaticFadeUpSubtitleCaption({
   lines,
   className,
+  lineClassName,
 }: {
   lines: string[];
   className: string;
+  lineClassName?: string;
 }) {
   return (
     <div className={className}>
       {lines.map((line, index) => (
-        <p key={index} className={index > 0 ? "mt-0.5" : undefined}>
+        <p key={index} className={index > 0 ? `mt-0.5 ${lineClassName ?? ""}` : lineClassName}>
           {line}
         </p>
       ))}
@@ -190,6 +235,7 @@ function SubtitleEffectCaption({
   className,
   animationState,
   subtitleAvailableDurationMs,
+  captionTooShortForEffect,
 }: {
   scene: DisplayCaptionScene & { id?: string };
   activeChunk: string;
@@ -197,8 +243,61 @@ function SubtitleEffectCaption({
   className: string;
   animationState?: CaptionAnimationState;
   subtitleAvailableDurationMs?: number;
+  captionTooShortForEffect?: boolean;
 }) {
   const effect: SubtitleEffect = normalizeSubtitleEffect(scene.subtitleEffect);
+  const previewStyle = resolvePreviewCaptionStyle(scene);
+  const tiktokOverlay = resolveTikTokMotionOverlay({
+    ...scene,
+    captionTooShortForEffect,
+  });
+  const tiktokMotionStyle = resolvePreviewTikTokMotionStyle({
+    ...scene,
+    captionTooShortForEffect,
+  });
+  const tiktokMotionVisual = resolveTikTokMotionVisualState(tiktokOverlay, animationState);
+  const sportsOverlay = resolveSportsMotionOverlay({
+    ...scene,
+    captionTooShortForEffect,
+    subtitleAvailableDurationMs,
+  });
+  const sportsMotionStyle = resolvePreviewSportsMotionStyle({
+    ...scene,
+    captionTooShortForEffect,
+    subtitleAvailableDurationMs,
+  });
+  const sportsMotionVisual = resolveSportsMotionVisualState(sportsOverlay, animationState);
+  const newsOverlay = resolveNewsMotionOverlay({
+    ...scene,
+    captionTooShortForEffect,
+    subtitleAvailableDurationMs,
+  });
+  const newsMotionStyle = resolvePreviewNewsMotionStyle({
+    ...scene,
+    captionTooShortForEffect,
+    subtitleAvailableDurationMs,
+  });
+  const newsMotionVisual = resolveNewsMotionVisualState(newsOverlay, animationState);
+  const highlightMotionClassName = [
+    sportsMotionStyle.containerClassName,
+    newsMotionStyle.containerClassName,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const highlightMotionTransform =
+    sportsMotionVisual.transform !== "none"
+      ? sportsMotionVisual.transform
+      : newsMotionVisual.transform;
+  const highlightTextAccentClassName =
+    sportsMotionStyle.textGlowClassName || newsMotionStyle.textAccentClassName;
+  const fadeUpClassName =
+    effect === "fade-up" && previewStyle.usesFadeSafeStyleOverlay
+      ? applyPreviewCaptionStyleClassName(className, previewStyle)
+      : className;
+  const fadeUpLineClassName =
+    effect === "fade-up" && previewStyle.usesFadeSafeStyleOverlay
+      ? applyPreviewCaptionLineClassName(undefined, previewStyle)
+      : undefined;
   const displayText = activeChunk || lines.join(" ").trim();
   const reducedMotion = usePrefersReducedMotion();
 
@@ -210,6 +309,8 @@ function SubtitleEffectCaption({
             text={displayText}
             className={className}
             animationState={animationState}
+            motionClassName={tiktokMotionStyle.containerClassName}
+            motionTransform={tiktokMotionVisual.transform}
           />
         );
       case "highlight":
@@ -219,6 +320,9 @@ function SubtitleEffectCaption({
             className={className}
             animationState={animationState}
             subtitleAvailableDurationMs={subtitleAvailableDurationMs ?? 1}
+            motionClassName={highlightMotionClassName}
+            motionTransform={highlightMotionTransform}
+            textGlowClassName={highlightTextAccentClassName}
           />
         );
       case "fade-up":
@@ -226,8 +330,9 @@ function SubtitleEffectCaption({
         return (
           <TimelineFadeUpSubtitleCaption
             lines={lines}
-            className={className}
+            className={fadeUpClassName}
             animationState={animationState}
+            lineClassName={fadeUpLineClassName}
           />
         );
     }
@@ -244,7 +349,13 @@ function SubtitleEffectCaption({
       return <StaticHighlightSubtitleCaption lines={lines} className={className} />;
     case "fade-up":
     default:
-      return <StaticFadeUpSubtitleCaption lines={lines} className={className} />;
+      return (
+        <StaticFadeUpSubtitleCaption
+          lines={lines}
+          className={fadeUpClassName}
+          lineClassName={fadeUpLineClassName}
+        />
+      );
   }
 }
 
@@ -257,6 +368,8 @@ export interface RenderSceneCaptionOptions {
   captionAnimationState?: CaptionAnimationState;
   /** Subtitle window duration for highlight pacing. */
   subtitleAvailableDurationMs?: number;
+  /** When true, motion presets degrade to legacy typewriter styling. */
+  captionTooShortForEffect?: boolean;
 }
 
 export function renderSceneCaptionContent(
@@ -310,6 +423,7 @@ export function renderSceneCaptionContent(
       className={className}
       animationState={options.captionAnimationState}
       subtitleAvailableDurationMs={options.subtitleAvailableDurationMs}
+      captionTooShortForEffect={options.captionTooShortForEffect}
     />
   );
 

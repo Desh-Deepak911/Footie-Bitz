@@ -1,3 +1,7 @@
+import type { AssetAttachMetadata } from "@/features/asset-attach/asset-attach.types";
+import type { CaptionPresetId } from "@/features/caption-engine/caption-engine.types";
+import type { SpeechStylePreset } from "@/features/speech-style";
+
 export type SceneType = "intro" | "context" | "match" | "transition" | "ending";
 
 /** How on-screen captions are sourced for a scene. */
@@ -77,6 +81,11 @@ export interface FootieScene {
   /** Caption animation style. Defaults to `fade-up` when omitted (legacy). */
   subtitleEffect?: SubtitleEffect;
   /**
+   * Caption Engine v2 preset (optional). When omitted, derived from `subtitleEffect`.
+   * Registry-only in 3.9F-1 — renderers still use `subtitleEffect`.
+   */
+  captionPreset?: CaptionPresetId;
+  /**
    * Per-scene voiceover excerpt derived from story narration (timing reference).
    * On-screen subtitles use `subtitleText` when in subtitles mode.
    */
@@ -92,6 +101,8 @@ export interface FootieScene {
   durationMs?: number;
   /** Set to `manual` when the user edits scene duration in the editor. */
   durationSource?: SceneDurationSource;
+  /** Provenance for assets attached from search, smart edit, or remote sources. */
+  assetAttachment?: AssetAttachMetadata;
 }
 
 export type TransitionEffect =
@@ -127,6 +138,10 @@ export type TimelineItem = SceneTimelineItem | TransitionTimelineItem;
 export interface StoryVoiceSettings {
   voice?: string;
   speed: number;
+  /** Delivery style preset — affects TTS instructions only, not subtitle text. */
+  stylePreset?: SpeechStylePreset;
+  /** When false, non-neutral presets fall back to neutral TTS behavior. */
+  expressiveDelivery?: boolean;
 }
 
 export type BackgroundMusicSource = "none" | "upload" | "library";

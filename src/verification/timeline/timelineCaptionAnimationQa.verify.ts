@@ -160,6 +160,43 @@ function assertNoTypewriterOverrun(timeline: MasterTimeline, label: string): voi
     );
 
     const fullText = meta.text.trim();
+    const revealDurationMs = meta.animationEndMs - meta.animationStartMs;
+    const scheduledRevealMs = Math.min(
+      meta.requiredAnimationMs ?? revealDurationMs,
+      meta.availableDurationMs,
+    );
+    assert.equal(
+      revealDurationMs,
+      scheduledRevealMs,
+      `${label}: scheduled reveal duration matches animation window (${event.id})`,
+    );
+
+    const atAnimationEnd = resolveCaptionAnimationState(event, meta.animationEndMs - 1);
+    assert.equal(
+      atAnimationEnd.visibleText,
+      fullText,
+      `${label}: typewriter full text by animationEndMs (${event.id})`,
+    );
+    assert.equal(
+      atAnimationEnd.shouldRenderFullText,
+      true,
+      `${label}: shouldRenderFullText by animationEndMs (${event.id})`,
+    );
+
+    if (!meta.captionTooShortForEffect && fullText.length > 2 && revealDurationMs > 4) {
+      const midMs = meta.animationStartMs + Math.floor(revealDurationMs / 2);
+      const midReveal = resolveCaptionAnimationState(event, midMs);
+      assert.ok(
+        midReveal.visibleText.length > 1 && midReveal.visibleText.length < fullText.length,
+        `${label}: typewriter mid-reveal stays partial before animationEndMs (${event.id})`,
+      );
+      assert.equal(
+        midReveal.shouldRenderFullText,
+        false,
+        `${label}: typewriter mid-reveal not marked complete (${event.id})`,
+      );
+    }
+
     for (const sampleMs of [
       meta.subtitleStartMs,
       meta.animationEndMs - 1,
@@ -323,10 +360,13 @@ test("1. typewriter short caption", () => {
   assertTimelineCaptionHealth(previewTimeline, exportTimeline, "typewriter short");
 
   const event = getCaptionAnimationEvents(previewTimeline)[0]!;
-  const mid = resolveCaptionAnimationState(event, event.metadata.subtitleStartMs + 500);
+  const revealDurationMs = event.metadata.animationEndMs - event.metadata.animationStartMs;
+  const midMs = event.metadata.subtitleStartMs + Math.floor(revealDurationMs / 2);
+  const mid = resolveCaptionAnimationState(event, midMs);
   assert.ok(mid.visibleText.length >= 1);
-  assert.ok(mid.visibleText.length < text.length);
-  assertPreviewExportCaptionParity(story, previewTimeline, exportTimeline, 500, "typewriter short");
+  assert.ok(mid.visibleText.length < text.trim().length);
+  assert.equal(mid.shouldRenderFullText, false);
+  assertPreviewExportCaptionParity(story, previewTimeline, exportTimeline, midMs, "typewriter short");
 });
 
 test("2. typewriter long caption", () => {

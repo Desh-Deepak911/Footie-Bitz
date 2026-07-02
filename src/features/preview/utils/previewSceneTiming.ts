@@ -27,6 +27,7 @@ export interface PreviewSceneTiming {
   chunkProgress?: number;
   captionAnimationState?: CaptionAnimationState | null;
   subtitleAvailableDurationMs?: number;
+  captionTooShortForEffect?: boolean;
   timelineTimeMs?: number;
   sceneTimelineImageMotion?: TimelineImageMotionInput | null;
 }
@@ -94,6 +95,7 @@ export function getPreviewSceneTiming(input: PreviewSceneTimingInput): PreviewSc
         chunkProgress: state.chunkProgress,
         captionAnimationState: state.captionAnimationState,
         subtitleAvailableDurationMs: state.subtitleAvailableDurationMs,
+        captionTooShortForEffect: state.captionTooShortForEffect,
         timelineTimeMs: timeMs,
         sceneTimelineImageMotion,
       };

@@ -49,11 +49,31 @@ export function importanceBadgeClass(score: number): string {
 export const creatorAssetSectionClass =
   "rounded-2xl bg-surface-elevated/20 p-4 ring-1 ring-border/15 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:ring-border/25 motion-reduce:transform-none motion-reduce:shadow-none";
 
+export const creatorAssetSectionClassCompact =
+  "rounded-xl bg-surface-elevated/20 p-3 ring-1 ring-border/15";
+
 export const creatorAssetHeroClass =
   "rounded-2xl bg-gradient-to-b from-surface-elevated/45 to-surface-elevated/20 p-5 ring-1 ring-accent/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(0,0,0,0.12)] hover:ring-accent/25 motion-reduce:transform-none motion-reduce:shadow-none";
 
+export const creatorAssetHeroClassCompact =
+  "rounded-xl bg-gradient-to-b from-surface-elevated/40 to-surface-elevated/20 p-3.5 ring-1 ring-accent/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]";
+
 export const creatorAssetBadgeClass =
   "transition-all duration-300 hover:scale-[1.03] motion-reduce:transform-none";
+
+export const creatorAssetBadgeClassCompact = "";
+
+export function resolveCreatorAssetSectionClass(compact?: boolean): string {
+  return compact ? creatorAssetSectionClassCompact : creatorAssetSectionClass;
+}
+
+export function resolveCreatorAssetHeroClass(compact?: boolean): string {
+  return compact ? creatorAssetHeroClassCompact : creatorAssetHeroClass;
+}
+
+export function resolveCreatorAssetBadgeClass(compact?: boolean): string {
+  return compact ? creatorAssetBadgeClassCompact : creatorAssetBadgeClass;
+}
 
 export async function copyPlanningText(value: string): Promise<boolean> {
   if (!value.trim()) {

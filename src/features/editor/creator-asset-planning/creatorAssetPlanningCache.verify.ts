@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { runCreatorAssetStudioCompactTests } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.verify";
 import { runAssetIntelligence } from "@/features/asset-intelligence";
 import { runStudioIntelligence } from "@/features/studio-intelligence/studio-intelligence-runtime";
 import { mapBlueprintsToScenes } from "@/features/studio-intelligence/blueprint-adapter/blueprint-mapper";
@@ -757,6 +758,8 @@ test("no planning still returns null in soft mode", () => {
 });
 
 console.log("All creator asset planning cache checks passed.");
+
+runCreatorAssetStudioCompactTests();
 
 void runDraftAssetPlanningPersistenceTests()
   .then(() => runCreatorAssetPlanningRefreshTests())

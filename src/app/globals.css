@@ -272,6 +272,28 @@ html {
   color: inherit;
 }
 
+.caption-preset-sports .subtitle-effect-highlight-bar {
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.55);
+}
+
+.caption-preset-sports .subtitle-effect-highlight-text {
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
+}
+
+.caption-preset-news .subtitle-effect-highlight-bar {
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.95) 0%,
+    rgba(37, 99, 235, 0.85) 100%
+  );
+  box-shadow: none;
+}
+
+.caption-preset-news .subtitle-effect-highlight-text {
+  border-radius: 0.25rem;
+  letter-spacing: 0.01em;
+}
+
 .subtitle-effect-typewriter {
   min-width: 0;
   max-width: 100%;

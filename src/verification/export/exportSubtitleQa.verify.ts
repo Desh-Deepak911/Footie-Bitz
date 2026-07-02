@@ -23,6 +23,28 @@ import {
   getExportSubtitleLayoutMetrics,
 } from "@/features/export/utils/export-caption-canvas.utils";
 import {
+  FADE_SAFE_CAPTION_STYLE_TOKENS,
+  LEGACY_EXPORT_CAPTION_STYLE_TOKENS,
+  resolveExportCaptionStyle,
+  resolveExportCaptionStyleForDisplay,
+  resolvePreviewCaptionStyle,
+  resolvePreviewNewsMotionStyle,
+  resolvePreviewSportsMotionStyle,
+  resolvePreviewTikTokMotionStyle,
+  resolveNewsMotionOverlay,
+  resolveNewsMotionVisualState,
+  resolveSportsMotionOverlay,
+  resolveSportsMotionVisualState,
+  resolveTikTokMotionOverlay,
+  resolveTikTokPopScale,
+  NEWS_SLIDE_MIN_WINDOW_MS,
+  SPORTS_BOUNCE_MIN_WINDOW_MS,
+  TIKTOK_MOTION_STYLE_TOKENS,
+  TIKTOK_POP_DURATION_MS,
+  inferNewsSlideDisabled,
+  inferSportsBounceDisabled,
+} from "@/features/caption-engine";
+import {
   FADE_UP_DURATION_MS,
   getActiveSubtitleChunkState,
   getExportHighlightSubtitleFrame,
@@ -118,6 +140,8 @@ test("export renderer uses timed subtitle display and effect canvas helpers", ()
   assert.match(canvasUtils, /rgba\(0, 0, 0, 0\.45\)/);
   assert.match(canvasUtils, /drawExportSubtitlesCaption/);
   assert.match(canvasUtils, /drawExportGeneratedCaption/);
+  assert.match(canvasUtils, /resolveExportCaptionStyleForDisplay/);
+  assert.match(canvasUtils, /applyExportCaptionTextDrawState/);
   assert.match(canvasUtils, /getExportHighlightSubtitleFrame/);
   assert.match(canvasUtils, /display\.animationState/);
   assert.match(canvasUtils, /resolveCaptionAnimationTranslateYPx/);
@@ -452,6 +476,44 @@ test("highlight export grows highlight width through chunk elapsed time", () => 
   assert.ok(widths[0]! < widths.at(-1)!);
 });
 
+test("export highlight draws full pill with progressive overlay (preview parity)", () => {
+  const canvasUtils = readSrc("src/features/export/utils/export-caption-canvas.utils.ts");
+  const effectPreview = readSrc("src/features/editor/components/subtitleEffectPreview.tsx");
+
+  assert.match(canvasUtils, /getExportHighlightSubtitleFrame/);
+  assert.match(effectPreview, /getExportHighlightSubtitleFrame/);
+  assert.match(canvasUtils, /overlayWidth = pillFullWidth \* highlight\.highlightWidthProgress/);
+  assert.match(canvasUtils, /roundRectPath\(ctx, pillLeft, pillTop, pillFullWidth, pillHeight/);
+  assert.match(canvasUtils, /ctx\.clip\(\)/);
+  assert.match(canvasUtils, /rgba\(255, 255, 255, 0\.1\)/);
+  assert.match(effectPreview, /highlight\.highlightWidthProgress \* 100/);
+  assert.doesNotMatch(canvasUtils, /pillWidth = pillFullWidth/);
+});
+
+test("export highlight early frame keeps text inside full pill bounds", () => {
+  const canvasUtils = readSrc("src/features/export/utils/export-caption-canvas.utils.ts");
+  const early = getExportHighlightSubtitleFrame(100, 3000);
+
+  assert.ok(early.highlightWidthProgress < 1);
+  assert.match(canvasUtils, /fillText\(line, pillLeft \+ padX, baselineY\)/);
+  assert.match(canvasUtils, /const pillFullWidth = textWidth \+ padX \* 2/);
+  assert.doesNotMatch(canvasUtils, /roundRectPath\(ctx, pillLeft, pillTop, pillWidth/);
+});
+
+test("complete highlight frame fills overlay across full pill", () => {
+  const complete = getExportHighlightSubtitleFrame(2999, 3000);
+  assert.ok(complete.highlightWidthProgress >= 0.99);
+});
+
+test("fade-up and typewriter export paths remain separate from highlight overlay", () => {
+  const canvasUtils = readSrc("src/features/export/utils/export-caption-canvas.utils.ts");
+
+  assert.match(canvasUtils, /display\?\.effect === "highlight"/);
+  assert.match(canvasUtils, /drawSubtitleBox\(ctx, centerX, boxTop, boxWidth, boxHeight/);
+  assert.match(canvasUtils, /display\.animationState && display\.effect === "typewriter"/);
+  assert.match(canvasUtils, /ctx\.fillText\(line, centerX, lineY\)/);
+});
+
 test("export subtitle styling: no full-width bottom band, content-sized pill at ~45% opacity", () => {
   const canvasUtils = readSrc("src/features/export/utils/export-caption-canvas.utils.ts");
 
@@ -554,6 +616,342 @@ test("preview and export select the same active chunk and progress", () => {
       exportState.chunkElapsedMs / exportState.activeChunkDurationMs,
     );
   }
+});
+
+test("safe caption presets resolve export styles matching preview intent", () => {
+  for (const presetId of ["minimal", "documentary", "cinematic"] as const) {
+    const scene = { captionPreset: presetId, subtitleEffect: "fade-up" as const };
+    const exportStyle = resolveExportCaptionStyle(scene);
+    const previewStyle = resolvePreviewCaptionStyle(scene);
+
+    assert.equal(exportStyle.usesFadeSafeStyleOverlay, true);
+    assert.equal(previewStyle.usesFadeSafeStyleOverlay, true);
+    assert.deepEqual(
+      {
+        fontWeight: exportStyle.fontWeight,
+        letterSpacingEm: exportStyle.letterSpacingEm,
+        lineHeightRatio: exportStyle.lineHeightRatio,
+        textShadow: exportStyle.textShadow,
+      },
+      FADE_SAFE_CAPTION_STYLE_TOKENS[presetId],
+    );
+  }
+});
+
+test("non-safe presets and non-fade effects keep legacy export styling", () => {
+  for (const presetId of ["tiktok", "sports", "news"] as const) {
+    const style = resolveExportCaptionStyle({ captionPreset: presetId });
+    assert.equal(style.usesFadeSafeStyleOverlay, false);
+    assert.equal(style.fontWeight, LEGACY_EXPORT_CAPTION_STYLE_TOKENS.fontWeight);
+  }
+
+  const override = resolveExportCaptionStyle({
+    captionPreset: "cinematic",
+    subtitleEffect: "typewriter",
+  });
+  assert.equal(override.usesFadeSafeStyleOverlay, false);
+  assert.equal(override.fontWeight, LEGACY_EXPORT_CAPTION_STYLE_TOKENS.fontWeight);
+});
+
+test("typewriter and highlight export displays skip preset styling", () => {
+  for (const effect of ["typewriter", "highlight"] as const) {
+    const style = resolveExportCaptionStyleForDisplay({
+      captionPreset: "documentary",
+      effect,
+    });
+    assert.equal(style.usesFadeSafeStyleOverlay, false);
+    assert.equal(style.fontWeight, LEGACY_EXPORT_CAPTION_STYLE_TOKENS.fontWeight);
+  }
+});
+
+test("generated caption export path keeps legacy styling", () => {
+  const style = resolveExportCaptionStyleForDisplay(undefined);
+  assert.equal(style.usesFadeSafeStyleOverlay, false);
+  assert.equal(style.fontWeight, LEGACY_EXPORT_CAPTION_STYLE_TOKENS.fontWeight);
+  assert.equal(style.lineHeightRatio, LEGACY_EXPORT_CAPTION_STYLE_TOKENS.lineHeightRatio);
+
+  const canvasUtils = readSrc("src/features/export/utils/export-caption-canvas.utils.ts");
+  assert.match(canvasUtils, /drawExportGeneratedCaption/);
+  assert.match(canvasUtils, /resolveExportCaptionStyleForDisplay/);
+});
+
+test("export subtitle display carries captionPreset for fade-safe styling", () => {
+  const script: FootieScript = {
+    ...subtitlesScene("fade-up"),
+    scenes: [
+      {
+        ...subtitlesScene("fade-up").scenes[0]!,
+        captionPreset: "cinematic",
+      },
+    ],
+  };
+  const scene = getRenderableScenesFromPayload(buildFootieExportPayload(script))[0]!;
+  const display = resolveExportSubtitleDisplay(scene, {
+    sceneElapsedMs: 500,
+    sceneDurationMs: scene.durationMs,
+  });
+
+  assert.ok(display);
+  assert.equal(display!.captionPreset, "cinematic");
+  assert.equal(display!.effect, "fade-up");
+});
+
+test("typewriter and highlight export timing paths remain unchanged", () => {
+  for (const effect of ["typewriter", "highlight"] as const) {
+    const scene = getRenderableScenesFromPayload(buildFootieExportPayload(subtitlesScene(effect)))[0]!;
+    const timing = { sceneElapsedMs: 1500, sceneDurationMs: scene.durationMs };
+    const state = getExportSubtitleChunkState(scene, timing);
+    const display = resolveExportSubtitleDisplay(scene, timing);
+
+    assert.ok(state.chunk);
+    assert.ok(display);
+    assert.equal(display!.effect, effect);
+    assert.equal(
+      display!.effectProgress,
+      state.chunkElapsedMs / state.activeChunkDurationMs,
+    );
+  }
+});
+
+test("tiktok preset applies typewriter motion styling in preview and export", () => {
+  const script: FootieScript = {
+    ...subtitlesScene("typewriter"),
+    scenes: [
+      {
+        ...subtitlesScene("typewriter").scenes[0]!,
+        captionPreset: "tiktok",
+      },
+    ],
+  };
+  const scene = getRenderableScenesFromPayload(buildFootieExportPayload(script))[0]!;
+  const display = resolveExportSubtitleDisplay(scene, {
+    sceneElapsedMs: 500,
+    sceneDurationMs: scene.durationMs,
+  });
+
+  assert.ok(display);
+  assert.equal(display!.captionPreset, "tiktok");
+  assert.equal(display!.effect, "typewriter");
+
+  const overlay = resolveTikTokMotionOverlay({
+    captionPreset: display!.captionPreset,
+    subtitleEffect: display!.effect,
+    captionTooShortForEffect: display!.captionTooShortForEffect,
+  });
+  assert.equal(overlay.usesTikTokMotionOverlay, true);
+
+  const exportStyle = resolveExportCaptionStyleForDisplay({
+    captionPreset: display!.captionPreset,
+    effect: display!.effect,
+    captionTooShortForEffect: display!.captionTooShortForEffect,
+  });
+  assert.equal(exportStyle.fontWeight, TIKTOK_MOTION_STYLE_TOKENS.fontWeight);
+
+  const previewStyle = resolvePreviewTikTokMotionStyle({
+    captionPreset: "tiktok",
+    subtitleEffect: "typewriter",
+  });
+  assert.match(previewStyle.containerClassName, /caption-preset-tiktok/);
+
+  const canvasUtils = readSrc("src/features/export/utils/export-caption-canvas.utils.ts");
+  assert.match(canvasUtils, /resolveTikTokMotionVisualState/);
+});
+
+test("tiktok motion pop scale stays within safe bounds", () => {
+  assert.ok(resolveTikTokPopScale(0) >= 0.9);
+  assert.ok(resolveTikTokPopScale(0) <= 1);
+  assert.equal(resolveTikTokPopScale(TIKTOK_POP_DURATION_MS), 1);
+  assert.equal(resolveTikTokPopScale(TIKTOK_POP_DURATION_MS + 500), 1);
+});
+
+test("fade-safe presets remain unchanged after tiktok motion export wiring", () => {
+  for (const presetId of ["minimal", "documentary", "cinematic"] as const) {
+    const style = resolveExportCaptionStyle({
+      captionPreset: presetId,
+      subtitleEffect: "fade-up",
+    });
+    assert.equal(style.usesFadeSafeStyleOverlay, true);
+    assert.deepEqual(
+      {
+        fontWeight: style.fontWeight,
+        letterSpacingEm: style.letterSpacingEm,
+        lineHeightRatio: style.lineHeightRatio,
+        textShadow: style.textShadow,
+      },
+      FADE_SAFE_CAPTION_STYLE_TOKENS[presetId],
+    );
+  }
+
+  const highlightStyle = resolveExportCaptionStyleForDisplay({
+    captionPreset: "news",
+    effect: "highlight",
+  });
+  assert.equal(highlightStyle.fontWeight, LEGACY_EXPORT_CAPTION_STYLE_TOKENS.fontWeight);
+});
+
+test("sports preset applies highlight motion styling in preview and export", () => {
+  const script: FootieScript = {
+    ...subtitlesScene("highlight"),
+    scenes: [
+      {
+        ...subtitlesScene("highlight").scenes[0]!,
+        captionPreset: "sports",
+        durationMs: 9000,
+      },
+    ],
+  };
+  const scene = getRenderableScenesFromPayload(buildFootieExportPayload(script))[0]!;
+  const display = resolveExportSubtitleDisplay(scene, {
+    sceneElapsedMs: 1500,
+    sceneDurationMs: scene.durationMs,
+  });
+
+  assert.ok(display);
+  assert.equal(display!.captionPreset, "sports");
+  assert.equal(display!.effect, "highlight");
+
+  const overlay = resolveSportsMotionOverlay({
+    captionPreset: display!.captionPreset,
+    subtitleEffect: display!.effect,
+    subtitleAvailableDurationMs: display!.activeChunkDurationMs,
+  });
+  assert.equal(overlay.usesSportsMotionOverlay, true);
+
+  const previewStyle = resolvePreviewSportsMotionStyle({
+    captionPreset: "sports",
+    subtitleEffect: "highlight",
+    subtitleAvailableDurationMs: 2000,
+  });
+  assert.match(previewStyle.containerClassName, /caption-preset-sports/);
+
+  const canvasUtils = readSrc("src/features/export/utils/export-caption-canvas.utils.ts");
+  assert.match(canvasUtils, /resolveSportsMotionVisualState/);
+  assert.match(canvasUtils, /SPORTS_MOTION_STYLE_TOKENS/);
+});
+
+test("sports highlight state parity uses getExportHighlightSubtitleFrame unchanged", () => {
+  const durationMs = 2000;
+  const early = getExportHighlightSubtitleFrame(200, durationMs);
+  const late = getExportHighlightSubtitleFrame(1600, durationMs);
+
+  assert.ok(early.highlightWidthProgress < late.highlightWidthProgress);
+  assert.ok(early.backgroundAlpha <= late.backgroundAlpha);
+
+  const motion = resolveSportsMotionVisualState(
+    resolveSportsMotionOverlay({
+      captionPreset: "sports",
+      subtitleEffect: "highlight",
+      subtitleAvailableDurationMs: durationMs,
+    }),
+    { localElapsedMs: 200 },
+  );
+  assert.ok(motion.usesSportsGlow);
+});
+
+test("short sports highlight windows degrade to legacy highlight styling", () => {
+  const overlay = resolveSportsMotionOverlay({
+    captionPreset: "sports",
+    subtitleEffect: "highlight",
+    subtitleAvailableDurationMs: SPORTS_BOUNCE_MIN_WINDOW_MS - 100,
+  });
+  assert.equal(overlay.usesLegacyHighlightFallback, true);
+  assert.equal(inferSportsBounceDisabled(300), true);
+});
+
+test("news preset applies lower-third highlight styling in preview and export", () => {
+  const script: FootieScript = {
+    ...subtitlesScene("highlight"),
+    scenes: [
+      {
+        ...subtitlesScene("highlight").scenes[0]!,
+        captionPreset: "news",
+        durationMs: 9000,
+      },
+    ],
+  };
+  const scene = getRenderableScenesFromPayload(buildFootieExportPayload(script))[0]!;
+  const display = resolveExportSubtitleDisplay(scene, {
+    sceneElapsedMs: 1500,
+    sceneDurationMs: scene.durationMs,
+  });
+
+  assert.ok(display);
+  assert.equal(display!.captionPreset, "news");
+  assert.equal(display!.effect, "highlight");
+
+  const overlay = resolveNewsMotionOverlay({
+    captionPreset: display!.captionPreset,
+    subtitleEffect: display!.effect,
+    subtitleAvailableDurationMs: display!.activeChunkDurationMs,
+  });
+  assert.equal(overlay.usesNewsMotionOverlay, true);
+
+  const previewStyle = resolvePreviewNewsMotionStyle({
+    captionPreset: "news",
+    subtitleEffect: "highlight",
+    subtitleAvailableDurationMs: 2000,
+  });
+  assert.match(previewStyle.containerClassName, /caption-preset-news/);
+
+  const canvasUtils = readSrc("src/features/export/utils/export-caption-canvas.utils.ts");
+  assert.match(canvasUtils, /resolveNewsMotionVisualState/);
+  assert.match(canvasUtils, /NEWS_MOTION_STYLE_TOKENS/);
+});
+
+test("news highlight state parity uses getExportHighlightSubtitleFrame unchanged", () => {
+  const durationMs = 2000;
+  const early = getExportHighlightSubtitleFrame(200, durationMs);
+  const late = getExportHighlightSubtitleFrame(1600, durationMs);
+
+  assert.ok(early.highlightWidthProgress < late.highlightWidthProgress);
+
+  const motion = resolveNewsMotionVisualState(
+    resolveNewsMotionOverlay({
+      captionPreset: "news",
+      subtitleEffect: "highlight",
+      subtitleAvailableDurationMs: durationMs,
+    }),
+    { localElapsedMs: 100 },
+  );
+  assert.ok(motion.usesNewsLowerThird);
+  assert.ok(motion.slideOffsetPx > 0);
+});
+
+test("short news highlight windows degrade to standard highlight styling", () => {
+  const overlay = resolveNewsMotionOverlay({
+    captionPreset: "news",
+    subtitleEffect: "highlight",
+    subtitleAvailableDurationMs: NEWS_SLIDE_MIN_WINDOW_MS - 100,
+  });
+  assert.equal(overlay.usesLegacyHighlightFallback, true);
+  assert.equal(inferNewsSlideDisabled(300), true);
+});
+
+test("sports and tiktok presets remain unchanged by news motion wiring", () => {
+  assert.equal(
+    resolveSportsMotionOverlay({
+      captionPreset: "sports",
+      subtitleEffect: "highlight",
+      subtitleAvailableDurationMs: 5000,
+    }).usesSportsMotionOverlay,
+    true,
+  );
+  assert.equal(
+    resolveNewsMotionOverlay({
+      captionPreset: "sports",
+      subtitleEffect: "highlight",
+      subtitleAvailableDurationMs: 5000,
+    }).usesNewsMotionOverlay,
+    false,
+  );
+  assert.equal(
+    resolveNewsMotionOverlay({
+      captionPreset: "tiktok",
+      subtitleEffect: "typewriter",
+      subtitleAvailableDurationMs: 5000,
+    }).usesNewsMotionOverlay,
+    false,
+  );
 });
 
 console.log("All export subtitle QA checks passed.");

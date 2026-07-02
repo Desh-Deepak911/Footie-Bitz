@@ -14,6 +14,7 @@ interface SubtitleOverlayProps {
   chunkProgress?: number;
   captionAnimationState?: CaptionAnimationState | null;
   subtitleAvailableDurationMs?: number;
+  captionTooShortForEffect?: boolean;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ export default function SubtitleOverlay({
   chunkProgress,
   captionAnimationState,
   subtitleAvailableDurationMs,
+  captionTooShortForEffect,
   className = "",
 }: SubtitleOverlayProps) {
   const previewChunkState =
@@ -51,6 +53,7 @@ export default function SubtitleOverlay({
       activeSubtitleChunk: visibleCaption,
       captionAnimationState: captionAnimationState ?? undefined,
       subtitleAvailableDurationMs,
+      captionTooShortForEffect,
     },
   );
 

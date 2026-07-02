@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { studioCard } from "@/lib/utils/studioUi";
+import { studioSectionCard } from "@/lib/utils/studioUi";
 
 interface CardProps {
   children: ReactNode;
@@ -10,7 +10,7 @@ interface CardProps {
 
 export default function Card({ children, className = "", id }: CardProps) {
   return (
-    <section id={id} className={`${studioCard} ${className}`}>
+    <section id={id} className={`${studioSectionCard} ${className}`}>
       {children}
     </section>
   );

@@ -69,7 +69,9 @@ export function hasVoiceSettingsVoiceoverMismatch(story: FootieScript): boolean 
 
   return (
     current.voice !== normalizedSnapshot.voice ||
-    current.speed !== normalizedSnapshot.speed
+    current.speed !== normalizedSnapshot.speed ||
+    current.stylePreset !== normalizedSnapshot.stylePreset ||
+    current.expressiveDelivery !== normalizedSnapshot.expressiveDelivery
   );
 }
 
@@ -94,7 +96,7 @@ function resolveStaleDetail(story: FootieScript): string {
   }
 
   if (voiceDrift) {
-    return "Voice or speed changed since this audio was recorded.";
+    return "Voice, speed, or delivery style changed since this audio was recorded.";
   }
 
   return "Voiceover needs to be regenerated.";

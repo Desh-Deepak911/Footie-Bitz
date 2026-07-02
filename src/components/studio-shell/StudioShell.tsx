@@ -30,6 +30,7 @@ export default function StudioShell({
   compactMode = false,
   hideFooterInFocusMode = true,
   canvasCenterContent = true,
+  canvasLayout,
   sidebarVisibleBelowLg = false,
   className = "",
   "aria-label": ariaLabel = "Studio workspace",
@@ -60,7 +61,11 @@ export default function StudioShell({
 
           <div className={studioShellMainColumn}>
             <div className={studioShellBodyRow}>
-              {canvas ? <StudioCanvas centerContent={canvasCenterContent}>{canvas}</StudioCanvas> : null}
+              {canvas ? (
+                <StudioCanvas centerContent={canvasCenterContent} layout={canvasLayout}>
+                  {canvas}
+                </StudioCanvas>
+              ) : null}
               {inspector ? (
                 <StudioInspector compactMode={compactMode}>{inspector}</StudioInspector>
               ) : null}

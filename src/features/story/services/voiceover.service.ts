@@ -2,7 +2,9 @@ import "server-only";
 
 import type OpenAI from "openai";
 
+import { resolveSpeechStyleInstructionsForVoice } from "@/features/speech-style";
 import { getOpenAIClient } from "@/lib/ai";
+import { voiceRequiresGpt4oMiniTts } from "@/lib/utils/tts-voice-compat.utils";
 import {
   DEFAULT_VOICEOVER_SPEED,
   DEFAULT_VOICEOVER_VOICE,
@@ -16,6 +18,8 @@ import { toVoiceoverResultFromMp3 } from "@/features/story/utils";
 const TTS_MODEL = "tts-1";
 const MAX_INPUT_LENGTH = 4096;
 
+export { TTS_MODEL };
+
 /** OpenAI TTS accepts a `speed` parameter on speech.create. */
 const OPENAI_TTS_SUPPORTS_PLAYBACK_SPEED = true;
 
@@ -25,17 +29,23 @@ export interface GenerateVoiceoverInput {
   narration: string;
   voice?: unknown;
   speed?: unknown;
+  stylePreset?: unknown;
+  expressiveDelivery?: unknown;
 }
 
 export interface GenerateVoiceoverFromScriptOptions {
   voice?: string;
   speed?: unknown;
+  stylePreset?: unknown;
+  expressiveDelivery?: unknown;
 }
 
 export interface GenerateVoiceoverMp3Options {
   speed?: unknown;
   /** When false, TTS runs at default speed and duration is adjusted downstream. */
   applySpeed?: boolean;
+  model?: string;
+  instructions?: string;
 }
 
 export type GenerateVoiceoverOutput = VoiceoverResult & { audioBuffer: ArrayBuffer };
@@ -48,13 +58,15 @@ export async function generateVoiceoverMp3(
   const openai = getOpenAIClient();
   const resolvedVoice = resolveVoiceoverVoice(voice) as OpenAI.Audio.SpeechCreateParams["voice"];
   const applySpeed = options.applySpeed ?? OPENAI_TTS_SUPPORTS_PLAYBACK_SPEED;
+  const model = options.model ?? TTS_MODEL;
 
   const speech = await openai.audio.speech.create({
-    model: TTS_MODEL,
+    model,
     voice: resolvedVoice,
     input: text.slice(0, MAX_INPUT_LENGTH),
     response_format: "mp3",
     ...(applySpeed ? { speed: resolveVoiceoverSpeed(options.speed) } : {}),
+    ...(options.instructions ? { instructions: options.instructions } : {}),
   });
 
   return speech.arrayBuffer();
@@ -75,16 +87,28 @@ export async function generateVoiceover(
   const resolvedVoice = resolveVoiceoverVoice(input.voice ?? DEFAULT_VOICEOVER_VOICE);
   const resolvedSpeed = resolveVoiceoverSpeed(input.speed ?? DEFAULT_VOICEOVER_SPEED);
   const speedAppliedByProvider = OPENAI_TTS_SUPPORTS_PLAYBACK_SPEED;
+  const style = resolveSpeechStyleInstructionsForVoice(
+    resolvedVoice,
+    input.stylePreset,
+    input.expressiveDelivery,
+  );
 
   const mp3 = await generateVoiceoverMp3(narration, resolvedVoice, {
     speed: resolvedSpeed,
     applySpeed: speedAppliedByProvider,
+    model: style.model,
+    instructions: style.instructions,
   });
 
   const base = toVoiceoverResultFromMp3(mp3, {
     voice: resolvedVoice,
     speed: resolvedSpeed,
     narration,
+    metadata: {
+      ...(style.useInstructionTts || voiceRequiresGpt4oMiniTts(resolvedVoice)
+        ? { model: style.model }
+        : {}),
+    },
   });
 
   const durationMs = adjustVoiceoverDurationForSpeed(
@@ -116,6 +140,8 @@ export async function generateVoiceoverFromScript(
     narration: script.narration,
     voice: options.voice,
     speed: options.speed,
+    stylePreset: options.stylePreset,
+    expressiveDelivery: options.expressiveDelivery,
   });
 
   return {

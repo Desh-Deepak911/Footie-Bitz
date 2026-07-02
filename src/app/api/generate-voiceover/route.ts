@@ -12,6 +12,8 @@ interface GenerateVoiceoverRequest {
   text?: string;
   voice?: string;
   speed?: number;
+  stylePreset?: string;
+  expressiveDelivery?: boolean;
 }
 
 function jsonError(message: string, status: number) {
@@ -52,6 +54,8 @@ export async function POST(request: Request) {
       narration,
       voice: body.voice,
       speed: body.speed,
+      stylePreset: body.stylePreset,
+      expressiveDelivery: body.expressiveDelivery,
     });
 
     return new NextResponse(new Uint8Array(voiceover.audioBuffer), {

@@ -1,6 +1,7 @@
 "use client";
 
-import { creatorAssetSectionClass } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.utils";
+import { useCreatorAssetStudioCompact } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.compact-context";
+import { resolveCreatorAssetSectionClass } from "@/features/editor/components/creator-asset-studio/creator-asset-studio.utils";
 import { studioShellSectionTitle, studioSubtleText } from "@/lib/utils/studioUi";
 
 export interface CreatorAssetProviderContextSectionProps {
@@ -13,18 +14,20 @@ export interface CreatorAssetProviderContextSectionProps {
 export default function CreatorAssetProviderContextSection({
   context,
 }: CreatorAssetProviderContextSectionProps) {
+  const compact = useCreatorAssetStudioCompact();
+
   if (!context) {
     return null;
   }
 
   return (
-    <section className={creatorAssetSectionClass}>
-      <header className="mb-3">
+    <section className={resolveCreatorAssetSectionClass(compact)}>
+      <header className={compact ? "mb-2" : "mb-3"}>
         <p className={studioShellSectionTitle}>Provider Context</p>
         <p className={studioSubtleText}>Why this provider fits the scene</p>
       </header>
 
-      <p className="text-sm leading-relaxed text-foreground/90">{context}</p>
+      <p className={`${compact ? "text-xs" : "text-sm"} leading-relaxed text-foreground/90`}>{context}</p>
     </section>
   );
 }

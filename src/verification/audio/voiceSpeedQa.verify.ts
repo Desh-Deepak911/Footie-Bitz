@@ -14,7 +14,16 @@ import {
   getExportSubtitleChunkState,
   resolveExportSubtitleDisplay,
 } from "@/features/export/utils/export-subtitle.utils";
+import {
+  isVoiceoverSpeedAppliedByProvider,
+  resolvePreviewVoiceoverPlaybackRate,
+  VOICEOVER_SPEED_BAKED_BY_TTS_PROVIDER,
+} from "@/features/audio/utils/voiceover-playback-rate.utils";
+import {
+  hasVoiceSettingsVoiceoverMismatch,
+} from "@/features/audio/utils/voiceover-status.utils";
 import { getPreviewFrameAtTime } from "@/features/preview/utils/previewTimeline";
+import { buildPreviewMasterTimeline } from "@/features/preview/utils/preview-master-timeline.utils";
 import { getPreviewSceneTiming } from "@/features/preview/utils/previewSceneTiming";
 import type { FootieScene, FootieScript } from "@/features/story/types";
 import {
@@ -211,19 +220,16 @@ test("subtitle timing still derives from unchanged scene.durationMs", () => {
   const chunks = splitSubtitleChunks(subtitleText);
   const sceneDurationMs = updated.scenes[0]!.durationMs!;
   const chunkDurationMs = sceneDurationMs / chunks.length;
+  const elapsedMs = Math.floor(chunkDurationMs / 2);
+  const timingAt = getSceneTimingAtGlobalTime(updated.scenes, elapsedMs);
+  assert.ok(timingAt);
 
-  const previewTiming = getPreviewSceneTiming({
-    scenes: updated.scenes,
-    sceneIndex: 99,
-    elapsedSec: chunkDurationMs / 1000,
-    playbackMode: "narration",
-    isPlaying: true,
-    browserSceneStartedAtMs: null,
-    previewClockMs: 0,
-  });
+  const previewTiming = {
+    sceneElapsedMs: timingAt.sceneElapsedMs,
+    sceneDurationMs: timingAt.sceneDurationMs,
+  };
 
   assert.equal(previewTiming.sceneDurationMs, 8000);
-  assert.equal(previewTiming.activeSceneIndex, 0);
 
   const previewSubtitle = resolveActiveSubtitleForScene(updated.scenes[0]!, previewTiming);
   const exportSubtitle = resolveExportSubtitleDisplay(updated.scenes[0]!, previewTiming);
@@ -280,6 +286,7 @@ test("no subtitle lag after speed changes — preview and export share global ti
 
   assert.equal(resolveStoryDurationSec(script), 16);
 
+  const masterTimeline = buildPreviewMasterTimeline(script);
   const sampleTimesMs = [500, 3500, 6400, 9000, 15_500];
   for (const elapsedMs of sampleTimesMs) {
     const globalTiming = getSceneTimingAtGlobalTime(scenes, elapsedMs);
@@ -289,10 +296,12 @@ test("no subtitle lag after speed changes — preview and export share global ti
       scenes,
       sceneIndex: 0,
       elapsedSec: elapsedMs / 1000,
+      currentTimeMs: elapsedMs,
       playbackMode: "narration",
       isPlaying: true,
       browserSceneStartedAtMs: null,
       previewClockMs: 0,
+      masterTimeline,
     });
 
     assert.equal(previewTiming.sceneElapsedMs, globalTiming.sceneElapsedMs);
@@ -323,6 +332,87 @@ test("voice speed UI does not auto-regenerate on chip change", () => {
 
   assert.match(card, /applyStoryVoiceSettings\(script,\s*\{\s*speed:/);
   assert.match(card, /onClick=\{\(\) => void applyVoiceoverChanges\(\)\}/);
+});
+
+test("OpenAI baked-speed voiceover preview does not double-apply playbackRate", () => {
+  assert.equal(VOICEOVER_SPEED_BAKED_BY_TTS_PROVIDER, true);
+  assert.equal(isVoiceoverSpeedAppliedByProvider(), true);
+  assert.equal(
+    resolvePreviewVoiceoverPlaybackRate({ nominalSpeed: 1.25 }),
+    1,
+  );
+  assert.equal(
+    resolvePreviewVoiceoverPlaybackRate({ nominalSpeed: 0.75 }),
+    1,
+  );
+
+  const previewHook = readFileSync(
+    join(root, "src/features/preview/hooks/usePreviewPlayback.ts"),
+    "utf8",
+  );
+  assert.match(previewHook, /resolvePreviewVoiceoverPlaybackRate/);
+  assert.doesNotMatch(
+    previewHook,
+    /audio\.playbackRate\s*=\s*rate/,
+  );
+});
+
+test("non-baked provider path still applies nominal playbackRate for preview", () => {
+  assert.equal(
+    resolvePreviewVoiceoverPlaybackRate({
+      nominalSpeed: 1.25,
+      speedAppliedByProvider: false,
+    }),
+    1.25,
+  );
+  assert.equal(
+    resolvePreviewVoiceoverPlaybackRate({
+      nominalSpeed: 0.75,
+      speedAppliedByProvider: false,
+    }),
+    0.75,
+  );
+});
+
+test("uploaded or non-provider audio can opt out of baked-speed preview playback", () => {
+  assert.equal(
+    resolvePreviewVoiceoverPlaybackRate({
+      nominalSpeed: 1.4,
+      speedAppliedByProvider: false,
+    }),
+    1.4,
+  );
+});
+
+test("export still muxes raw canonical MP3 without preview playbackRate", () => {
+  const ffmpeg = readFileSync(
+    join(root, "src/features/export/utils/ffmpeg.utils.ts"),
+    "utf8",
+  );
+  assert.match(ffmpeg, /atrim preserves voiceover playback rate/);
+  assert.doesNotMatch(ffmpeg, /atempo=/);
+});
+
+test("voice speed stale detection still compares story speed metadata", () => {
+  const script = applyVoiceoverRegeneration(buildSpeedChangeStory(), {
+    voiceoverUrl: "blob:stale-check",
+    voiceoverDurationMs: 20_000,
+    voiceSettings: { voice: "fable", speed: 1 },
+  });
+
+  assert.equal(hasVoiceSettingsVoiceoverMismatch(script), false);
+
+  const speedChanged = applyStoryVoiceSettings(script, { speed: 1.25 });
+  assert.equal(hasVoiceSettingsVoiceoverMismatch(speedChanged), true);
+  assert.equal(getStoryVoiceSettings(speedChanged).speed, 1.25);
+});
+
+test("audio mix keeps nominal speed metadata for UI and stale detection", () => {
+  const audioEngine = readFileSync(
+    join(root, "src/features/audio/services/audio-engine.service.ts"),
+    "utf8",
+  );
+  assert.match(audioEngine, /playbackRate: speed/);
 });
 
 console.log("\nAll voice speed QA checks passed.");

@@ -154,8 +154,9 @@ function StoryWorkspaceContent({
       <StudioShell
         aria-label="Editor"
         canvasCenterContent={false}
+        canvasLayout="editor"
         sidebarVisibleBelowLg
-        className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0"
+        className="h-full min-h-0 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0"
         header={
           <EditorStudioHeader
             projectTitle={projectTitle}
@@ -174,7 +175,7 @@ function StoryWorkspaceContent({
         canvas={
           <div
             id="studio-preview"
-            className={`${studioShellEditorCanvasMaxWidth} mx-auto flex min-h-0 w-full flex-1 flex-col items-center justify-center scroll-mt-24`}
+            className={`${studioShellEditorCanvasMaxWidth} mx-auto flex min-h-0 w-full max-h-full flex-col items-center justify-center gap-2 scroll-mt-24`}
           >
             <StudioContextRibbon
               renderers={{
@@ -206,6 +207,7 @@ function StoryWorkspaceContent({
           <InspectorContextProvider
             script={script}
             onScriptChange={onScriptChange}
+            storyId={draftId}
             assetPlanning={assetPlanning}
             creatorAssetStudioVisible={creatorAssetStudioVisible}
           >

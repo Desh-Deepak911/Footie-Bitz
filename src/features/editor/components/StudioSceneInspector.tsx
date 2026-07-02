@@ -8,6 +8,11 @@ import CaptionModeControl from "@/features/editor/components/CaptionModeControl"
 import CreatorAssetStudio from "@/features/editor/components/creator-asset-studio/CreatorAssetStudio";
 import SceneImageInspector from "@/features/editor/components/SceneImageInspector";
 import SceneImageMotionControl from "@/features/editor/components/SceneImageMotionControl";
+import {
+  buildSceneCaptionPresetPatch,
+  buildSceneSubtitleEffectPatch,
+  CaptionPresetPanel,
+} from "@/features/caption-engine";
 import SubtitleEffectControl from "@/features/editor/components/SubtitleEffectControl";
 import TransitionCard from "@/features/editor/components/TransitionCard";
 import SmartEditImageAction, {
@@ -359,10 +364,27 @@ export default function StudioSceneInspector({
 
         {isSubtitlesMode ? (
           <>
-            <SubtitleEffectControl
-              value={scene.subtitleEffect}
-              onChange={(effect) => updateScene(scene.id, { subtitleEffect: effect })}
+            <CaptionPresetPanel
+              compact
+              captionPreset={scene.captionPreset}
+              subtitleEffect={scene.subtitleEffect}
+              onPresetSelect={(presetId) =>
+                updateScene(scene.id, buildSceneCaptionPresetPatch(presetId))
+              }
             />
+            <details className="rounded-xl bg-surface-elevated/25 ring-1 ring-border/20">
+              <summary className={`cursor-pointer list-none px-3 py-2 ${studioFieldLabel}`}>
+                Advanced subtitle effect
+              </summary>
+              <div className="space-y-2 border-t border-border/15 px-3 py-2">
+                <SubtitleEffectControl
+                  value={scene.subtitleEffect}
+                  onChange={(effect) =>
+                    updateScene(scene.id, buildSceneSubtitleEffectPatch(effect))
+                  }
+                />
+              </div>
+            </details>
             <div>
               <label htmlFor={`inspector-subtitle-text-${scene.id}`} className={studioFieldLabel}>
                 Subtitle text
@@ -428,7 +450,7 @@ export default function StudioSceneInspector({
       </InspectorSection>
 
       {creatorAssetStudioVisible ? (
-        <CreatorAssetStudio sceneIndex={safeIndex} planning={assetPlanning ?? null} />
+        <CreatorAssetStudio sceneIndex={safeIndex} planning={assetPlanning ?? null} compact />
       ) : null}
     </div>
   );

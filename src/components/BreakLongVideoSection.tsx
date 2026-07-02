@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { PRODUCT_NAME } from "@/lib/constants/product-brand";
 import {
   studioBadge,
-  studioCard,
+  studioSectionCard,
   studioFieldLabel,
   studioIconBox,
   studioPanel,
@@ -70,7 +70,7 @@ export default function BreakLongVideoSection() {
   }, []);
 
   return (
-    <section className={studioCard}>
+    <section className={studioSectionCard}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
           <div className={studioIconBox}>
